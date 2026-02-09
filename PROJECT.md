@@ -143,6 +143,11 @@ stillnoob/
 │   └── web/                    # Future React app (not yet built)
 ├── wrangler.jsonc              # Cloudflare Workers config
 ├── .gitignore                  # node_modules, .env, *.db, .wrangler/
+├── workers/
+│   └── api-proxy/
+│       ├── worker.js           # Cloudflare Worker: reverse proxy to Render
+│       └── wrangler.toml       # Worker config (deploy via wrangler or dashboard)
+├── render.yaml                 # Render Blueprint (auto-deploy config)
 ├── PROJECT.md                  # THIS FILE - project rules & context
 ├── package.json                # Root workspace config (turbo)
 └── turbo.json                  # Turbo monorepo config (if exists)
@@ -317,18 +322,24 @@ npm install                   # Install all workspace deps
 ### Frontend — DONE (Feb 9, 2026)
 - React 18 + Vite 6 + Tailwind 3 + Recharts + i18next (EN/ES)
 - Void palette aligned with landing page design
-- Pages: Landing, Login, Register, Dashboard, Analysis (4 tabs), Guild, CharacterPublic
+- Pages: Landing, Login, Register, Dashboard, Analysis (5 tabs), Guild, CharacterPublic
 - Components: ScoreBadge (SVG ring + breakdown), StatCard, ConsumableBar, OverviewSection, BossesSection, TrendsSection, RecommendationsSection
 - Auth: JWT in memory + httpOnly refresh cookie + auto-token-refresh interceptor
 - API proxy: Vite proxies `/api` to port 3001
 - OAuth linking UI (WCL + Blizzard) in Dashboard
+
+### Infrastructure — DONE (Feb 9, 2026)
+- Landing: Cloudflare Workers (`stillnoob`) → `stillnoob.com`
+- API: Render free tier (Frankfurt) → `api.stillnoob.com` (via Worker proxy)
+- Database: Turso `stillnoob-db` (Frankfurt)
+- Auto-deploy on push to `main`
 
 ### Not Yet Built
 - Raider.io integration
 - Google/Discord OAuth
 - Email verification
 - Premium tier features & payment
-- API backend deployment (prod hosting)
+- Frontend production deployment (React app on Cloudflare Pages or similar)
 - Playwright E2E tests
 
 ---
@@ -352,6 +363,9 @@ npm install                   # Install all workspace deps
 - ⚠️ Drizzle dialect: Use `dialect: 'sqlite'` in `drizzle.config.js` for local `file:` databases. `dialect: 'turso'` only works with remote Turso URLs.
 - ⚠️ `dotenv/config` does NOT work with `node -e` inline eval — use a temp `.js` file instead for testing
 - ⚠️ `API_URL` must be set in `.env` for OAuth callback URLs (WCL, Blizzard) to work correctly
+- ⚠️ Cloudflare-to-Cloudflare conflict (Error 1000): Render uses CF CDN, so CNAME `api` → `onrender.com` fails even with DNS-only. Solution: Use a Cloudflare Worker as reverse proxy instead of CNAME.
+- ⚠️ Worker proxy must NOT add CORS headers — let Express handle CORS. Duplicate headers or `Allow-Origin: *` + `Allow-Credentials: true` will cause browser rejections.
+- ⚠️ `express-rate-limit` requires `app.set('trust proxy', 1)` when behind a reverse proxy (Render, Cloudflare) — otherwise throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 
 ---
 
@@ -379,7 +393,7 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 ## Timeline (Updated)
 | Week | Dates | Goal |
 |------|-------|------|
-| 1 | Feb 10-16 | Name ✅, domain ✅, user flow ✅, landing ✅, infra setup |
+| 1 | Feb 10-16 | Name ✅, domain ✅, user flow ✅, landing ✅, infra ✅ (Render+Turso+CF Workers) |
 | 2 | Feb 17-23 | Project structure, input system, **setup Playwright + first tests** |
 | 3 | Feb 24 - Mar 2 | Analysis engine (APIs) + **tests for API calls & character input** |
 | 4 | Mar 3-9 | Coaching system, dashboard + **tests for dashboard & coaching** |

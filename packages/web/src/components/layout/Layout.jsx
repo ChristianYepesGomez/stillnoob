@@ -21,16 +21,17 @@ export default function Layout() {
   const navItems = [
     { to: '/dashboard', icon: 'fa-home', label: t('nav.dashboard') },
     { to: '/analysis', icon: 'fa-chart-bar', label: t('nav.analysis') },
+    { to: '/guild', icon: 'fa-shield-alt', label: 'Guild' },
   ];
 
   return (
-    <div className="min-h-screen bg-midnight-deepblue">
+    <div className="min-h-screen bg-void-deep">
       {/* Top navbar */}
-      <nav className="bg-midnight-spaceblue/80 backdrop-blur-sm border-b border-midnight-bright-purple/20 sticky top-0 z-50">
+      <nav className="bg-void-mid/80 backdrop-blur-sm border-b border-void-bright/20 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           {/* Logo */}
           <NavLink to="/dashboard" className="flex items-center gap-2">
-            <span className="font-cinzel text-xl font-bold text-midnight-glow">StillNoob</span>
+            <span className="font-cinzel text-xl font-bold text-void-accent">StillNoob</span>
           </NavLink>
 
           {/* Navigation */}
@@ -42,8 +43,8 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `px-3 py-1.5 rounded-lg text-sm transition-colors ${
                     isActive
-                      ? 'bg-midnight-bright-purple/20 text-midnight-glow'
-                      : 'text-midnight-silver hover:text-white hover:bg-white/5'
+                      ? 'bg-void-bright/20 text-void-accent'
+                      : 'text-void-text hover:text-white hover:bg-white/5'
                   }`
                 }
               >
@@ -57,13 +58,13 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             <button
               onClick={toggleLang}
-              className="text-xs px-2 py-1 rounded bg-midnight-purple/20 text-midnight-silver hover:text-white transition-colors"
+              className="text-xs px-2 py-1 rounded bg-void-surface/20 text-void-text hover:text-white transition-colors"
             >
               {i18n.language === 'es' ? 'EN' : 'ES'}
             </button>
 
             <div className="flex items-center gap-2">
-              <span className="text-sm text-midnight-silver">{user?.displayName}</span>
+              <span className="text-sm text-void-text">{user?.displayName}</span>
               <button
                 onClick={handleLogout}
                 className="text-xs px-2 py-1 rounded bg-red-900/20 text-red-400 hover:bg-red-900/40 transition-colors"

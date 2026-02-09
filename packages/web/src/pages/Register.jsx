@@ -34,16 +34,16 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-midnight-deepblue flex items-center justify-center px-4">
+    <div className="min-h-screen bg-void-deep flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <Link to="/" className="block text-center mb-8">
           <h1 className="font-cinzel text-3xl font-bold">
-            <span className="text-midnight-glow">Still</span>
+            <span className="text-void-accent">Still</span>
             <span className="text-white">Noob</span>
           </h1>
         </Link>
 
-        <div className="bg-midnight-spaceblue/50 border border-midnight-bright-purple/20 rounded-2xl p-6">
+        <div className="bg-void-mid/50 border border-void-bright/20 rounded-2xl p-6">
           <h2 className="text-xl font-semibold text-white mb-6 text-center">{t('auth.register')}</h2>
 
           {error && (
@@ -54,48 +54,48 @@ export default function Register() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-midnight-silver mb-1">{t('auth.displayName')}</label>
+              <label className="block text-sm text-void-text mb-1">{t('auth.displayName')}</label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-midnight-deepblue border border-midnight-bright-purple/20 rounded-lg text-white focus:border-midnight-bright-purple focus:outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-void-deep border border-void-bright/20 rounded-lg text-white focus:border-void-bright focus:outline-none transition-colors"
               />
             </div>
             <div>
-              <label className="block text-sm text-midnight-silver mb-1">{t('auth.email')}</label>
+              <label className="block text-sm text-void-text mb-1">{t('auth.email')}</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 bg-midnight-deepblue border border-midnight-bright-purple/20 rounded-lg text-white focus:border-midnight-bright-purple focus:outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-void-deep border border-void-bright/20 rounded-lg text-white focus:border-void-bright focus:outline-none transition-colors"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm text-midnight-silver mb-1">{t('auth.password')}</label>
+              <label className="block text-sm text-void-text mb-1">{t('auth.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 bg-midnight-deepblue border border-midnight-bright-purple/20 rounded-lg text-white focus:border-midnight-bright-purple focus:outline-none transition-colors"
+                className="w-full px-4 py-2.5 bg-void-deep border border-void-bright/20 rounded-lg text-white focus:border-void-bright focus:outline-none transition-colors"
                 required
                 minLength={8}
               />
-              <p className="text-xs text-midnight-silver/50 mt-1">{t('auth.passwordTooShort')}</p>
+              <p className="text-xs text-void-text/50 mt-1">{t('auth.passwordTooShort')}</p>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-midnight-bright-purple hover:bg-midnight-accent text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+              className="w-full py-2.5 bg-void-bright hover:bg-void-glow text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
             >
               {loading ? t('common.loading') : t('auth.register')}
             </button>
           </form>
 
-          <p className="text-center text-sm text-midnight-silver mt-4">
+          <p className="text-center text-sm text-void-text mt-4">
             {t('auth.alreadyHaveAccount')}{' '}
-            <Link to="/login" className="text-midnight-glow hover:underline">
+            <Link to="/login" className="text-void-accent hover:underline">
               {t('auth.login')}
             </Link>
           </p>

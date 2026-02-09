@@ -6,8 +6,9 @@ import OverviewSection from '../components/analysis/OverviewSection';
 import BossesSection from '../components/analysis/BossesSection';
 import TrendsSection from '../components/analysis/TrendsSection';
 import RecommendationsSection from '../components/analysis/RecommendationsSection';
+import RecentFightsSection from '../components/analysis/RecentFightsSection';
 
-const TABS = ['overview', 'bosses', 'trends', 'recommendations'];
+const TABS = ['overview', 'bosses', 'trends', 'recentFights', 'recommendations'];
 const PERIODS = [4, 8, 12, 52];
 
 export default function Analysis() {
@@ -60,7 +61,7 @@ export default function Analysis() {
             <select
               value={selectedCharId || ''}
               onChange={(e) => setSelectedCharId(parseInt(e.target.value))}
-              className="px-3 py-1.5 bg-midnight-deepblue border border-midnight-bright-purple/20 rounded-lg text-sm text-white focus:outline-none"
+              className="px-3 py-1.5 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none"
             >
               {characters.map(c => (
                 <option key={c.id} value={c.id}>{c.name} - {c.realm}</option>
@@ -69,15 +70,15 @@ export default function Analysis() {
           )}
 
           {/* Period selector */}
-          <div className="flex bg-midnight-deepblue rounded-lg border border-midnight-bright-purple/20 overflow-hidden">
+          <div className="flex bg-void-deep rounded-lg border border-void-bright/20 overflow-hidden">
             {PERIODS.map(p => (
               <button
                 key={p}
                 onClick={() => setWeeks(p)}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                   weeks === p
-                    ? 'bg-midnight-bright-purple text-white'
-                    : 'text-midnight-silver hover:text-white'
+                    ? 'bg-void-bright text-white'
+                    : 'text-void-text hover:text-white'
                 }`}
               >
                 {p === 52 ? t('analysis.periodAll') : t('analysis.periodWeeks', { count: p })}
@@ -89,7 +90,7 @@ export default function Analysis() {
 
       {/* No character selected */}
       {!selectedCharId && (
-        <div className="text-center py-20 text-midnight-silver/60">
+        <div className="text-center py-20 text-void-text/60">
           <i className="fas fa-user-slash text-4xl mb-4" />
           <p>{t('analysis.selectCharacter')}</p>
         </div>
@@ -98,13 +99,13 @@ export default function Analysis() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-4 border-midnight-bright-purple border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-4 border-void-bright border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {/* No data */}
       {!loading && selectedCharId && (!data || !data.summary?.totalFights) && (
-        <div className="text-center py-20 text-midnight-silver/60">
+        <div className="text-center py-20 text-void-text/60">
           <i className="fas fa-chart-bar text-4xl mb-4" />
           <p>{t('analysis.noFightsYet')}</p>
         </div>
@@ -114,15 +115,15 @@ export default function Analysis() {
       {!loading && data && data.summary?.totalFights > 0 && (
         <>
           {/* Tabs */}
-          <div className="flex gap-1 bg-midnight-spaceblue/50 rounded-xl p-1 border border-midnight-bright-purple/10">
+          <div className="flex gap-1 bg-void-mid/50 rounded-xl p-1 border border-void-bright/10">
             {TABS.map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   activeTab === tab
-                    ? 'bg-midnight-bright-purple text-white'
-                    : 'text-midnight-silver hover:text-white hover:bg-white/5'
+                    ? 'bg-void-bright text-white'
+                    : 'text-void-text hover:text-white hover:bg-white/5'
                 }`}
               >
                 {t(`analysis.${tab}`)}
@@ -135,6 +136,7 @@ export default function Analysis() {
             {activeTab === 'overview' && <OverviewSection data={data} />}
             {activeTab === 'bosses' && <BossesSection data={data} />}
             {activeTab === 'trends' && <TrendsSection data={data} />}
+            {activeTab === 'recentFights' && <RecentFightsSection data={data} />}
             {activeTab === 'recommendations' && <RecommendationsSection data={data} />}
           </div>
         </>

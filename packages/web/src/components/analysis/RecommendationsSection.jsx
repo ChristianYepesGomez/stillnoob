@@ -17,7 +17,7 @@ export default function RecommendationsSection({ data }) {
   }, [recommendations]);
 
   if (!recommendations?.length) {
-    return <p className="text-center py-10 text-midnight-silver/60">{t('common.noData')}</p>;
+    return <p className="text-center py-10 text-void-text/60">{t('common.noData')}</p>;
   }
 
   return (
@@ -25,7 +25,7 @@ export default function RecommendationsSection({ data }) {
       {Object.entries(grouped).map(([category, tips]) => {
         const catStyle = CATEGORY_STYLES[category] || {};
         return (
-          <div key={category} className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
+          <div key={category} className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
             <div className="flex items-center gap-2 mb-4">
               <i className={`fas ${catStyle.icon || 'fa-circle'} ${catStyle.color || 'text-white'}`} />
               <h3 className={`text-sm font-semibold uppercase tracking-wider ${catStyle.color || 'text-white'}`}>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { publicAPI } from '../services/api';
 import { CLASS_COLORS, DIFFICULTY_COLORS } from '@stillnoob/shared';
+import { useAuth } from '../context/AuthContext';
 import ScoreBadge from '../components/analysis/ScoreBadge';
 import MythicPlusSection from '../components/analysis/MythicPlusSection';
 
@@ -13,6 +14,7 @@ function formatDps(val) {
 
 export default function CharacterPublic() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { region, realm, name } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,12 +85,21 @@ export default function CharacterPublic() {
       <nav className="bg-void-mid/80 backdrop-blur-sm border-b border-void-bright/15 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="font-cinzel text-xl font-bold text-void-accent">StillNoob</Link>
-          <Link
-            to="/register"
-            className="px-4 py-1.5 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors"
-          >
-            {t('auth.register')}
-          </Link>
+          {user ? (
+            <Link
+              to="/dashboard"
+              className="px-4 py-1.5 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors"
+            >
+              {t('nav.dashboard')}
+            </Link>
+          ) : (
+            <Link
+              to="/register"
+              className="px-4 py-1.5 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors"
+            >
+              {t('auth.register')}
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -204,10 +215,10 @@ export default function CharacterPublic() {
         <div className="text-center py-8">
           <p className="text-void-secondary mb-4">Want detailed fight-by-fight analysis and coaching tips?</p>
           <Link
-            to="/register"
+            to={user ? '/dashboard' : '/register'}
             className="inline-block px-8 py-3 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
           >
-            Analyze Your Character Free
+            {user ? 'Go to Dashboard' : 'Analyze Your Character Free'}
           </Link>
         </div>
 

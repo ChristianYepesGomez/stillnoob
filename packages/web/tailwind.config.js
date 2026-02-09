@@ -35,8 +35,9 @@ export default {
         orbitron: ['Orbitron', 'sans-serif'],
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-out',
-        shimmer: 'shimmer 4s linear infinite',
+        'fade-in': 'fadeIn 0.3s ease-out both',
+        shimmer: 'shimmer 4s ease-in-out infinite',
+        'void-drift': 'voidDrift 20s ease-in-out infinite alternate',
       },
       keyframes: {
         fadeIn: {
@@ -44,8 +45,12 @@ export default {
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
+        voidDrift: {
+          '0%': { transform: 'translate(0, 0) rotate(0deg)' },
+          '100%': { transform: 'translate(-5%, 3%) rotate(2deg)' },
         },
       },
     },

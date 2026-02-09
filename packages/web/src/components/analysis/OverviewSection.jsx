@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts';
+import ScoreBadge from './ScoreBadge';
 import StatCard from './StatCard';
 import ConsumableBar from './ConsumableBar';
 
@@ -9,25 +10,28 @@ function formatDps(val) {
 }
 
 export default function OverviewSection({ data }) {
-  const { t, i18n } = useTranslation();
-  const { summary, recommendations } = data;
-  const lang = i18n.language;
+  const { t } = useTranslation();
+  const { summary, score, recommendations } = data;
 
   const radarData = useMemo(() => {
     if (!summary) return [];
+    const b = score?.breakdown || {};
     return [
-      { axis: 'DPS', value: Math.min(summary.dpsVsMedianPct || 0, 150), max: 150 },
-      { axis: lang === 'es' ? 'Supervivencia' : 'Survival', value: Math.max(0, 100 - (summary.deathRate || 0) * 100), max: 100 },
-      { axis: lang === 'es' ? 'Consumibles' : 'Consumables', value: summary.consumableScore || 0, max: 100 },
-      { axis: lang === 'es' ? 'Utilidad' : 'Utility', value: Math.min((summary.avgInterrupts || 0) * 33, 100), max: 100 },
-      { axis: lang === 'es' ? 'Consistencia' : 'Consistency', value: summary.dpsVsMedianPct ? Math.min(100, 200 - Math.abs(summary.dpsVsMedianPct - 100) * 2) : 50, max: 100 },
+      { axis: t('analysis.scorePerformance'), value: b.performance ?? Math.min(summary.dpsVsMedianPct || 0, 100), max: 100 },
+      { axis: t('analysis.scoreSurvival'), value: b.survival ?? Math.max(0, 100 - (summary.deathRate || 0) * 100), max: 100 },
+      { axis: t('analysis.scorePreparation'), value: b.preparation ?? (summary.consumableScore || 0), max: 100 },
+      { axis: t('analysis.scoreUtility'), value: b.utility ?? Math.min((summary.avgInterrupts || 0) * 33, 100), max: 100 },
+      { axis: t('analysis.scoreConsistency'), value: b.consistency ?? 50, max: 100 },
     ];
-  }, [summary, lang]);
+  }, [summary, score, t]);
 
   const topTips = (recommendations || []).filter(r => r.severity !== 'positive').slice(0, 3);
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* StillNoob Score */}
+      {score && <ScoreBadge score={score} />}
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
@@ -55,26 +59,26 @@ export default function OverviewSection({ data }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Radar chart */}
-        <div className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
-          <p className="text-xs text-midnight-silver mb-3 font-semibold uppercase tracking-wider">
+        <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+          <p className="text-xs text-void-text mb-3 font-semibold uppercase tracking-wider">
             Performance Profile
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-              <PolarGrid stroke="#4a3a6b" />
+              <PolarGrid stroke="#1a0f2e" />
               <PolarAngleAxis dataKey="axis" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-              <Radar dataKey="value" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.25} strokeWidth={2} />
+              <Radar dataKey="value" stroke="#c084fc" fill="#c084fc" fillOpacity={0.25} strokeWidth={2} />
             </RadarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Top recommendations */}
-        <div className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
-          <p className="text-xs text-midnight-silver mb-3 font-semibold uppercase tracking-wider">
+        <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+          <p className="text-xs text-void-text mb-3 font-semibold uppercase tracking-wider">
             {t('analysis.recommendations')}
           </p>
           {topTips.length === 0 ? (
-            <p className="text-sm text-midnight-silver/60">{t('common.noData')}</p>
+            <p className="text-sm text-void-text/60">{t('common.noData')}</p>
           ) : (
             <div className="space-y-2">
               {topTips.map((tip, i) => (
@@ -92,8 +96,8 @@ export default function OverviewSection({ data }) {
       </div>
 
       {/* Consumable breakdown */}
-      <div className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
-        <p className="text-xs text-midnight-silver mb-3 font-semibold uppercase tracking-wider">
+      <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+        <p className="text-xs text-void-text mb-3 font-semibold uppercase tracking-wider">
           {t('categories.consumables')}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

@@ -94,4 +94,20 @@ export const analysisAPI = {
   character: (id, weeks = 8) => api.get(`/analysis/character/${id}?weeks=${weeks}`),
 };
 
+export const publicAPI = {
+  character: (region, realm, name, weeks = 8) =>
+    api.get(`/public/character/${region}/${realm}/${name}?weeks=${weeks}`),
+};
+
+export const guildsAPI = {
+  list: () => api.get('/guilds'),
+  create: (data) => api.post('/guilds', data),
+  get: (id) => api.get(`/guilds/${id}`),
+  join: (id) => api.post(`/guilds/${id}/join`),
+  leave: (id) => api.post(`/guilds/${id}/leave`),
+  updateMemberRole: (guildId, userId, role) => api.put(`/guilds/${guildId}/members/${userId}`, { role }),
+  kickMember: (guildId, userId) => api.delete(`/guilds/${guildId}/members/${userId}`),
+  updateSettings: (id, settings) => api.patch(`/guilds/${id}/settings`, settings),
+};
+
 export default api;

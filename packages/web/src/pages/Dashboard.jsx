@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { charactersAPI, reportsAPI } from '../services/api';
+import { charactersAPI, reportsAPI, authAPI } from '../services/api';
 import { CLASS_COLORS } from '@stillnoob/shared';
+import api from '../services/api';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -45,7 +46,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-midnight-bright-purple border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-void-bright border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -58,9 +59,9 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Import Report */}
-        <div className="bg-midnight-spaceblue/50 border border-midnight-bright-purple/15 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-midnight-silver uppercase tracking-wider mb-4">
-            <i className="fas fa-file-import mr-2 text-midnight-glow" />
+        <div className="bg-void-mid/50 border border-void-bright/15 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-file-import mr-2 text-void-accent" />
             {t('reports.import')}
           </h2>
           <form onSubmit={handleImport} className="flex gap-2">
@@ -69,12 +70,12 @@ export default function Dashboard() {
               value={importUrl}
               onChange={(e) => setImportUrl(e.target.value)}
               placeholder={t('reports.urlPlaceholder')}
-              className="flex-1 px-3 py-2 bg-midnight-deepblue border border-midnight-bright-purple/20 rounded-lg text-sm text-white placeholder-midnight-silver/40 focus:border-midnight-bright-purple focus:outline-none"
+              className="flex-1 px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-text/40 focus:border-void-bright focus:outline-none"
             />
             <button
               type="submit"
               disabled={importing}
-              className="px-4 py-2 bg-midnight-bright-purple hover:bg-midnight-accent text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
             >
               {importing ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-download" />}
             </button>
@@ -94,20 +95,20 @@ export default function Dashboard() {
         </div>
 
         {/* My Characters */}
-        <div className="bg-midnight-spaceblue/50 border border-midnight-bright-purple/15 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-midnight-silver uppercase tracking-wider mb-4">
-            <i className="fas fa-users mr-2 text-midnight-glow" />
+        <div className="bg-void-mid/50 border border-void-bright/15 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-users mr-2 text-void-accent" />
             {t('dashboard.myCharacters')}
           </h2>
           {characters.length === 0 ? (
-            <p className="text-sm text-midnight-silver/60">{t('dashboard.noCharacters')}</p>
+            <p className="text-sm text-void-text/60">{t('dashboard.noCharacters')}</p>
           ) : (
             <div className="space-y-2">
               {characters.map(char => (
                 <button
                   key={char.id}
                   onClick={() => navigate(`/analysis/${char.id}`)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-midnight-deepblue/50 hover:bg-midnight-purple/10 border border-midnight-bright-purple/10 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 hover:bg-void-surface/10 border border-void-bright/10 transition-colors text-left"
                 >
                   <span
                     className="text-sm font-semibold"
@@ -115,10 +116,10 @@ export default function Dashboard() {
                   >
                     {char.name}
                   </span>
-                  <span className="text-xs text-midnight-silver/60">{char.realm}</span>
-                  <span className="text-xs text-midnight-silver/40 ml-auto">{char.spec || char.className}</span>
+                  <span className="text-xs text-void-text/60">{char.realm}</span>
+                  <span className="text-xs text-void-text/40 ml-auto">{char.spec || char.className}</span>
                   {char.isPrimary && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-midnight-bright-purple/20 text-midnight-glow rounded">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-void-bright/20 text-void-accent rounded">
                       {t('characters.primary')}
                     </span>
                   )}
@@ -129,37 +130,84 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Reports */}
-      <div className="bg-midnight-spaceblue/50 border border-midnight-bright-purple/15 rounded-2xl p-5">
-        <h2 className="text-sm font-semibold text-midnight-silver uppercase tracking-wider mb-4">
-          <i className="fas fa-scroll mr-2 text-midnight-glow" />
-          {t('dashboard.recentReports')}
-        </h2>
-        {reports.length === 0 ? (
-          <p className="text-sm text-midnight-silver/60">{t('dashboard.noReports')}</p>
-        ) : (
-          <div className="space-y-2">
-            {reports.slice(0, 10).map(report => (
-              <div
-                key={report.id}
-                className="flex items-center gap-4 p-3 rounded-xl bg-midnight-deepblue/50 border border-midnight-bright-purple/10"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-white font-medium truncate">{report.title || report.wclCode}</p>
-                  <p className="text-xs text-midnight-silver/60">{report.zoneName}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Reports */}
+        <div className="bg-void-mid/50 border border-void-bright/15 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-scroll mr-2 text-void-accent" />
+            {t('dashboard.recentReports')}
+          </h2>
+          {reports.length === 0 ? (
+            <p className="text-sm text-void-text/60">{t('dashboard.noReports')}</p>
+          ) : (
+            <div className="space-y-2">
+              {reports.slice(0, 10).map(report => (
+                <div
+                  key={report.id}
+                  className="flex items-center gap-4 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white font-medium truncate">{report.title || report.wclCode}</p>
+                    <p className="text-xs text-void-text/60">{report.zoneName}</p>
+                  </div>
+                  <span className="text-xs text-void-text/40">
+                    {report.processedAt ? new Date(report.processedAt).toLocaleDateString() : '—'}
+                  </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                    report.importSource === 'auto' ? 'bg-blue-900/20 text-blue-400' : 'bg-void-surface/20 text-void-text'
+                  }`}>
+                    {t(`reports.${report.importSource || 'manual'}`)}
+                  </span>
                 </div>
-                <span className="text-xs text-midnight-silver/40">
-                  {report.processedAt ? new Date(report.processedAt).toLocaleDateString() : '—'}
-                </span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  report.importSource === 'auto' ? 'bg-blue-900/20 text-blue-400' : 'bg-midnight-purple/20 text-midnight-silver'
-                }`}>
-                  {t(`reports.${report.importSource || 'manual'}`)}
-                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Account Linking */}
+        <div className="bg-void-mid/50 border border-void-bright/15 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-link mr-2 text-void-accent" />
+            {t('auth.linkAccounts')}
+          </h2>
+          <div className="space-y-3">
+            {/* WCL Link */}
+            <button
+              onClick={async () => {
+                try {
+                  const { data } = await api.get('/auth/wcl/link');
+                  window.location.href = data.url;
+                } catch { /* WCL not configured */ }
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10 hover:border-void-bright/30 transition-colors text-left"
+            >
+              <i className="fas fa-scroll text-orange-400 w-5 text-center" />
+              <div className="flex-1">
+                <p className="text-sm text-white font-medium">{t('auth.linkWcl')}</p>
+                <p className="text-[10px] text-void-secondary">{t('auth.linkWclDesc')}</p>
               </div>
-            ))}
+              <i className="fas fa-external-link-alt text-void-muted text-xs" />
+            </button>
+
+            {/* Blizzard Link */}
+            <button
+              onClick={async () => {
+                try {
+                  const { data } = await api.get('/auth/blizzard/link');
+                  window.location.href = data.url;
+                } catch { /* Blizzard not configured */ }
+              }}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10 hover:border-void-bright/30 transition-colors text-left"
+            >
+              <i className="fas fa-gamepad text-blue-400 w-5 text-center" />
+              <div className="flex-1">
+                <p className="text-sm text-white font-medium">{t('auth.linkBlizzard')}</p>
+                <p className="text-[10px] text-void-secondary">{t('auth.linkBlizzardDesc')}</p>
+              </div>
+              <i className="fas fa-external-link-alt text-void-muted text-xs" />
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

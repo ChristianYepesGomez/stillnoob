@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
+import CharacterPublic from './pages/CharacterPublic';
+import GuildPage from './pages/Guild';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -16,10 +18,10 @@ function ProtectedRoute({ children }) {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-midnight-deepblue flex items-center justify-center">
+    <div className="min-h-screen bg-void-deep flex items-center justify-center">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-midnight-bright-purple border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-midnight-silver">Loading...</p>
+        <div className="w-12 h-12 border-4 border-void-bright border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-void-text">Loading...</p>
       </div>
     </div>
   );
@@ -35,9 +37,14 @@ export default function App() {
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
+      {/* Public character profile (no auth) */}
+      <Route path="/character/:region/:realm/:name" element={<CharacterPublic />} />
+
+      {/* Authenticated app */}
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/analysis/:characterId?" element={<Analysis />} />
+        <Route path="/guild/:guildId?" element={<GuildPage />} />
       </Route>
     </Routes>
   );

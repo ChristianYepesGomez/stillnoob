@@ -29,7 +29,7 @@ export default function BossesSection({ data }) {
   }, [recentFights, boss]);
 
   if (!bossBreakdown?.length) {
-    return <p className="text-center py-10 text-midnight-silver/60">{t('common.noData')}</p>;
+    return <p className="text-center py-10 text-void-text/60">{t('common.noData')}</p>;
   }
 
   return (
@@ -42,8 +42,8 @@ export default function BossesSection({ data }) {
             onClick={() => setSelectedBoss(b)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
               boss?.bossId === b.bossId && boss?.difficulty === b.difficulty
-                ? 'bg-midnight-bright-purple/20 border-midnight-bright-purple text-white'
-                : 'bg-midnight-deepblue border-midnight-bright-purple/20 text-midnight-silver hover:text-white'
+                ? 'bg-void-bright/20 border-void-bright text-white'
+                : 'bg-void-deep border-void-bright/20 text-void-text hover:text-white'
             }`}
           >
             {b.bossName}
@@ -60,7 +60,7 @@ export default function BossesSection({ data }) {
       {boss && (
         <>
           {/* Boss stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard label={t('analysis.totalFights')} value={boss.fights} color="text-white" />
             <StatCard
               label={t('analysis.deathsPerFight')}
@@ -69,21 +69,31 @@ export default function BossesSection({ data }) {
             />
             <StatCard label={t('analysis.avgDps')} value={formatDps(boss.avgDps)} color="text-blue-400" />
             <StatCard label={t('analysis.bestDps')} value={formatDps(boss.bestDps)} color="text-purple-400" />
+            <StatCard
+              label={t('analysis.interrupts')}
+              value={(boss.interruptsPerFight || 0).toFixed(1)}
+              color="text-yellow-400"
+            />
+            <StatCard
+              label={t('analysis.dispels')}
+              value={(boss.dispelsPerFight || 0).toFixed(1)}
+              color="text-teal-400"
+            />
           </div>
 
           {/* DPS chart per attempt */}
           {bossFightData.length > 1 && (
-            <div className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
-              <p className="text-xs text-midnight-silver mb-3 font-semibold uppercase tracking-wider">
+            <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+              <p className="text-xs text-void-text mb-3 font-semibold uppercase tracking-wider">
                 {t('analysis.dpsTrend')}
               </p>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={bossFightData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#4a3a6b33" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e33" />
                   <XAxis dataKey="attempt" tick={{ fill: '#9ca3af', fontSize: 10 }} />
                   <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} tickFormatter={v => formatDps(v)} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#1a1235', border: '1px solid #4a3a6b', borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ backgroundColor: '#12091f', border: '1px solid #1a0f2e', borderRadius: 8, fontSize: 12 }}
                   />
                   <Line type="monotone" dataKey="dps" stroke="#60a5fa" strokeWidth={2} dot={{ fill: '#60a5fa', r: 3 }} />
                 </LineChart>
@@ -92,19 +102,27 @@ export default function BossesSection({ data }) {
           )}
 
           {/* Consumable bars */}
-          <div className="grid grid-cols-3 gap-4">
-            <ConsumableBar label={t('consumables.healthPotion')} pct={boss.healthPotionRate} />
-            <ConsumableBar label={t('consumables.healthstone')} pct={boss.healthstoneRate} />
-            <ConsumableBar label={t('consumables.combatPotion')} pct={boss.combatPotionRate} />
+          <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+            <p className="text-xs text-void-text mb-3 font-semibold uppercase tracking-wider">
+              {t('categories.consumables')}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <ConsumableBar label={t('consumables.healthPotion')} pct={boss.healthPotionRate} />
+              <ConsumableBar label={t('consumables.healthstone')} pct={boss.healthstoneRate} />
+              <ConsumableBar label={t('consumables.combatPotion')} pct={boss.combatPotionRate} />
+              <ConsumableBar label={t('consumables.flask')} pct={boss.flaskUptime} />
+              <ConsumableBar label={t('consumables.food')} pct={boss.foodRate} />
+              <ConsumableBar label={t('consumables.augmentRune')} pct={boss.augmentRate} />
+            </div>
           </div>
 
           {/* DPS vs Median */}
-          <div className="bg-midnight-spaceblue/30 rounded-xl border border-midnight-bright-purple/10 p-4">
-            <p className="text-xs text-midnight-silver mb-2 font-semibold uppercase tracking-wider">
+          <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
+            <p className="text-xs text-void-text mb-2 font-semibold uppercase tracking-wider">
               {t('analysis.dpsVsMedian')}
             </p>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-3 bg-midnight-purple/30 rounded-full overflow-hidden">
+              <div className="flex-1 h-3 bg-void-surface/30 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{

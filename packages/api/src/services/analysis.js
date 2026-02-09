@@ -144,16 +144,21 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
  * Returns summary, boss breakdown, weekly trends, recent fights, and recommendations.
  */
 export async function getCharacterPerformance(characterId, options = {}) {
-  const { weeks = 8, bossId, difficulty } = options;
+  const { weeks = 8, bossId, difficulty, visibilityFilter } = options;
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeks * 7));
   const cutoffDate = cutoff.toISOString().split('T')[0];
 
   // Build dynamic WHERE conditions for raw SQL
+  // When visibilityFilter is set, JOIN reports to filter by visibility
+  const needsReportsJoin = !!visibilityFilter;
+  const reportsJoin = needsReportsJoin ? 'JOIN reports r ON r.id = f.report_id' : '';
+
   let where = 'WHERE fp.character_id = ? AND f.start_time >= ?';
   const params = [characterId, cutoff.getTime()];
   if (bossId) { where += ' AND f.encounter_id = ?'; params.push(bossId); }
   if (difficulty) { where += ' AND f.difficulty = ?'; params.push(difficulty); }
+  if (visibilityFilter) { where += ' AND r.visibility = ?'; params.push(visibilityFilter); }
 
   // Use raw SQL via the libsql client for complex aggregate queries
   const { client } = await import('../db/client.js');
@@ -178,6 +183,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as combatPotionRate
     FROM fight_performance fp
     JOIN fights f ON f.id = fp.fight_id
+    ${reportsJoin}
     ${where}`,
     args: params,
   });
@@ -222,6 +228,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(AVG(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END), 1) as dpsVsMedian
     FROM fight_performance fp
     JOIN fights f ON f.id = fp.fight_id
+    ${reportsJoin}
     ${where}
     GROUP BY f.encounter_id, f.difficulty
     ORDER BY f.difficulty DESC, COUNT(*) DESC`,
@@ -265,6 +272,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
       1) as consumableScore
     FROM fight_performance fp
     JOIN fights f ON f.id = fp.fight_id
+    ${reportsJoin}
     ${where}
     GROUP BY weekStart
     ORDER BY weekStart ASC`,
@@ -306,6 +314,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END, 1) as dpsVsMedian
     FROM fight_performance fp
     JOIN fights f ON f.id = fp.fight_id
+    ${reportsJoin}
     ${where}
     ORDER BY f.start_time DESC, fp.id DESC
     LIMIT 20`,

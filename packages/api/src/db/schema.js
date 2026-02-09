@@ -21,7 +21,7 @@ export const users = sqliteTable('users', {
 export const authProviders = sqliteTable('auth_providers', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  provider: text('provider').notNull(), // 'google' | 'discord' | 'blizzard'
+  provider: text('provider').notNull(), // 'google' | 'discord' | 'blizzard' | 'warcraftlogs'
   providerUserId: text('provider_user_id').notNull(),
   providerEmail: text('provider_email'),
   accessToken: text('access_token'),
@@ -65,6 +65,36 @@ export const characters = sqliteTable('characters', {
 ]);
 
 // ============================================
+// GUILDS
+// ============================================
+
+export const guilds = sqliteTable('guilds', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  realm: text('realm').notNull(),
+  realmSlug: text('realm_slug').notNull(),
+  region: text('region').notNull().default('eu'),
+  ownerId: text('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  wclGuildId: integer('wcl_guild_id'),
+  avatarUrl: text('avatar_url'),
+  settings: text('settings').default('{}'), // JSON: { defaultVisibility, autoImport, ... }
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex('guild_unique').on(table.realmSlug, table.region, table.name),
+]);
+
+export const guildMembers = sqliteTable('guild_members', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  guildId: integer('guild_id').notNull().references(() => guilds.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text('role').notNull().default('member'), // 'leader' | 'officer' | 'member'
+  joinedAt: text('joined_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex('guild_member_unique').on(table.guildId, table.userId),
+  index('guild_member_user_idx').on(table.userId),
+]);
+
+// ============================================
 // REPORTS & FIGHTS
 // ============================================
 
@@ -80,6 +110,8 @@ export const reports = sqliteTable('reports', {
   participantsCount: integer('participants_count').default(0),
   importedBy: text('imported_by').references(() => users.id, { onDelete: 'set null' }),
   importSource: text('import_source').default('manual'), // 'manual' | 'auto' | 'url'
+  visibility: text('visibility').notNull().default('public'), // 'public' | 'private' | 'guild'
+  guildId: integer('guild_id').references(() => guilds.id, { onDelete: 'set null' }),
   processedAt: text('processed_at').default(sql`CURRENT_TIMESTAMP`),
 });
 

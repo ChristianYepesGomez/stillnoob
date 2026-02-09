@@ -36,7 +36,8 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    const data = await getCharacterPerformance(match.id, { weeks });
+    // Only include data from public reports (private/guild reports excluded)
+    const data = await getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public' });
 
     // Return public-safe subset (no detailed consumable breakdown per fight)
     res.json({

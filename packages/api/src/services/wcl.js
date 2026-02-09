@@ -196,6 +196,150 @@ export async function getExtendedFightStats(reportCode, fightIds) {
   }
 }
 
+// ============================================
+// WCL User OAuth (for private logs)
+// ============================================
+
+const WCL_AUTHORIZE_URL = 'https://www.warcraftlogs.com/oauth/authorize';
+
+/**
+ * Build WCL OAuth authorize URL for user-level access.
+ * This grants access to the user's private reports.
+ */
+export function getWclAuthorizeUrl(state) {
+  const clientId = process.env.WCL_CLIENT_ID;
+  const redirectUri = `${process.env.API_URL}/api/v1/auth/wcl/callback`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    state,
+  });
+
+  return `${WCL_AUTHORIZE_URL}?${params}`;
+}
+
+/**
+ * Exchange WCL authorization code for user tokens.
+ */
+export async function exchangeWclCode(code) {
+  const response = await axios.post(
+    WCL_TOKEN_URL,
+    new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: `${process.env.API_URL}/api/v1/auth/wcl/callback`,
+    }).toString(),
+    {
+      auth: { username: process.env.WCL_CLIENT_ID, password: process.env.WCL_CLIENT_SECRET },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }
+  );
+
+  return {
+    accessToken: response.data.access_token,
+    refreshToken: response.data.refresh_token,
+    expiresIn: response.data.expires_in,
+  };
+}
+
+/**
+ * Execute GraphQL query with a user token (for private reports).
+ */
+async function executeUserGraphQL(userToken, query, variables = {}) {
+  // User tokens hit the user endpoint, not the client endpoint
+  const WCL_USER_API_URL = 'https://www.warcraftlogs.com/api/v2/user';
+
+  const response = await axios.post(
+    WCL_USER_API_URL,
+    { query, variables },
+    {
+      headers: {
+        'Authorization': `Bearer ${userToken}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (response.data.errors) {
+    throw new Error(`WCL GraphQL: ${response.data.errors[0].message}`);
+  }
+
+  return response.data.data;
+}
+
+/**
+ * Get a report using the user's token (works for private reports).
+ * Falls back to client credentials if user token fails.
+ */
+export async function getReportDataWithUserToken(reportCode, userToken) {
+  const query = `
+    query GetReportData($reportCode: String!) {
+      reportData {
+        report(code: $reportCode) {
+          code
+          title
+          startTime
+          endTime
+          region { name }
+          guild { name }
+          zone { name }
+          visibility
+          fights(killType: Encounters) {
+            id
+            encounterID
+            name
+            kill
+            difficulty
+            startTime
+            endTime
+          }
+          masterData(translate: true) {
+            actors(type: "Player") {
+              id
+              name
+              server
+              subType
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await executeUserGraphQL(userToken, query, { reportCode });
+  const report = data.reportData?.report;
+
+  if (!report) return null;
+
+  return {
+    code: report.code,
+    title: report.title,
+    startTime: report.startTime,
+    endTime: report.endTime,
+    region: report.region?.name,
+    guild: report.guild,
+    zone: report.zone,
+    visibility: report.visibility || 'public',
+    fights: report.fights || [],
+    participants: (report.masterData?.actors || []).map(a => ({
+      name: a.name,
+      server: a.server || 'Unknown',
+      class: a.subType,
+    })),
+  };
+}
+
+/**
+ * Get WCL user info (userId) from user token.
+ */
+export async function getWclUserInfo(userToken) {
+  const query = `{ userData { currentUser { id name } } }`;
+  const data = await executeUserGraphQL(userToken, query);
+  return data.userData?.currentUser;
+}
+
 /**
  * Search for reports containing a specific character
  * Used for auto-import

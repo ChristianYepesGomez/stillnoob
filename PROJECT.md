@@ -1,0 +1,360 @@
+# StillNoob - Project Rules & Context
+
+## What is StillNoob?
+WoW coaching platform that analyzes player data (logs, gear, gameplay) and provides personalized coaching advice. Think "personal coach reading your logs and telling you exactly what to do."
+
+- **Domain:** stillnoob.com
+- **Repo:** github.com/ChristianYepesGomez/stillnoob
+- **Launch target:** March 17, 2026 (WoW Midnight Season 1)
+- **Creator:** Christian Yepes Gomez (Valencia, Spain)
+
+---
+
+## Stack
+- **Frontend:** HTML/CSS (landing page), React (app futura)
+- **Backend:** Node.js with ES Modules, Express.js (in packages/api/)
+- **Database:** SQLite via libsql + Drizzle ORM (packages/api/data/stillnoob.db)
+- **Deploy (landing):** Cloudflare Pages (free tier) — auto-deploy on push to main
+- **Deploy (API):** TBD — needs Node.js runtime + persistent SQLite (options: Railway, Fly.io, VPS)
+- **Domain registrar:** Namecheap
+- **DNS/CDN:** Cloudflare (free)
+- **Repo hosting:** GitHub (public)
+- **Monorepo:** npm workspaces + turbo
+
+## Infrastructure
+- Nameservers: andy.ns.cloudflare.com / georgia.ns.cloudflare.com
+- Cloudflare Workers reads from `./public` directory (via wrangler.jsonc)
+- `wrangler.jsonc` configured with `"directory": "./public"`
+- Auto-deploy on push to main branch via GitHub integration
+- Deploy command: `npx wrangler deploy`
+- Backend API will need separate hosting (not on Cloudflare Pages — runs Node.js + SQLite)
+
+---
+
+## Design Rules
+- Dark theme with void/purple palette matching WoW Midnight aesthetic
+- NEVER hardcode colors — use CSS variables (defined in index.html :root)
+- Color palette:
+  - `--void-deep: #0a0612` (deepest background)
+  - `--void-mid: #12091f` (card/section background)
+  - `--void-surface: #1a0f2e` (elevated surfaces)
+  - `--void-glow: #7b2ff2` (primary accent / glow)
+  - `--void-bright: #9d5cff` (secondary accent)
+  - `--void-accent: #c084fc` (tertiary / links)
+  - `--sunwell-gold: #f6c843` (highlight/gold/CTA)
+  - `--sunwell-amber: #ff9f1c` (warm accent)
+  - `--fel-green: #00ff88` (success / online indicators)
+  - `--blood-red: #ff3b5c` (danger / errors)
+  - `--text-primary: #e8e0f0` (main text)
+  - `--text-secondary: #9a8bb5` (secondary text)
+  - `--text-muted: #5c4f73` (muted/disabled text)
+- Mobile-first responsive design
+- Gamer aesthetic — avoid generic/corporate look
+- Fonts: Cinzel (headings), Rajdhani (body), Orbitron (numbers/stats)
+
+---
+
+## Code Rules
+- `node_modules/` NEVER in the repo — always in .gitignore
+- `.env` NEVER in the repo — use `.env.example` with placeholder values
+- `*.db` NEVER in the repo — database files are local-only
+- Static/public files go in `/public`
+- Backend code goes in `/packages/api/src/`
+- Shared constants/types in `/packages/shared/` (if exists)
+- ES Modules everywhere (`"type": "module"` in package.json)
+- API routes prefixed with `/api/v1/`
+
+---
+
+## Project Structure
+```
+stillnoob/
+├── public/
+│   └── index.html              # Landing page (static, served by Cloudflare)
+├── packages/
+│   ├── api/
+│   │   ├── .env                # API keys (NOT in repo)
+│   │   ├── data/               # SQLite database (NOT in repo)
+│   │   ├── drizzle.config.js   # Drizzle ORM config
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.js        # Server entry point
+│   │       ├── app.js          # Express app setup, middleware, route mounting
+│   │       ├── db/
+│   │       │   ├── client.js   # libsql database connection
+│   │       │   └── schema.js   # Drizzle schema (all tables)
+│   │       ├── middleware/
+│   │       │   ├── auth.js        # JWT generation/verification, role middleware
+│   │       │   └── rateLimit.js
+│   │       ├── routes/
+│   │       │   ├── auth.js         # /api/v1/auth — login, register, OAuth
+│   │       │   ├── characters.js   # /api/v1/characters — character CRUD
+│   │       │   ├── reports.js      # /api/v1/reports — WCL report management
+│   │       │   ├── analysis.js     # /api/v1/analysis — coaching analysis
+│   │       │   ├── guilds.js       # /api/v1/guilds — guild management
+│   │       │   └── public.js       # /api/v1/public — unauthenticated lookups
+│   │       ├── services/
+│   │       │   ├── wcl.js          # WarcraftLogs API (GraphQL, OAuth client credentials)
+│   │       │   ├── blizzard.js     # Blizzard API (character, gear, armory)
+│   │       │   ├── analysis.js     # Coaching engine (score calculation, recommendations)
+│   │       │   └── rateLimiter.js  # Rate limiting logic
+│   │       └── jobs/
+│   │           ├── scanReports.js  # Background job: scan WCL for new reports
+│   │           └── scheduler.js    # Cron scheduler for background jobs
+│   ├── shared/                 # Shared constants/types between packages
+│   └── web/                    # Future React app (not yet built)
+├── wrangler.jsonc              # Cloudflare Workers config
+├── .gitignore                  # node_modules, .env, *.db, .wrangler/
+├── PROJECT.md                  # THIS FILE - project rules & context
+├── package.json                # Root workspace config (turbo)
+└── turbo.json                  # Turbo monorepo config (if exists)
+```
+
+---
+
+## Database Schema (Drizzle ORM)
+
+### Tables
+| Table | Purpose |
+|-------|---------|
+| `users` | User accounts (email, password, display name, tier: free/premium/admin) |
+| `auth_providers` | OAuth providers (google, discord, blizzard, warcraftlogs) |
+| `refresh_tokens` | JWT refresh tokens |
+| `characters` | WoW characters linked to users (name, realm, region, class, spec, role) |
+| `guilds` | Guild information |
+| `guild_members` | Guild membership |
+| `reports` | WarcraftLogs report metadata |
+| `fights` | Individual fights within reports |
+| `fight_performance` | Per-player per-fight performance data |
+| `bosses` | Boss reference data |
+
+### Key relationships
+- `users` 1→N `characters` (user owns characters)
+- `users` 1→N `auth_providers` (OAuth connections)
+- `users` 1→N `guild_members` → `guilds` (user belongs to guilds)
+- `guilds` 1→N `guild_members` (guild has members with roles: leader/officer/member)
+- `reports` 1→N `fights` (report contains fights)
+- `reports` N→1 `guilds` (report optionally belongs to a guild)
+- `fights` 1→N `fight_performance` (fight has player performances)
+
+### Report Visibility
+Reports have a `visibility` field: `public` | `private` | `guild`
+- **public** — visible to everyone, included in SEO/public routes
+- **private** — only visible to the user who imported it
+- **guild** — visible to all members of the associated guild
+- Public route (`/api/v1/public/*`) only shows data from `visibility='public'` reports
+- Private/guild data requires authentication and membership checks
+
+---
+
+## API Architecture
+
+### External APIs
+| API | Auth Method | Purpose |
+|-----|-------------|---------|
+| WarcraftLogs v2 | Client credentials (public data) + User OAuth (private logs) | Combat logs, parse data, rankings |
+| Blizzard API | Client credentials (public) + User OAuth (character linking) | Character profiles, gear, talents |
+| Raider.io | Public (no auth) | M+ score, dungeon run history (NOT YET IMPLEMENTED) |
+
+### WCL Two-Tier Auth
+- **Client credentials** (`WCL_CLIENT_ID` + `WCL_CLIENT_SECRET`): Access public reports. Used by default for all imports and background scanning.
+- **User OAuth** (user links WCL account via `/auth/wcl/link`): Access private reports. Token stored in `auth_providers` with `provider='warcraftlogs'`. Import endpoint tries user token first, falls back to client credentials.
+- **GraphQL endpoints**: Client token → `https://www.warcraftlogs.com/api/v2/client`, User token → `https://www.warcraftlogs.com/api/v2/user`
+
+### Environment Variables Required (.env)
+```
+PORT=3001
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+API_URL=http://localhost:3001
+TURSO_DATABASE_URL=file:./data/stillnoob.db
+TURSO_AUTH_TOKEN=
+JWT_SECRET=<random-string>
+JWT_REFRESH_SECRET=<random-string>
+WCL_CLIENT_ID=<from warcraftlogs.com/api/clients>
+WCL_CLIENT_SECRET=<from warcraftlogs.com/api/clients>
+BLIZZARD_CLIENT_ID=<from develop.battle.net>
+BLIZZARD_CLIENT_SECRET=<from develop.battle.net>
+BLIZZARD_REGION=eu
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+```
+
+### API Routes
+| Route | Auth | Description |
+|-------|------|-------------|
+| `GET /api/health` | No | Health check |
+| `/api/v1/auth/*` | Mixed | Login, register, OAuth callbacks |
+| `/api/v1/characters/*` | Yes | Character CRUD, link to user |
+| `/api/v1/reports/*` | Yes | WCL report import & management |
+| `/api/v1/analysis/*` | Yes | Coaching analysis & scores |
+| `/api/v1/public/*` | No | Public character lookup (no login needed) |
+| `/api/v1/guilds/*` | Yes | Guild management |
+
+---
+
+## Authentication System
+- **Access tokens**: JWT, 15-minute expiry, sent as `Authorization: Bearer <token>`
+- **Refresh tokens**: JWT, 30-day expiry, stored in httpOnly cookie at path `/api/v1/auth`
+- **Token rotation**: On refresh, old token is deleted and new pair issued (prevents replay)
+- **Password hashing**: bcrypt with 12 salt rounds
+- **OAuth providers**: Google, Discord, Blizzard (character linking), WarcraftLogs (private logs)
+- **User tiers**: `free` | `premium` | `admin`
+
+## Background Jobs
+- **Scheduler**: `node-cron` running every 30 minutes (initialized on server start)
+- **Report scanner**: Iterates all registered characters, queries WCL for new reports, auto-imports
+- **Rate limiter**: Token bucket (280 tokens/hour, WCL limit is 300, 20 kept as buffer)
+- **Graceful degradation**: If WCL credentials not configured, scheduler logs and skips
+
+## Development Commands
+```bash
+# From packages/api/
+npx drizzle-kit push          # Apply schema changes to local SQLite
+node src/index.js             # Start server (port 3001)
+node --watch src/index.js     # Start with auto-reload
+npx kill-port 3001            # Kill stuck server process
+
+# From root
+npm install                   # Install all workspace deps
+```
+
+---
+
+## StillNoob Score System
+- **Performance:** 35% (DPS/HPS parse percentile from WCL)
+- **Survival:** 25% (avoidable damage, deaths per fight)
+- **Preparation:** 20% (gear, gems, enchants, consumables)
+- **Utility:** 10% (interrupts, dispels, utility usage)
+- **Consistency:** 10% (variance across fights)
+
+### Tiers (defined in `packages/shared/src/constants.js`)
+| Tier | Score Range | Color | Description |
+|------|-------------|-------|-------------|
+| Noob | 0-20 | #888888 | Just starting out |
+| Casual | 21-40 | #00ff88 | Playing for fun |
+| Decent | 41-60 | #0096ff | Getting there |
+| Skilled | 61-75 | #9d5cff | Above average |
+| Pro | 76-85 | #ff9f1c | Competitive player |
+| Elite | 86-95 | #ff3b5c | Top tier |
+| Legendary | 96-100 | #f6c843 | Best of the best |
+
+---
+
+## Data Sources
+- **WarcraftLogs API** — Combat logs, parses, rankings, fight-by-fight data (GraphQL)
+- **Raider.io API** — M+ score, dungeon runs, best runs
+- **Blizzard Armory API** — Character gear, talents, spec, achievement points
+- **SimC / Analyzer / Feast outputs** — User-provided (future)
+
+---
+
+## User Flow (Screens)
+1. **Landing Page** → Character name + realm + region input (current: public/index.html)
+2. **Loading** → Animated progress with status messages ("Analyzing your logs...")
+3. **Dashboard** → Score badge + Stats + Gear + Coaching messages
+4. **Share** → Share score on social/Discord (viral marketing loop)
+5. **Detail/Premium** → Fight-by-fight analysis (future premium feature)
+
+---
+
+## Current Status (Feb 9, 2026)
+
+### Backend — DONE
+- Auth (register/login/refresh/logout/me)
+- Characters CRUD (create/list/primary/ownership)
+- WCL import (public + private reports via user OAuth)
+- Analysis engine (summary, boss breakdown, weekly trends, recent fights, recommendations)
+- StillNoob Score (proprietary 0-100 metric with 7 tiers)
+- Public character route (SEO-indexable, no auth)
+- Guild system (create/join/leave/roles/settings/kick)
+- Report visibility (public/private/guild)
+- WCL User OAuth (private log access)
+- Blizzard OAuth (character import)
+- Background jobs (auto-scan WCL every 30min)
+- Rate limiter (token bucket for WCL API)
+
+### Not Yet Built
+- React web app (packages/web scaffold exists but not connected)
+- Raider.io integration
+- Google/Discord OAuth
+- Email verification
+- Premium tier features & payment
+- API backend deployment (prod hosting)
+
+---
+
+## Business Model (TBD)
+- Freemium (basic analysis free, detailed coaching paid)
+- Monthly subscription for premium features
+- Ads (maybe)
+- To be defined...
+
+---
+
+## Common Mistakes Log
+- ❌ `node_modules` was committed to repo → Fixed with `.gitignore` + `git rm -r --cached` (Feb 9, 2026)
+- ❌ `wrangler.jsonc` pointed to `"./"` instead of `"./public"` → Fixed (Feb 9, 2026)
+- ❌ `.gitignore` was in UTF-16LE encoding, git didn't read it properly → Rewritten in UTF-8 (Feb 9, 2026)
+- ❌ Cloudflare build failed due to 31.9MB turbo binary in node_modules → Fixed by removing node_modules from repo
+- ❌ `.env` with API keys committed → Should use `.env.example` pattern
+- ⚠️ File `@libsql/win32-x64-msvc/index.node` can get locked by running processes — close all terminals/servers before git operations
+- ⚠️ `.git/index.lock` can get stuck if VS Code or multiple terminals access the repo simultaneously — kill stale git processes and `rm .git/index.lock`
+- ⚠️ Drizzle dialect: Use `dialect: 'sqlite'` in `drizzle.config.js` for local `file:` databases. `dialect: 'turso'` only works with remote Turso URLs.
+- ⚠️ `dotenv/config` does NOT work with `node -e` inline eval — use a temp `.js` file instead for testing
+- ⚠️ `API_URL` must be set in `.env` for OAuth callback URLs (WCL, Blizzard) to work correctly
+
+---
+
+## Competitive Landscape
+| Product | What it does | StillNoob's edge |
+|---------|-------------|------------------|
+| WarcraftLogs | Raw data, rankings, detailed logs | No coaching — just data dumps |
+| Raider.io | M+ rankings, dungeon scores | No coaching, no raid analysis |
+| WoWAnalyzer | Rotation analysis for some specs | Limited coverage, no clear actionable guidance |
+| Archon | Tier lists, meta guides | Generic, not personalized |
+| **StillNoob** | **Automated personalized coaching with real data** | **Nobody else does this** |
+
+---
+
+## Relationship with DKP Backend
+StillNoob was born from the "Deep Performance Analysis" feature of the DKP backend (github.com/ChristianYepesGomez — dkp-backend/dkp-frontend). Key context:
+- The DKP project has existing code for WCL integration, performance analysis, and recommendations
+- Files that inspired StillNoob: `services/performanceAnalysis.js`, `services/warcraftlogs.js`
+- StillNoob is independent — it does NOT share code or database with DKP
+- Eventually, DKP may link to StillNoob for deep analysis instead of doing it in-house
+- DKP continues to handle guild management, auctions, calendar, buffs, and basic analytics
+
+---
+
+## Timeline
+| Week | Dates | Goal |
+|------|-------|------|
+| 1 | Feb 10-16 | Name, domain, user flow, landing, infra setup |
+| 2 | Feb 17-23 | Project structure, input system, character lookup |
+| 3 | Feb 24 - Mar 2 | Analysis engine (WCL, Raider.io, Armory APIs) |
+| 4 | Mar 3-9 | Coaching system, results dashboard |
+| 5 | Mar 10-16 | Testing, polish UI, deploy, promotion |
+| 🎯 | **Mar 17** | **LAUNCH with Midnight Season 1** |
+
+---
+
+## AI Assistant Rules (for Claude / any LLM)
+- If something goes sideways, STOP and re-plan. Don't keep pushing broken approaches.
+- Write rules here that prevent the same mistake from happening twice.
+- Always check `.gitignore` before committing new file types.
+- Never expose API keys, tokens, or personal data in code or commits.
+- When making infrastructure changes, explain step by step.
+- Keep this `PROJECT.md` updated with every major decision or mistake.
+- Use ES Modules (`import/export`) everywhere — no `require()`.
+- Follow existing code patterns in the codebase before introducing new ones.
+- API responses should always be JSON with consistent error format: `{ error: "message" }`.
+- Rate limiting is already configured — respect it in new endpoints.
+- Multiple Claude terminals may work on this repo simultaneously — coordinate git operations carefully. Never force-push without asking.
+- The DKP backend project runs on `c:\Proyectos\dkp-backend` and `c:\Proyectos\dkp-frontend` — don't confuse repos.
+
+---
+
+*Last updated: February 9, 2026*

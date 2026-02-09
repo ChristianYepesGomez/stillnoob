@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: stillnoob-api
+    runtime: node
+    region: frankfurt
+    rootDir: packages/api
+    buildCommand: npm install
+    startCommand: node src/index.js
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: WCL_CLIENT_ID
+        sync: false
+      - key: WCL_CLIENT_SECRET
+        sync: false
+      - key: BLIZZARD_CLIENT_ID
+        sync: false
+      - key: BLIZZARD_CLIENT_SECRET
+        sync: false
+      - key: BLIZZARD_REGION
+        value: eu

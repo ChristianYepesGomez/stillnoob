@@ -175,5 +175,13 @@
     "inconsistent_dps": "Tu DPS varía un {{variance}}% entre bosses. Algunos encuentros pueden necesitar optimización específica.",
     "low_interrupts": "Promedias solo {{avg}} interrupciones por pelea. Intenta interrumpir más cuando sea posible.",
     "good_interrupts": "¡Gran utilidad! Promedias {{avg}} interrupciones por pelea."
+  },
+  "raiderio": {
+    "mplusScore": "Score M+",
+    "itemLevel": "Nivel de Objeto",
+    "raidProgress": "Progreso Raid",
+    "bestRuns": "Mejores Runs M+",
+    "recentRuns": "Runs Recientes",
+    "mythicPlus": "Mítica+"
   }
 }

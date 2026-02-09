@@ -7,8 +7,9 @@ import BossesSection from '../components/analysis/BossesSection';
 import TrendsSection from '../components/analysis/TrendsSection';
 import RecommendationsSection from '../components/analysis/RecommendationsSection';
 import RecentFightsSection from '../components/analysis/RecentFightsSection';
+import MythicPlusSection from '../components/analysis/MythicPlusSection';
 
-const TABS = ['overview', 'bosses', 'trends', 'recentFights', 'recommendations'];
+const BASE_TABS = ['overview', 'bosses', 'trends', 'recentFights', 'recommendations'];
 const PERIODS = [4, 8, 12, 52];
 
 export default function Analysis() {
@@ -46,6 +47,14 @@ export default function Analysis() {
     () => characters.find(c => c.id === selectedCharId),
     [characters, selectedCharId]
   );
+
+  // Show M+ tab only when raiderIO data exists
+  const TABS = useMemo(() => {
+    if (data?.raiderIO) {
+      return ['overview', 'mythicPlus', 'bosses', 'trends', 'recentFights', 'recommendations'];
+    }
+    return BASE_TABS;
+  }, [data?.raiderIO]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -126,7 +135,7 @@ export default function Analysis() {
                     : 'text-void-text hover:text-white hover:bg-white/5'
                 }`}
               >
-                {t(`analysis.${tab}`)}
+                {tab === 'mythicPlus' ? t('raiderio.mythicPlus') : t(`analysis.${tab}`)}
               </button>
             ))}
           </div>
@@ -134,6 +143,7 @@ export default function Analysis() {
           {/* Tab content */}
           <div>
             {activeTab === 'overview' && <OverviewSection data={data} />}
+            {activeTab === 'mythicPlus' && <MythicPlusSection raiderIO={data.raiderIO} />}
             {activeTab === 'bosses' && <BossesSection data={data} />}
             {activeTab === 'trends' && <TrendsSection data={data} />}
             {activeTab === 'recentFights' && <RecentFightsSection data={data} />}

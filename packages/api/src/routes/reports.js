@@ -4,7 +4,8 @@ import { reports, fights, characters, fightPerformance } from '../db/schema.js';
 import { eq, and, inArray, desc } from 'drizzle-orm';
 import { authenticateToken } from '../middleware/auth.js';
 import { importLimiter } from '../middleware/rateLimit.js';
-import { getReportData, getFightStats, getExtendedFightStats } from '../services/wcl.js';
+import { getReportData, getReportDataWithUserToken, getFightStats, getExtendedFightStats } from '../services/wcl.js';
+import { authProviders, guilds, guildMembers } from '../db/schema.js';
 import { processExtendedFightData } from '../services/analysis.js';
 
 const router = Router();
@@ -29,11 +30,27 @@ function extractReportCode(input) {
 // POST /api/v1/reports/import — import a WCL report
 router.post('/import', importLimiter, async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, visibility = 'public', guildId } = req.body;
     const reportCode = extractReportCode(url);
 
     if (!reportCode) {
       return res.status(400).json({ error: 'Invalid Warcraft Logs URL or report code' });
+    }
+
+    if (!['public', 'private', 'guild'].includes(visibility)) {
+      return res.status(400).json({ error: 'Visibility must be public, private, or guild' });
+    }
+
+    // If guild visibility, verify membership
+    if (guildId) {
+      const membership = await db.select({ role: guildMembers.role })
+        .from(guildMembers)
+        .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
+        .get();
+
+      if (!membership) {
+        return res.status(403).json({ error: 'Not a member of this guild' });
+      }
     }
 
     // Check if already imported
@@ -46,13 +63,30 @@ router.post('/import', importLimiter, async (req, res) => {
       return res.status(409).json({ error: 'Report already imported', reportId: existing.id });
     }
 
-    // Fetch report data from WCL
-    const reportData = await getReportData(reportCode);
-    if (!reportData) {
-      return res.status(404).json({ error: 'Report not found on Warcraft Logs' });
+    // Try fetching with user token first (for private reports), fallback to client credentials
+    let reportData = null;
+    const wclProvider = await db.select({ accessToken: authProviders.accessToken })
+      .from(authProviders)
+      .where(and(eq(authProviders.userId, req.user.id), eq(authProviders.provider, 'warcraftlogs')))
+      .get();
+
+    if (wclProvider?.accessToken) {
+      try {
+        reportData = await getReportDataWithUserToken(reportCode, wclProvider.accessToken);
+      } catch {
+        // User token failed, fall back to client credentials
+      }
     }
 
-    // Store the report
+    if (!reportData) {
+      reportData = await getReportData(reportCode);
+    }
+
+    if (!reportData) {
+      return res.status(404).json({ error: 'Report not found on Warcraft Logs. If private, link your WCL account first.' });
+    }
+
+    // Store the report with visibility
     const [report] = await db.insert(reports).values({
       wclCode: reportCode,
       title: reportData.title,
@@ -64,6 +98,8 @@ router.post('/import', importLimiter, async (req, res) => {
       participantsCount: reportData.participants?.length || 0,
       importedBy: req.user.id,
       importSource: 'manual',
+      visibility,
+      guildId: guildId || null,
     }).returning();
 
     // Get user's characters for matching

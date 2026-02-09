@@ -12,6 +12,7 @@ import {
 } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
 import { getAuthorizeUrl, exchangeCode, getUserCharacters } from '../services/blizzard.js';
+import { getWclAuthorizeUrl, exchangeWclCode, getWclUserInfo } from '../services/wcl.js';
 import { authProviders, characters } from '../db/schema.js';
 
 const router = Router();
@@ -320,6 +321,68 @@ router.get('/blizzard/callback', async (req, res) => {
   } catch (err) {
     console.error('Blizzard callback error:', err);
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=blizzard_failed`);
+  }
+});
+
+// ============================================
+// WCL User OAuth (private logs access)
+// ============================================
+
+// GET /api/v1/auth/wcl/link — initiate WCL OAuth for private log access
+router.get('/wcl/link', authenticateToken, (req, res) => {
+  try {
+    if (!process.env.WCL_CLIENT_ID) {
+      return res.status(503).json({ error: 'WCL OAuth not configured' });
+    }
+
+    const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64url');
+    const authorizeUrl = getWclAuthorizeUrl(state);
+    res.json({ url: authorizeUrl });
+  } catch (err) {
+    console.error('WCL link error:', err);
+    res.status(500).json({ error: 'Failed to initiate WCL OAuth' });
+  }
+});
+
+// GET /api/v1/auth/wcl/callback — WCL OAuth callback
+router.get('/wcl/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    if (!code || !state) {
+      return res.redirect(`${frontendUrl}/dashboard?error=wcl_denied`);
+    }
+
+    const stateData = JSON.parse(Buffer.from(state, 'base64url').toString());
+    const userId = stateData.userId;
+
+    if (!userId) {
+      return res.redirect(`${frontendUrl}/dashboard?error=invalid_state`);
+    }
+
+    // Exchange code for user tokens
+    const tokens = await exchangeWclCode(code);
+
+    // Get WCL user info
+    const wclUser = await getWclUserInfo(tokens.accessToken);
+    const wclUserId = wclUser?.id?.toString() || userId;
+
+    // Store WCL OAuth provider (upsert)
+    await db.insert(authProviders).values({
+      userId,
+      provider: 'warcraftlogs',
+      providerUserId: wclUserId,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+    }).onConflictDoNothing();
+
+    res.redirect(`${frontendUrl}/dashboard?wcl=linked`);
+  } catch (err) {
+    console.error('WCL callback error:', err);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/dashboard?error=wcl_failed`);
   }
 });
 

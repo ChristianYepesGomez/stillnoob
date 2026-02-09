@@ -13,21 +13,59 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ## Stack
 - **Frontend:** HTML/CSS (landing page), React (app futura)
 - **Backend:** Node.js with ES Modules, Express.js (in packages/api/)
-- **Database:** SQLite via libsql + Drizzle ORM (packages/api/data/stillnoob.db)
-- **Deploy (landing):** Cloudflare Pages (free tier) — auto-deploy on push to main
-- **Deploy (API):** TBD — needs Node.js runtime + persistent SQLite (options: Railway, Fly.io, VPS)
+- **Database:** Turso (libsql remote) + Drizzle ORM — local dev uses `file:./data/stillnoob.db`
+- **Deploy (landing):** Cloudflare Workers (free) — `stillnoob` worker serves `./public` static files
+- **Deploy (API):** Render (free tier, Frankfurt) — auto-deploy on push to main
+- **Deploy (API proxy):** Cloudflare Worker `stillnoob-api-proxy` — routes `api.stillnoob.com/*` → Render
 - **Domain registrar:** Namecheap
 - **DNS/CDN:** Cloudflare (free)
 - **Repo hosting:** GitHub (public)
 - **Monorepo:** npm workspaces + turbo
 
 ## Infrastructure
-- Nameservers: andy.ns.cloudflare.com / georgia.ns.cloudflare.com
-- Cloudflare Workers reads from `./public` directory (via wrangler.jsonc)
-- `wrangler.jsonc` configured with `"directory": "./public"`
-- Auto-deploy on push to main branch via GitHub integration
-- Deploy command: `npx wrangler deploy`
-- Backend API will need separate hosting (not on Cloudflare Pages — runs Node.js + SQLite)
+
+### URLs
+| Service | URL | Host |
+|---------|-----|------|
+| Landing | `https://stillnoob.com` | Cloudflare Workers (`stillnoob`) |
+| Landing (www) | `https://www.stillnoob.com` | Cloudflare (CNAME → stillnoob.com) |
+| API (public) | `https://api.stillnoob.com` | Cloudflare Worker proxy → Render |
+| API (direct) | `https://stillnoob-api.onrender.com` | Render (free tier, Frankfurt) |
+| Database | Turso `stillnoob-db` | Turso (Frankfurt) |
+
+### DNS Records (Cloudflare)
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| A | `stillnoob.com` | `192.0.2.1` | Proxied (Workers Route) |
+| A | `api` | `192.0.2.1` | Proxied (Workers Route) |
+| CNAME | `www` | `stillnoob.com` | Proxied |
+
+### Workers Routes
+| Route | Worker |
+|-------|--------|
+| `stillnoob.com/*` | `stillnoob` (static landing page) |
+| `api.stillnoob.com/*` | `stillnoob-api-proxy` (reverse proxy → Render) |
+
+### Render Config
+- Blueprint: `render.yaml` in repo root
+- Root dir: `packages/api`
+- Build: `npm install`
+- Start: `node src/index.js`
+- Region: Frankfurt
+- Auto-deploy: on push to `main`
+- Custom domain: `api.stillnoob.com` (verified, but uses Worker proxy route instead)
+
+### Turso Config
+- Database: `stillnoob-db` (Frankfurt)
+- Schema push: `npx drizzle-kit push --config=drizzle.config.prod.js` (from packages/api/)
+- Local dev: `dialect: 'sqlite'` in `drizzle.config.js`
+- Production: `dialect: 'turso'` in `drizzle.config.prod.js`
+
+### Architecture Notes
+- Render uses Cloudflare CDN internally → CNAME `api` → `onrender.com` causes Cloudflare Error 1000 (CF-to-CF conflict)
+- Solution: Cloudflare Worker `stillnoob-api-proxy` acts as reverse proxy, fetching from Render's origin URL
+- This avoids the DNS conflict while keeping `api.stillnoob.com` as the public-facing URL
+- `trust proxy` is set in Express for production (Render sends X-Forwarded-For headers)
 
 ---
 
@@ -276,13 +314,22 @@ npm install                   # Install all workspace deps
 - Background jobs (auto-scan WCL every 30min)
 - Rate limiter (token bucket for WCL API)
 
+### Frontend — DONE (Feb 9, 2026)
+- React 18 + Vite 6 + Tailwind 3 + Recharts + i18next (EN/ES)
+- Void palette aligned with landing page design
+- Pages: Landing, Login, Register, Dashboard, Analysis (4 tabs), Guild, CharacterPublic
+- Components: ScoreBadge (SVG ring + breakdown), StatCard, ConsumableBar, OverviewSection, BossesSection, TrendsSection, RecommendationsSection
+- Auth: JWT in memory + httpOnly refresh cookie + auto-token-refresh interceptor
+- API proxy: Vite proxies `/api` to port 3001
+- OAuth linking UI (WCL + Blizzard) in Dashboard
+
 ### Not Yet Built
-- React web app (packages/web scaffold exists but not connected)
 - Raider.io integration
 - Google/Discord OAuth
 - Email verification
 - Premium tier features & payment
 - API backend deployment (prod hosting)
+- Playwright E2E tests
 
 ---
 
@@ -329,14 +376,14 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 
 ---
 
-## Timeline
+## Timeline (Updated)
 | Week | Dates | Goal |
 |------|-------|------|
-| 1 | Feb 10-16 | Name, domain, user flow, landing, infra setup |
-| 2 | Feb 17-23 | Project structure, input system, character lookup |
-| 3 | Feb 24 - Mar 2 | Analysis engine (WCL, Raider.io, Armory APIs) |
-| 4 | Mar 3-9 | Coaching system, results dashboard |
-| 5 | Mar 10-16 | Testing, polish UI, deploy, promotion |
+| 1 | Feb 10-16 | Name ✅, domain ✅, user flow ✅, landing ✅, infra setup |
+| 2 | Feb 17-23 | Project structure, input system, **setup Playwright + first tests** |
+| 3 | Feb 24 - Mar 2 | Analysis engine (APIs) + **tests for API calls & character input** |
+| 4 | Mar 3-9 | Coaching system, dashboard + **tests for dashboard & coaching** |
+| 5 | Mar 10-16 | Polish UI, promotion — **everything already tested, no firefighting** |
 | 🎯 | **Mar 17** | **LAUNCH with Midnight Season 1** |
 
 ---
@@ -354,6 +401,23 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 - Rate limiting is already configured — respect it in new endpoints.
 - Multiple Claude terminals may work on this repo simultaneously — coordinate git operations carefully. Never force-push without asking.
 - The DKP backend project runs on `c:\Proyectos\dkp-backend` and `c:\Proyectos\dkp-frontend` — don't confuse repos.
+
+---
+
+## Testing Strategy
+- Setup Playwright from week 2, not at the end
+- Add tests as each feature is built, not after
+- E2E tests for the full user flow:
+  1. Landing page loads correctly
+  2. Character input → sends request → loading screen appears
+  3. Dashboard renders with score, stats, gear, coaching
+  4. Share button generates correct link
+  5. Mobile responsive works on all screens
+- API tests:
+  1. Public route /character/:region/:realm/:name returns valid data
+  2. Rate limiter works correctly under load
+  3. Graceful error handling when WarcraftLogs/Raider.io is down
+- Goal: Week 5 is ONLY for polish and promotion, zero bug hunting
 
 ---
 

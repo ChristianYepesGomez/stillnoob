@@ -1,0 +1,97 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api/v1',
+  withCredentials: true,
+});
+
+// Track access token in memory (not localStorage)
+let accessToken = null;
+
+export function setAccessToken(token) {
+  accessToken = token;
+}
+
+export function getAccessToken() {
+  return accessToken;
+}
+
+// Request interceptor — attach access token
+api.interceptors.request.use((config) => {
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  return config;
+});
+
+// Response interceptor — handle 401 with token refresh
+let isRefreshing = false;
+let refreshSubscribers = [];
+
+function onRefreshed(token) {
+  refreshSubscribers.forEach(cb => cb(token));
+  refreshSubscribers = [];
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && error.response?.data?.code === 'TOKEN_EXPIRED' && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      if (!isRefreshing) {
+        isRefreshing = true;
+        try {
+          const { data } = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
+          accessToken = data.accessToken;
+          isRefreshing = false;
+          onRefreshed(data.accessToken);
+        } catch (refreshError) {
+          isRefreshing = false;
+          accessToken = null;
+          window.dispatchEvent(new Event('auth:logout'));
+          return Promise.reject(refreshError);
+        }
+      }
+
+      return new Promise((resolve) => {
+        refreshSubscribers.push((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(api(originalRequest));
+        });
+      });
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// API modules
+export const authAPI = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
+  me: () => api.get('/auth/me'),
+};
+
+export const charactersAPI = {
+  list: () => api.get('/characters'),
+  add: (data) => api.post('/characters', data),
+  setPrimary: (id) => api.put(`/characters/${id}/primary`),
+  remove: (id) => api.delete(`/characters/${id}`),
+};
+
+export const reportsAPI = {
+  import: (url) => api.post('/reports/import', { url }),
+  list: () => api.get('/reports'),
+  get: (code) => api.get(`/reports/${code}`),
+};
+
+export const analysisAPI = {
+  overview: (weeks = 8) => api.get(`/analysis/overview?weeks=${weeks}`),
+  character: (id, weeks = 8) => api.get(`/analysis/character/${id}?weeks=${weeks}`),
+};
+
+export default api;

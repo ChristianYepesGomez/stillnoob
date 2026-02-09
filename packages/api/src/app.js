@@ -5,6 +5,11 @@ import { apiLimiter } from './middleware/rateLimit.js';
 
 const app = express();
 
+// Trust proxy when behind reverse proxy (Render, etc.)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -25,12 +30,14 @@ import characterRoutes from './routes/characters.js';
 import reportRoutes from './routes/reports.js';
 import analysisRoutes from './routes/analysis.js';
 import publicRoutes from './routes/public.js';
+import guildRoutes from './routes/guilds.js';
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/characters', characterRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/analysis', analysisRoutes);
 app.use('/api/v1/public', publicRoutes);
+app.use('/api/v1/guilds', guildRoutes);
 
 // 404 handler
 app.use('/api', (req, res) => {

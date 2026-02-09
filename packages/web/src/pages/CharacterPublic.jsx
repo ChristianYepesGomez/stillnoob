@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { publicAPI } from '../services/api';
 import { CLASS_COLORS, DIFFICULTY_COLORS } from '@stillnoob/shared';
 import ScoreBadge from '../components/analysis/ScoreBadge';
+import MythicPlusSection from '../components/analysis/MythicPlusSection';
 
 function formatDps(val) {
   if (!val) return '0';
@@ -73,7 +74,7 @@ export default function CharacterPublic() {
     );
   }
 
-  const { character, score, summary, bossBreakdown } = data;
+  const { character, score, summary, bossBreakdown, raiderIO } = data;
   const classColor = CLASS_COLORS[character.className] || '#fff';
 
   return (
@@ -142,6 +143,9 @@ export default function CharacterPublic() {
             <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
           </div>
         </div>
+
+        {/* Mythic+ data from Raider.io */}
+        {raiderIO && <MythicPlusSection raiderIO={raiderIO} compact />}
 
         {/* Boss breakdown */}
         {bossBreakdown?.length > 0 && (

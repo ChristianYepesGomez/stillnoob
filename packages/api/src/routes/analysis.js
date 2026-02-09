@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { getCharacterPerformance } from '../services/analysis.js';
+import { getCharacterRaiderIO } from '../services/raiderio.js';
 import { db } from '../db/client.js';
 import { characters } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -26,8 +27,13 @@ router.get('/character/:id', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    const data = await getCharacterPerformance(charId, { weeks, bossId, difficulty });
-    res.json(data);
+    // Fetch WCL analysis + Raider.io data in parallel
+    const [data, raiderIO] = await Promise.all([
+      getCharacterPerformance(charId, { weeks, bossId, difficulty }),
+      getCharacterRaiderIO(char.region, char.realmSlug, char.name),
+    ]);
+
+    res.json({ ...data, raiderIO });
   } catch (err) {
     console.error('Analysis error:', err);
     res.status(500).json({ error: 'Failed to get analysis' });

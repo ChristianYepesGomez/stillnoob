@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { characters } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { getCharacterPerformance } from '../services/analysis.js';
+import { getCharacterRaiderIO } from '../services/raiderio.js';
 
 const router = Router();
 
@@ -36,8 +37,11 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    // Only include data from public reports (private/guild reports excluded)
-    const data = await getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public' });
+    // Fetch WCL analysis + Raider.io data in parallel
+    const [data, raiderIO] = await Promise.all([
+      getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public' }),
+      getCharacterRaiderIO(match.region, match.realmSlug, match.name),
+    ]);
 
     // Return public-safe subset (no detailed consumable breakdown per fight)
     res.json({
@@ -68,6 +72,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
         deathRate: b.deathRate,
         dpsVsMedian: b.dpsVsMedian,
       })),
+      raiderIO,
       lastUpdated: new Date().toISOString(),
     });
   } catch (err) {

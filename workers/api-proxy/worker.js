@@ -15,20 +15,10 @@ export default {
       redirect: 'follow',
     });
 
-    const responseHeaders = new Headers(response.headers);
-    responseHeaders.set('Access-Control-Allow-Origin', '*');
-    responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    responseHeaders.set('Access-Control-Allow-Credentials', 'true');
-
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: responseHeaders });
-    }
-
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: responseHeaders,
+      headers: response.headers,
     });
   },
 };

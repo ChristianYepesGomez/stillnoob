@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.js';
+import { analysisLimiter } from '../middleware/rateLimit.js';
 import { getCharacterPerformance } from '../services/analysis.js';
 import { getCharacterRaiderIO } from '../services/raiderio.js';
 import { db } from '../db/client.js';
@@ -8,6 +9,7 @@ import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 router.use(authenticateToken);
+router.use(analysisLimiter);
 
 // GET /api/v1/analysis/character/:id — per-character full analysis
 router.get('/character/:id', async (req, res) => {

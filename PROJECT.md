@@ -341,6 +341,7 @@ npm install                   # Install all workspace deps
 - Premium tier features & payment
 - Frontend production deployment (React app on Cloudflare Pages or similar)
 - Playwright E2E tests
+- AI-generated coaching text: Use LLM to write natural-language recommendations from analysis data (ref: prompts.chat as prompt library)
 
 ---
 
@@ -403,24 +404,66 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 ---
 
 ## AI Assistant Rules (for Claude / any LLM)
-- If something goes sideways, STOP and re-plan. Don't keep pushing broken approaches.
-- Write rules here that prevent the same mistake from happening twice.
-- Always check `.gitignore` before committing new file types.
-- Never expose API keys, tokens, or personal data in code or commits.
-- When making infrastructure changes, explain step by step.
-- Keep this `PROJECT.md` updated with every major decision or mistake.
-- Use ES Modules (`import/export`) everywhere — no `require()`.
-- Follow existing code patterns in the codebase before introducing new ones.
-- API responses should always be JSON with consistent error format: `{ error: "message" }`.
-- Rate limiting is already configured — respect it in new endpoints.
-- Multiple Claude terminals may work on this repo simultaneously — coordinate git operations carefully. Never force-push without asking.
-- The DKP backend project runs on `c:\Proyectos\dkp-backend` and `c:\Proyectos\dkp-frontend` — don't confuse repos.
+
+### Context Management
+- Use `/clear` between unrelated tasks — a clean session with a good prompt always beats a long polluted one
+- If you've corrected Claude 2+ times on the same issue in one session, `/clear` and rewrite the prompt incorporating what you learned
+- Use subagents for codebase exploration — keeps main context clean for implementation
+- Scope investigations: "investigate token refresh in src/middleware/auth.js" NOT "investigate the auth system"
+
+### Session Patterns
+- **Explore → Plan → Implement → Verify → Commit** for non-trivial tasks
+- **Interview-Driven Spec**: For complex features, have Claude interview you about requirements → write spec to file → `/clear` → implement from spec in clean session
+- **Writer/Reviewer**: Use one session to implement, another to review the implementation
+- **Fresh sessions for fresh tasks**: Don't mix unrelated work in one session
+
+### Code Quality Enforcement
+- **ESLint** is configured — run `npm run lint` to check, fix warnings before committing
+- **Prettier** is configured — run `npm run format` to auto-format, `npm run format:check` to verify
+- **Vitest + Supertest** for API tests — run `npm run test` before committing
+- **GitHub Actions CI** runs lint + format check + tests on every push/PR to main
+- Don't ask Claude to format code — Prettier does that deterministically
+- Don't ask Claude to catch unused variables — ESLint does that
+
+### General Rules
+- If something goes sideways, STOP and re-plan. Don't keep pushing broken approaches
+- Write rules here that prevent the same mistake from happening twice
+- Always check `.gitignore` before committing new file types
+- Never expose API keys, tokens, or personal data in code or commits
+- When making infrastructure changes, explain step by step
+- Keep this `PROJECT.md` updated with every major decision or mistake
+- Use ES Modules (`import/export`) everywhere — no `require()`
+- Follow existing code patterns in the codebase before introducing new ones
+- API responses should always be JSON with consistent error format: `{ error: "message" }`
+- Rate limiting is already configured — respect it in new endpoints
+- Multiple Claude terminals may work on this repo simultaneously — coordinate git operations carefully. Never force-push without asking
+- The DKP backend project runs on `c:\Proyectos\dkp-backend` and `c:\Proyectos\dkp-frontend` — don't confuse repos
+- For parallel multi-agent work, consider git worktrees to avoid file conflicts
+
+---
+
+## Code Quality Tooling
+
+| Tool | Command | Purpose |
+|------|---------|---------|
+| ESLint | `npm run lint` | Code quality, unused vars, common errors |
+| Prettier | `npm run format` | Deterministic code formatting |
+| Vitest | `npm run test` | API unit/integration tests |
+| Supertest | (used in tests) | HTTP assertion library for Express |
+| GitHub Actions | (automatic on push) | CI pipeline: lint + format + test |
+
+### Adding New Tests
+- Test files go in `packages/api/src/__tests__/*.test.js`
+- Use Supertest to test HTTP endpoints: `request(app).get('/api/...')`
+- Config in `packages/api/vitest.config.js`
+- Run: `npm run test` (from root or packages/api)
 
 ---
 
 ## Testing Strategy
-- Setup Playwright from week 2, not at the end
-- Add tests as each feature is built, not after
+- **API tests (Vitest + Supertest)**: Already configured, add tests as features are built
+- **E2E tests (Playwright)**: Setup from week 2
+- Add tests alongside each feature, not after
 - E2E tests for the full user flow:
   1. Landing page loads correctly
   2. Character input → sends request → loading screen appears
@@ -435,4 +478,16 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 
 ---
 
-*Last updated: February 9, 2026*
+## Detailed Task Handoff
+See `AGENT-TASKS.md` for 7 detailed improvement tasks ready for agent execution:
+1. Clean ESLint warnings
+2. Add more API tests (auth, public routes)
+3. Refactor DKP server.js into routes
+4. Gradual TypeScript migration
+5. Sentry error monitoring
+6. Git worktrees for parallel work
+7. Slim down DKP CLAUDE.md
+
+---
+
+*Last updated: February 12, 2026*

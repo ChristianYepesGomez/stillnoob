@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { reports, fights, characters, fightPerformance } from '../db/schema.js';
-import { eq, and, inArray, desc } from 'drizzle-orm';
-import { authenticateToken } from '../middleware/auth.js';
+import { reports, fights, characters } from '../db/schema.js';
+import { eq, and, desc } from 'drizzle-orm';
+import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 import { importLimiter } from '../middleware/rateLimit.js';
-import { getReportData, getReportDataWithUserToken, getFightStats, getExtendedFightStats } from '../services/wcl.js';
-import { authProviders, guilds, guildMembers } from '../db/schema.js';
-import { processExtendedFightData } from '../services/analysis.js';
+import { getReportData, getReportDataWithUserToken, getBatchFightStats, getBatchExtendedFightStats } from '../services/wcl.js';
+import { authProviders, guildMembers } from '../db/schema.js';
+import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
+import { decryptToken } from '../utils/encryption.js';
 
 const router = Router();
-router.use(authenticateToken);
 
 /**
  * Extract WCL report code from URL or raw code
@@ -28,7 +28,7 @@ function extractReportCode(input) {
 }
 
 // POST /api/v1/reports/import — import a WCL report
-router.post('/import', importLimiter, async (req, res) => {
+router.post('/import', authenticateToken, importLimiter, async (req, res) => {
   try {
     const { url, visibility = 'public', guildId } = req.body;
     const reportCode = extractReportCode(url);
@@ -119,12 +119,13 @@ router.post('/import', importLimiter, async (req, res) => {
     let processedCount = 0;
     let performanceCount = 0;
 
+    // Step 1: Insert all fights into DB and build mappings
+    const fightMappings = [];
     for (const fight of encounterFights) {
       const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
       const difficulty = difficultyMap[fight.difficulty] || 'Normal';
       const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
 
-      // Store the fight
       try {
         const [storedFight] = await db.insert(fights).values({
           reportId: report.id,
@@ -138,27 +139,47 @@ router.post('/import', importLimiter, async (req, res) => {
           durationMs,
         }).returning();
 
+        fightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
         processedCount++;
-
-        // Fetch and process performance data for this fight
-        try {
-          const [basicStats, extStats] = await Promise.all([
-            getFightStats(reportCode, [fight.id]),
-            getExtendedFightStats(reportCode, [fight.id]),
-          ]);
-
-          const count = await processExtendedFightData(
-            storedFight.id, durationMs, basicStats, extStats, charMap
-          );
-          performanceCount += count;
-        } catch (statsErr) {
-          console.warn(`Stats failed for fight ${fight.id}:`, statsErr.message);
-        }
       } catch (fightErr) {
         if (!fightErr.message?.includes('UNIQUE')) {
           console.warn(`Fight insert failed:`, fightErr.message);
         }
       }
+    }
+
+    // Step 2: Batch fetch stats for ALL fights (2 API calls instead of 2*N)
+    if (fightMappings.length > 0) {
+      const allFightIds = fightMappings.map(f => f.wclFightId);
+      try {
+        const [batchBasicStats, batchExtStats] = await Promise.all([
+          getBatchFightStats(reportCode, allFightIds),
+          getBatchExtendedFightStats(reportCode, allFightIds),
+        ]);
+
+        // Step 3: Process each fight with its pre-fetched data
+        for (const mapping of fightMappings) {
+          const basicStats = batchBasicStats.get(mapping.wclFightId);
+          const extStats = batchExtStats.get(mapping.wclFightId);
+          if (basicStats && extStats) {
+            try {
+              const count = await processExtendedFightData(
+                mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
+              );
+              performanceCount += count;
+            } catch (statsErr) {
+              console.warn(`Stats failed for fight ${mapping.wclFightId}:`, statsErr.message);
+            }
+          }
+        }
+      } catch (statsErr) {
+        console.warn('Batch stats fetch failed:', statsErr.message);
+      }
+    }
+
+    // Invalidate analysis cache for affected characters
+    for (const charId of Object.values(charMap)) {
+      invalidateAnalysisCache(charId);
     }
 
     res.status(201).json({
@@ -183,7 +204,7 @@ router.post('/import', importLimiter, async (req, res) => {
 });
 
 // GET /api/v1/reports — list my reports
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const userReports = await db.select()
       .from(reports)
@@ -198,8 +219,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/v1/reports/:code — report detail with fights
-router.get('/:code', async (req, res) => {
+// GET /api/v1/reports/:code — report detail with fights (visibility-aware)
+router.get('/:code', optionalAuth, async (req, res) => {
   try {
     const report = await db.select()
       .from(reports)
@@ -208,6 +229,28 @@ router.get('/:code', async (req, res) => {
 
     if (!report) {
       return res.status(404).json({ error: 'Report not found' });
+    }
+
+    // Visibility checks
+    if (report.visibility === 'private') {
+      if (!req.user || req.user.id !== report.importedBy) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+    } else if (report.visibility === 'guild') {
+      if (!req.user) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
+      if (req.user.id !== report.importedBy && report.guildId) {
+        const membership = await db.select({ role: guildMembers.role })
+          .from(guildMembers)
+          .where(and(eq(guildMembers.guildId, report.guildId), eq(guildMembers.userId, req.user.id)))
+          .get();
+        if (!membership) {
+          return res.status(404).json({ error: 'Report not found' });
+        }
+      } else if (req.user.id !== report.importedBy) {
+        return res.status(404).json({ error: 'Report not found' });
+      }
     }
 
     const reportFights = await db.select()

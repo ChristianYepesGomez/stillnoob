@@ -196,6 +196,104 @@ export async function getExtendedFightStats(reportCode, fightIds) {
   }
 }
 
+/**
+ * Batch fetch fight stats for multiple fights in a single GraphQL request.
+ * Uses aliases to get per-fight data: 2 API calls instead of 2*N.
+ * Returns Map<fightId, { damage, healing, damageTaken, deaths }>
+ */
+export async function getBatchFightStats(reportCode, fightIds) {
+  if (fightIds.length === 0) return new Map();
+
+  const fightQueries = fightIds.map(id => `
+    fight_${id}_damage: table(dataType: DamageDone, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_healing: table(dataType: Healing, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_damageTaken: table(dataType: DamageTaken, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_deaths: table(dataType: Deaths, fightIDs: [${id}], hostilityType: Friendlies)
+  `).join('\n');
+
+  const query = `
+    query GetBatchFightStats($reportCode: String!) {
+      reportData {
+        report(code: $reportCode) {
+          ${fightQueries}
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await executeGraphQL(query, { reportCode });
+    const report = data.reportData?.report;
+    if (!report) return new Map();
+
+    const parseTable = (table) => {
+      if (!table?.data?.entries) return [];
+      return table.data.entries;
+    };
+
+    const results = new Map();
+    for (const id of fightIds) {
+      results.set(id, {
+        damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0 })),
+        healing: parseTable(report[`fight_${id}_healing`]).map(e => ({ name: e.name, total: e.total || 0 })),
+        damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map(e => ({ name: e.name, total: e.total || 0 })),
+        deaths: parseTable(report[`fight_${id}_deaths`]).map(e => ({ name: e.name, total: e.total || 0 })),
+      });
+    }
+    return results;
+  } catch (error) {
+    console.error('Error fetching batch fight stats:', error.message);
+    return new Map();
+  }
+}
+
+/**
+ * Batch fetch extended fight stats for multiple fights in a single GraphQL request.
+ * Returns Map<fightId, { casts, buffs, interrupts, dispels }>
+ */
+export async function getBatchExtendedFightStats(reportCode, fightIds) {
+  if (fightIds.length === 0) return new Map();
+
+  const fightQueries = fightIds.map(id => `
+    fight_${id}_casts: table(dataType: Casts, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_buffs: table(dataType: Buffs, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_interrupts: table(dataType: Interrupts, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_dispels: table(dataType: Dispels, fightIDs: [${id}], hostilityType: Friendlies)
+  `).join('\n');
+
+  const query = `
+    query GetBatchExtendedFightStats($reportCode: String!) {
+      reportData {
+        report(code: $reportCode) {
+          ${fightQueries}
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await executeGraphQL(query, { reportCode });
+    const report = data.reportData?.report;
+    if (!report) return new Map();
+
+    const parseTable = (table) => table?.data?.entries || [];
+
+    const results = new Map();
+    for (const id of fightIds) {
+      results.set(id, {
+        casts: parseTable(report[`fight_${id}_casts`]),
+        buffs: parseTable(report[`fight_${id}_buffs`]),
+        interrupts: parseTable(report[`fight_${id}_interrupts`]),
+        dispels: parseTable(report[`fight_${id}_dispels`]),
+      });
+    }
+    return results;
+  } catch (error) {
+    console.error('Error fetching batch extended fight stats:', error.message);
+    return new Map();
+  }
+}
+
 // ============================================
 // WCL User OAuth (for private logs)
 // ============================================

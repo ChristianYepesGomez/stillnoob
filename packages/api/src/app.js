@@ -55,6 +55,10 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
+// Sentry error handler (must be before generic error handler)
+import * as Sentry from '@sentry/node';
+Sentry.setupExpressErrorHandler(app);
+
 // Error handler
 app.use((err, req, res, _next) => {
   console.error('Unhandled error:', err);

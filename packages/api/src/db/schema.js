@@ -36,9 +36,13 @@ export const refreshTokens = sqliteTable('refresh_tokens', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
+  tokenFamily: text('token_family').notNull(),
+  used: integer('used', { mode: 'boolean' }).default(false),
   expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  index('refresh_family_idx').on(table.tokenFamily),
+]);
 
 // ============================================
 // CHARACTERS
@@ -113,7 +117,9 @@ export const reports = sqliteTable('reports', {
   visibility: text('visibility').notNull().default('public'), // 'public' | 'private' | 'guild'
   guildId: integer('guild_id').references(() => guilds.id, { onDelete: 'set null' }),
   processedAt: text('processed_at').default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  index('report_imported_by_idx').on(table.importedBy),
+]);
 
 export const fights = sqliteTable('fights', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -128,6 +134,9 @@ export const fights = sqliteTable('fights', {
   durationMs: integer('duration_ms').default(0),
 }, (table) => [
   uniqueIndex('fight_unique').on(table.reportId, table.wclFightId),
+  index('fight_encounter_idx').on(table.encounterId),
+  index('fight_difficulty_idx').on(table.difficulty),
+  index('fight_time_idx').on(table.startTime),
 ]);
 
 // ============================================

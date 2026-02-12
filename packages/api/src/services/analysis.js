@@ -1,7 +1,28 @@
 import { db } from '../db/client.js';
-import { fightPerformance, fights, bosses } from '../db/schema.js';
-import { eq, and, gte, desc, sql } from 'drizzle-orm';
+import { fightPerformance } from '../db/schema.js';
 import { CONSUMABLE_PATTERNS, BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS } from '@stillnoob/shared';
+
+// ── In-memory analysis cache (TTL: 5 minutes) ──
+const analysisCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000;
+
+function buildCacheKey(characterId, { weeks, bossId, difficulty } = {}) {
+  return `${characterId}:${weeks || ''}:${bossId || ''}:${difficulty || ''}`;
+}
+
+/**
+ * Invalidate all cached analysis results for a character.
+ * Call this when new report data is imported for that character.
+ */
+export function invalidateAnalysisCache(characterId) {
+  const prefix = `${characterId}:`;
+  for (const [key, entry] of analysisCache) {
+    if (key.startsWith(prefix)) {
+      clearTimeout(entry.timer);
+      analysisCache.delete(key);
+    }
+  }
+}
 
 /**
  * Process extended fight data from WCL and store per-fight performance snapshots.
@@ -145,9 +166,14 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
  */
 export async function getCharacterPerformance(characterId, options = {}) {
   const { weeks = 8, bossId, difficulty, visibilityFilter } = options;
+
+  // Check cache first
+  const cacheKey = buildCacheKey(characterId, { weeks, bossId, difficulty });
+  const cached = analysisCache.get(cacheKey);
+  if (cached) return cached.data;
+
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (weeks * 7));
-  const cutoffDate = cutoff.toISOString().split('T')[0];
 
   // Build dynamic WHERE conditions for raw SQL
   // When visibilityFilter is set, JOIN reports to filter by visibility
@@ -358,7 +384,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
   const recommendations = generateRecommendations({ summary: summaryData, bossBreakdown, weeklyTrends });
   const score = calculateStillNoobScore(summaryData, bossBreakdown);
 
-  return {
+  const result = {
     summary: summaryData,
     score,
     bossBreakdown,
@@ -366,6 +392,12 @@ export async function getCharacterPerformance(characterId, options = {}) {
     recentFights,
     recommendations,
   };
+
+  // Store in cache with auto-eviction timer
+  const timer = setTimeout(() => analysisCache.delete(cacheKey), CACHE_TTL);
+  analysisCache.set(cacheKey, { data: result, timer });
+
+  return result;
 }
 
 /**

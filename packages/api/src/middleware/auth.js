@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+}
 
 /**
  * Generate an access token (short-lived)
@@ -21,10 +26,9 @@ export function generateAccessToken(user) {
  * @returns {string}
  */
 export function generateRefreshToken(user) {
-  const secret = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
   return jwt.sign(
     { id: user.id, type: 'refresh' },
-    secret,
+    JWT_REFRESH_SECRET,
     { expiresIn: '30d' }
   );
 }
@@ -36,8 +40,7 @@ export function generateRefreshToken(user) {
  */
 export function verifyRefreshToken(token) {
   try {
-    const secret = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
-    const decoded = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, JWT_REFRESH_SECRET);
     if (decoded.type !== 'refresh') return null;
     return decoded;
   } catch {
@@ -66,6 +69,27 @@ export function authenticateToken(req, res, next) {
     }
     return res.status(403).json({ error: 'Invalid token' });
   }
+}
+
+/**
+ * Express middleware: optionally authenticate JWT from Authorization header.
+ * Sets req.user if a valid token is present, but does not reject requests without one.
+ */
+export function optionalAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    req.user = null;
+  }
+  next();
 }
 
 /**

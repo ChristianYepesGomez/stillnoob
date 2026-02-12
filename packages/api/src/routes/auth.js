@@ -14,6 +14,39 @@ import { authLimiter } from '../middleware/rateLimit.js';
 import { getAuthorizeUrl, exchangeCode, getUserCharacters } from '../services/blizzard.js';
 import { getWclAuthorizeUrl, exchangeWclCode, getWclUserInfo } from '../services/wcl.js';
 import { authProviders, characters } from '../db/schema.js';
+import { encryptToken } from '../utils/encryption.js';
+
+const OAUTH_STATE_SECRET = process.env.OAUTH_STATE_SECRET;
+if (!OAUTH_STATE_SECRET) {
+  throw new Error('OAUTH_STATE_SECRET environment variable is required');
+}
+
+/**
+ * Sign an OAuth state parameter with HMAC-SHA256 to prevent CSRF
+ * @param {object} data - State payload
+ * @returns {string} base64url-encoded signed state
+ */
+function signState(data) {
+  const payload = JSON.stringify(data);
+  const hmac = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(payload).digest('base64url');
+  return Buffer.from(JSON.stringify({ payload, hmac })).toString('base64url');
+}
+
+/**
+ * Verify and decode a signed OAuth state parameter
+ * @param {string} state - base64url-encoded signed state
+ * @returns {object|null} decoded payload or null if invalid
+ */
+function verifyState(state) {
+  try {
+    const { payload, hmac } = JSON.parse(Buffer.from(state, 'base64url').toString());
+    const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(payload).digest('base64url');
+    if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expected))) return null;
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
 
 const router = Router();
 
@@ -53,11 +86,13 @@ router.post('/register', authLimiter, async (req, res) => {
     const accessToken = generateAccessToken(user);
     const refreshTkn = generateRefreshToken(user);
 
-    // Store refresh token
+    // Store refresh token with new family
+    const tokenFamily = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await db.insert(refreshTokens).values({
       userId,
       token: refreshTkn,
+      tokenFamily,
       expiresAt,
     });
 
@@ -107,11 +142,13 @@ router.post('/login', authLimiter, async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshTkn = generateRefreshToken(tokenPayload);
 
-    // Store refresh token
+    // Store refresh token with new family
+    const tokenFamily = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await db.insert(refreshTokens).values({
       userId: user.id,
       token: refreshTkn,
+      tokenFamily,
       expiresAt,
     });
 
@@ -163,8 +200,15 @@ router.post('/refresh', async (req, res) => {
       return res.status(401).json({ error: 'Refresh token revoked' });
     }
 
-    // Delete old token (rotation)
-    await db.delete(refreshTokens).where(eq(refreshTokens.token, token));
+    // Reuse detection: if token was already used, invalidate entire family
+    if (stored.used) {
+      await db.delete(refreshTokens).where(eq(refreshTokens.tokenFamily, stored.tokenFamily));
+      res.clearCookie('refreshToken', { path: '/api/v1/auth' });
+      return res.status(401).json({ error: 'Refresh token reuse detected — all sessions in this family revoked' });
+    }
+
+    // Mark current token as used (not deleted, kept for reuse detection)
+    await db.update(refreshTokens).set({ used: true }).where(eq(refreshTokens.id, stored.id));
 
     // Get fresh user data
     const user = await db.select()
@@ -180,11 +224,12 @@ router.post('/refresh', async (req, res) => {
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
 
-    // Store new refresh token
+    // Store new refresh token in the same family
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await db.insert(refreshTokens).values({
       userId: user.id,
       token: newRefreshToken,
+      tokenFamily: stored.tokenFamily,
       expiresAt,
     });
 
@@ -208,7 +253,14 @@ router.post('/logout', authenticateToken, async (req, res) => {
   try {
     const token = req.cookies?.refreshToken;
     if (token) {
-      await db.delete(refreshTokens).where(eq(refreshTokens.token, token));
+      // Find the token to get its family, then delete the entire family
+      const stored = await db.select({ tokenFamily: refreshTokens.tokenFamily })
+        .from(refreshTokens)
+        .where(eq(refreshTokens.token, token))
+        .get();
+      if (stored) {
+        await db.delete(refreshTokens).where(eq(refreshTokens.tokenFamily, stored.tokenFamily));
+      }
     }
     res.clearCookie('refreshToken', { path: '/api/v1/auth' });
     res.json({ message: 'Logged out' });
@@ -251,8 +303,7 @@ router.get('/blizzard/link', authenticateToken, (req, res) => {
       return res.status(503).json({ error: 'Blizzard OAuth not configured' });
     }
 
-    // Encode user ID in state for callback verification
-    const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64url');
+    const state = signState({ userId: req.user.id });
     const authorizeUrl = getAuthorizeUrl(state);
     res.json({ url: authorizeUrl });
   } catch (err) {
@@ -270,24 +321,22 @@ router.get('/blizzard/callback', async (req, res) => {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=blizzard_denied`);
     }
 
-    // Decode state to get userId
-    const stateData = JSON.parse(Buffer.from(state, 'base64url').toString());
-    const userId = stateData.userId;
-
-    if (!userId) {
+    const stateData = verifyState(state);
+    if (!stateData?.userId) {
       return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=invalid_state`);
     }
+    const userId = stateData.userId;
 
     // Exchange code for tokens
     const tokens = await exchangeCode(code);
 
-    // Store Blizzard OAuth provider
+    // Store Blizzard OAuth provider (tokens encrypted at rest)
     await db.insert(authProviders).values({
       userId,
       provider: 'blizzard',
       providerUserId: userId, // Will be updated with Blizzard user ID
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken: encryptToken(tokens.accessToken),
+      refreshToken: encryptToken(tokens.refreshToken),
       tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
     }).onConflictDoNothing();
 
@@ -335,7 +384,7 @@ router.get('/wcl/link', authenticateToken, (req, res) => {
       return res.status(503).json({ error: 'WCL OAuth not configured' });
     }
 
-    const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64url');
+    const state = signState({ userId: req.user.id });
     const authorizeUrl = getWclAuthorizeUrl(state);
     res.json({ url: authorizeUrl });
   } catch (err) {
@@ -354,12 +403,11 @@ router.get('/wcl/callback', async (req, res) => {
       return res.redirect(`${frontendUrl}/dashboard?error=wcl_denied`);
     }
 
-    const stateData = JSON.parse(Buffer.from(state, 'base64url').toString());
-    const userId = stateData.userId;
-
-    if (!userId) {
+    const stateData = verifyState(state);
+    if (!stateData?.userId) {
       return res.redirect(`${frontendUrl}/dashboard?error=invalid_state`);
     }
+    const userId = stateData.userId;
 
     // Exchange code for user tokens
     const tokens = await exchangeWclCode(code);
@@ -368,13 +416,13 @@ router.get('/wcl/callback', async (req, res) => {
     const wclUser = await getWclUserInfo(tokens.accessToken);
     const wclUserId = wclUser?.id?.toString() || userId;
 
-    // Store WCL OAuth provider (upsert)
+    // Store WCL OAuth provider (tokens encrypted at rest)
     await db.insert(authProviders).values({
       userId,
       provider: 'warcraftlogs',
       providerUserId: wclUserId,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      accessToken: encryptToken(tokens.accessToken),
+      refreshToken: encryptToken(tokens.refreshToken),
       tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
     }).onConflictDoNothing();
 

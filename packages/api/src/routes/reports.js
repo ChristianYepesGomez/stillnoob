@@ -72,7 +72,8 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
 
     if (wclProvider?.accessToken) {
       try {
-        reportData = await getReportDataWithUserToken(reportCode, wclProvider.accessToken);
+        const token = decryptToken(wclProvider.accessToken);
+        reportData = await getReportDataWithUserToken(reportCode, token);
       } catch {
         // User token failed, fall back to client credentials
       }

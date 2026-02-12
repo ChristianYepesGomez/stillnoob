@@ -36,7 +36,7 @@ export const refreshTokens = sqliteTable('refresh_tokens', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   token: text('token').notNull().unique(),
-  tokenFamily: text('token_family').notNull(),
+  tokenFamily: text('token_family').notNull().default('legacy'),
   used: integer('used', { mode: 'boolean' }).default(false),
   expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),

@@ -345,11 +345,17 @@ npm install                   # Install all workspace deps
 
 ---
 
-## Business Model (TBD)
-- Freemium (basic analysis free, detailed coaching paid)
-- Monthly subscription for premium features
-- Ads (maybe)
-- To be defined...
+## Business Model
+
+| Tier | Price | Includes |
+|------|-------|----------|
+| **Free** | $0 | Score + 2-week history + basic tips + shareable badge (viral growth engine) |
+| **Premium** | 4€/mo | Full history + boss breakdown + weekly trends + all recommendations |
+| **Pro/Team** | 7€/mo | Guild dashboard + team comparison + priority background scanning |
+
+- Free for first 3 months post-launch. Introduce Premium at month 4 when users are hooked
+- Free tier MUST include shareable score badge — this is the growth engine
+- WCL Premium is 9€/mo → StillNoob Premium at 4€/mo is a clear value proposition
 
 ---
 
@@ -371,13 +377,17 @@ npm install                   # Install all workspace deps
 ---
 
 ## Competitive Landscape
+
+> Full analysis with pricing strategy, launch plan, security audit, and architecture review: **[ANALYSIS.md](ANALYSIS.md)**
+
 | Product | What it does | StillNoob's edge |
 |---------|-------------|------------------|
-| WarcraftLogs | Raw data, rankings, detailed logs | No coaching — just data dumps |
+| WarcraftLogs | Raw data, rankings, detailed logs. Multi-report analysis at 9€/mo | No coaching — just data dumps. StillNoob delivers better coaching cheaper |
 | Raider.io | M+ rankings, dungeon scores | No coaching, no raid analysis |
-| WoWAnalyzer | Rotation analysis for some specs | Limited coverage, no clear actionable guidance |
-| Archon | Tier lists, meta guides | Generic, not personalized |
-| **StillNoob** | **Automated personalized coaching with real data** | **Nobody else does this** |
+| WoWAnalyzer | Per-spec rotation analysis (open source) | Per-spec maintenance unsustainable. Limited coverage. No cross-fight trends |
+| Archon | Tier lists, meta builds | Generic, not personalized |
+| Wipefest | Was great for wipe analysis | **Dead.** Lesson: single-dev maintenance risk |
+| **StillNoob** | **Automated personalized coaching from real data** | **"Spotify Wrapped" for WoW + skill-adapted advice. Nobody else does this** |
 
 ---
 
@@ -478,16 +488,11 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 
 ---
 
-## Detailed Task Handoff
-See `AGENT-TASKS.md` for 7 detailed improvement tasks ready for agent execution:
-1. Clean ESLint warnings
-2. Add more API tests (auth, public routes)
-3. Refactor DKP server.js into routes
-4. Gradual TypeScript migration
-5. Sentry error monitoring
-6. Git worktrees for parallel work
-7. Slim down DKP CLAUDE.md
+## Analysis & Planning
+- **[ANALYSIS.md](ANALYSIS.md)** — Full competitive analysis, launch strategy, security audit, architecture review, pre-launch checklist
+- **[AGENT-TASKS.md](AGENT-TASKS.md)** — 7 detailed improvement tasks ready for agent execution
+- **[FOUNDATIONS.md](FOUNDATIONS.md)** — Product decisions and design foundations
 
 ---
 
-*Last updated: February 12, 2026*
+*Last updated: February 12, 2026 — Analysis document added*

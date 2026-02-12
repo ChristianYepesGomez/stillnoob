@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
+    "@sentry/node": "^10.38.0",
     "@stillnoob/shared": "*",
     "axios": "^1.7.0",
     "bcryptjs": "^2.4.3",

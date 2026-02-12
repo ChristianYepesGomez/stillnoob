@@ -1,8 +1,8 @@
 import { db } from '../db/client.js';
 import { characters, reports, fights } from '../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
-import { getCharacterReports, getReportData, getFightStats, getExtendedFightStats } from '../services/wcl.js';
-import { processExtendedFightData } from '../services/analysis.js';
+import { eq } from 'drizzle-orm';
+import { getCharacterReports, getReportData, getBatchFightStats, getBatchExtendedFightStats } from '../services/wcl.js';
+import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { acquireToken } from '../services/rateLimiter.js';
 
 /**
@@ -71,8 +71,9 @@ export async function scanForNewReports() {
             charMap[c.name.toLowerCase()] = c.id;
           }
 
-          // Process fights
+          // Step 1: Insert all fights into DB and build mappings
           const encounterFights = (reportData.fights || []).filter(f => f.encounterID > 0);
+          const fightMappings = [];
           for (const fight of encounterFights) {
             const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
             const difficulty = difficultyMap[fight.difficulty] || 'Normal';
@@ -91,18 +92,41 @@ export async function scanForNewReports() {
                 durationMs,
               }).returning();
 
-              await acquireToken();
-              await acquireToken();
-              const [basicStats, extStats] = await Promise.all([
-                getFightStats(wclReport.code, [fight.id]),
-                getExtendedFightStats(wclReport.code, [fight.id]),
-              ]);
-
-              await processExtendedFightData(storedFight.id, durationMs, basicStats, extStats, charMap);
+              fightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
             } catch (fightErr) {
               if (!fightErr.message?.includes('UNIQUE')) {
                 console.warn(`[Scanner] Fight error:`, fightErr.message);
               }
+            }
+          }
+
+          // Step 2: Batch fetch stats for ALL fights (2 API calls instead of 2*N)
+          if (fightMappings.length > 0) {
+            await acquireToken();
+            const allFightIds = fightMappings.map(f => f.wclFightId);
+            const [batchBasicStats, batchExtStats] = await Promise.all([
+              getBatchFightStats(wclReport.code, allFightIds),
+              getBatchExtendedFightStats(wclReport.code, allFightIds),
+            ]);
+
+            // Step 3: Process each fight with its pre-fetched data
+            for (const mapping of fightMappings) {
+              const basicStats = batchBasicStats.get(mapping.wclFightId);
+              const extStats = batchExtStats.get(mapping.wclFightId);
+              if (basicStats && extStats) {
+                try {
+                  await processExtendedFightData(
+                    mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
+                  );
+                } catch (statsErr) {
+                  console.warn(`[Scanner] Stats failed for fight ${mapping.wclFightId}:`, statsErr.message);
+                }
+              }
+            }
+
+            // Invalidate analysis cache for affected characters
+            for (const charId of Object.values(charMap)) {
+              invalidateAnalysisCache(charId);
             }
           }
 

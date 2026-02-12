@@ -1,4 +1,12 @@
+import * as Sentry from '@sentry/node';
 import 'dotenv/config';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 0.1,
+});
+
 import app from './app.js';
 import { initScheduler } from './jobs/scheduler.js';
 

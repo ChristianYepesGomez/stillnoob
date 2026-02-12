@@ -16,6 +16,7 @@
     "db:generate": "npm -w @stillnoob/api run db:generate",
     "db:migrate": "npm -w @stillnoob/api run db:migrate"
   },
+  "packageManager": "npm@11.6.2",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.0.0",

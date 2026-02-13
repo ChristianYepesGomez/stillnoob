@@ -14,6 +14,11 @@
     "weeks": "weeks",
     "allTime": "All time"
   },
+  "loading": {
+    "analyzing": "Analyzing {{name}}...",
+    "wakingUp": "Server is waking up — hang tight...",
+    "firstVisit": "First visit may take up to 30 seconds"
+  },
   "auth": {
     "login": "Log in",
     "register": "Create account",
@@ -154,7 +159,8 @@
     "survivability": "Survivability",
     "consumables": "Consumables",
     "performance": "Performance",
-    "utility": "Utility"
+    "utility": "Utility",
+    "mythicPlus": "Mythic+"
   },
   "severity": {
     "positive": "Good",
@@ -194,7 +200,15 @@
     "good_cpm": "Great rotation flow! {{cpm}} casts per minute shows solid execution.",
     "low_parse": "Your average parse is {{pct}}% — you're in the bottom quartile globally. Focus on rotation fundamentals and uptime.",
     "below_avg_parse": "Your average parse ({{pct}}%) is below the global median. Small rotation and uptime improvements can push you higher.",
-    "high_parse": "Impressive! Your average parse of {{pct}}% puts you well above most players globally."
+    "high_parse": "Impressive! Your average parse of {{pct}}% puts you well above most players globally.",
+    "mplus_dungeon_gap": "Your weakest dungeon is {{dungeon}} (+{{level}}) while your best is +{{bestLevel}}. Running {{dungeon}} more will boost your score significantly.",
+    "mplus_untimed_runs": "You have {{count}} untimed key(s) in your best runs ({{dungeons}}). Retime these at the same level for easy score gains.",
+    "mplus_timing_tight": "Your {{dungeon}} (+{{level}}) clear was tight ({{pct}}% of par time). Consider route optimization or bigger pulls.",
+    "mplus_all_timed": "All {{count}} best runs are timed! You're ready to push the next key level.",
+    "mplus_push_target": "Based on your profile, {{dungeon}} is your best candidate to push from +{{current}} to +{{target}}.",
+    "mplus_score_bracket": "Your score ({{score}}) is in the {{bracket}} range. Next milestone: {{nextBracket}} at {{nextScore}}.",
+    "mplus_role_score_gap": "Your {{role}} score ({{roleScore}}) is much lower than your main role ({{mainScore}}). Off-spec keys could boost total score.",
+    "mplus_low_score": "Your M+ score is {{score}}. Focus on timing keys at your current level rather than pushing higher."
   },
   "raiderio": {
     "mplusScore": "M+ Score",
@@ -202,6 +216,16 @@
     "raidProgress": "Raid Progress",
     "bestRuns": "Best M+ Runs",
     "recentRuns": "Recent Runs",
-    "mythicPlus": "Mythic+"
+    "mythicPlus": "Mythic+",
+    "dungeonBalance": "Dungeon Balance",
+    "pushTargets": "Push Targets",
+    "timingEfficiency": "Timing Efficiency",
+    "strongDungeons": "Strongest Dungeons",
+    "weakDungeons": "Weakest Dungeons",
+    "scoreTrend": "Score Trend",
+    "scoreChange": "{{change}} pts in {{weeks}} weeks",
+    "noHistory": "No score history yet",
+    "highestKey": "Highest Key",
+    "totalDungeons": "Dungeons Timed"
   }
 }

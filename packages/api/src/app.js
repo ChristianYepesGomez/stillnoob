@@ -60,8 +60,10 @@ import * as Sentry from '@sentry/node';
 Sentry.setupExpressErrorHandler(app);
 
 // Error handler
+import { createLogger } from './utils/logger.js';
+const log = createLogger('Express');
 app.use((err, req, res, _next) => {
-  console.error('Unhandled error:', err);
+  log.error('Unhandled error', err);
   res.status(500).json({ error: 'Internal server error' });
 });
 

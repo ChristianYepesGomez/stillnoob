@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import LoadingScreen from './components/LoadingScreen';
 import Layout from './components/layout/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -14,17 +15,6 @@ function ProtectedRoute({ children }) {
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   return children;
-}
-
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen bg-void-deep flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-void-bright border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-void-text">Loading...</p>
-      </div>
-    </div>
-  );
 }
 
 export default function App() {

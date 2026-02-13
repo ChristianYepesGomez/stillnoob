@@ -3,7 +3,9 @@ import { db } from '../db/client.js';
 import { guilds, guildMembers, users } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { authenticateToken } from '../middleware/auth.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Guilds');
 const router = Router();
 router.use(authenticateToken);
 
@@ -49,7 +51,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(guild);
   } catch (err) {
-    console.error('Create guild error:', err);
+    log.error('Create guild failed', err);
     res.status(500).json({ error: 'Failed to create guild' });
   }
 });
@@ -72,7 +74,7 @@ router.get('/', async (req, res) => {
 
     res.json(memberships);
   } catch (err) {
-    console.error('Get guilds error:', err);
+    log.error('Get guilds failed', err);
     res.status(500).json({ error: 'Failed to get guilds' });
   }
 });
@@ -130,7 +132,7 @@ router.get('/:id', async (req, res) => {
 
     res.json(response);
   } catch (err) {
-    console.error('Get guild error:', err);
+    log.error('Get guild failed', err);
     res.status(500).json({ error: 'Failed to get guild' });
   }
 });
@@ -166,7 +168,7 @@ router.post('/:id/join', async (req, res) => {
 
     res.json({ message: 'Joined guild' });
   } catch (err) {
-    console.error('Join guild error:', err);
+    log.error('Join guild failed', err);
     res.status(500).json({ error: 'Failed to join guild' });
   }
 });
@@ -190,7 +192,7 @@ router.post('/:id/leave', async (req, res) => {
 
     res.json({ message: 'Left guild' });
   } catch (err) {
-    console.error('Leave guild error:', err);
+    log.error('Leave guild failed', err);
     res.status(500).json({ error: 'Failed to leave guild' });
   }
 });
@@ -230,7 +232,7 @@ router.put('/:id/members/:userId', async (req, res) => {
 
     res.json({ message: 'Role updated' });
   } catch (err) {
-    console.error('Update member error:', err);
+    log.error('Update member failed', err);
     res.status(500).json({ error: 'Failed to update member' });
   }
 });
@@ -264,7 +266,7 @@ router.delete('/:id/members/:userId', async (req, res) => {
 
     res.json({ message: 'Member removed' });
   } catch (err) {
-    console.error('Kick member error:', err);
+    log.error('Kick member failed', err);
     res.status(500).json({ error: 'Failed to remove member' });
   }
 });
@@ -299,7 +301,7 @@ router.patch('/:id/settings', async (req, res) => {
 
     res.json({ settings: currentSettings });
   } catch (err) {
-    console.error('Update settings error:', err);
+    log.error('Update settings failed', err);
     res.status(500).json({ error: 'Failed to update settings' });
   }
 });
@@ -326,7 +328,7 @@ router.post('/:id/invite-code', async (req, res) => {
 
     res.json({ inviteCode: newCode });
   } catch (err) {
-    console.error('Regenerate invite code error:', err);
+    log.error('Regenerate invite code failed', err);
     res.status(500).json({ error: 'Failed to regenerate invite code' });
   }
 });

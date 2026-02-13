@@ -8,7 +8,9 @@ import { getReportData, getReportDataWithUserToken, getBatchFightStats, getBatch
 import { authProviders, guildMembers } from '../db/schema.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { decryptToken } from '../utils/encryption.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Reports');
 const router = Router();
 
 /**
@@ -87,49 +89,45 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
       return res.status(404).json({ error: 'Report not found on Warcraft Logs. If private, link your WCL account first.' });
     }
 
-    // Store the report with visibility
-    const [report] = await db.insert(reports).values({
-      wclCode: reportCode,
-      title: reportData.title,
-      startTime: reportData.startTime,
-      endTime: reportData.endTime,
-      region: reportData.region,
-      guildName: reportData.guild?.name || null,
-      zoneName: reportData.zone?.name || null,
-      participantsCount: reportData.participants?.length || 0,
-      importedBy: req.user.id,
-      importSource: 'manual',
-      visibility,
-      guildId: guildId || null,
-    }).returning();
-
-    // Get user's characters for matching
+    // Build character name → id map before transaction
     const userChars = await db.select()
       .from(characters)
       .where(eq(characters.userId, req.user.id))
       .all();
-
-    // Build character name → id map (lowercase for matching)
     const charMap = {};
     for (const c of userChars) {
       charMap[c.name.toLowerCase()] = c.id;
     }
 
-    // Process each boss encounter fight
+    // Parse encounter fights before transaction
     const encounterFights = (reportData.fights || []).filter(f => f.encounterID > 0);
-    let processedCount = 0;
     let performanceCount = 0;
 
-    // Step 1: Insert all fights into DB and build mappings
-    const fightMappings = [];
-    for (const fight of encounterFights) {
-      const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
-      const difficulty = difficultyMap[fight.difficulty] || 'Normal';
-      const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
+    // Transaction: insert report + all fights atomically (rollback on failure)
+    const { report, fightMappings } = await db.transaction(async (tx) => {
+      const [txReport] = await tx.insert(reports).values({
+        wclCode: reportCode,
+        title: reportData.title,
+        startTime: reportData.startTime,
+        endTime: reportData.endTime,
+        region: reportData.region,
+        guildName: reportData.guild?.name || null,
+        zoneName: reportData.zone?.name || null,
+        participantsCount: reportData.participants?.length || 0,
+        importedBy: req.user.id,
+        importSource: 'manual',
+        visibility,
+        guildId: guildId || null,
+      }).returning();
 
-      try {
-        const [storedFight] = await db.insert(fights).values({
-          reportId: report.id,
+      const txFightMappings = [];
+      for (const fight of encounterFights) {
+        const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
+        const difficulty = difficultyMap[fight.difficulty] || 'Normal';
+        const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
+
+        const [storedFight] = await tx.insert(fights).values({
+          reportId: txReport.id,
           wclFightId: fight.id,
           encounterId: fight.encounterID,
           bossName: fight.name || 'Unknown',
@@ -138,18 +136,17 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
           startTime: fight.startTime,
           endTime: fight.endTime,
           durationMs,
-        }).returning();
+        }).onConflictDoNothing().returning();
 
-        fightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
-        processedCount++;
-      } catch (fightErr) {
-        if (!fightErr.message?.includes('UNIQUE')) {
-          console.warn(`Fight insert failed:`, fightErr.message);
+        if (storedFight) {
+          txFightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
         }
       }
-    }
 
-    // Step 2: Batch fetch stats for ALL fights (2 API calls instead of 2*N)
+      return { report: txReport, fightMappings: txFightMappings };
+    });
+
+    // Performance data processing (outside transaction — tolerant of partial failure)
     if (fightMappings.length > 0) {
       const allFightIds = fightMappings.map(f => f.wclFightId);
       try {
@@ -158,7 +155,6 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
           getBatchExtendedFightStats(reportCode, allFightIds),
         ]);
 
-        // Step 3: Process each fight with its pre-fetched data
         for (const mapping of fightMappings) {
           const basicStats = batchBasicStats.get(mapping.wclFightId);
           const extStats = batchExtStats.get(mapping.wclFightId);
@@ -169,12 +165,12 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
               );
               performanceCount += count;
             } catch (statsErr) {
-              console.warn(`Stats failed for fight ${mapping.wclFightId}:`, statsErr.message);
+              log.warn(`Stats failed for fight ${mapping.wclFightId}`, statsErr.message);
             }
           }
         }
       } catch (statsErr) {
-        console.warn('Batch stats fetch failed:', statsErr.message);
+        log.warn('Batch stats fetch failed', statsErr.message);
       }
     }
 
@@ -191,12 +187,12 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
         zoneName: report.zoneName,
       },
       stats: {
-        fightsProcessed: processedCount,
+        fightsProcessed: fightMappings.length,
         performanceRecords: performanceCount,
       },
     });
   } catch (err) {
-    console.error('Import error:', err);
+    log.error('Import failed', err);
     if (err.message?.includes('WCL')) {
       return res.status(502).json({ error: 'Failed to fetch from Warcraft Logs API' });
     }
@@ -215,7 +211,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     res.json(userReports);
   } catch (err) {
-    console.error('Get reports error:', err);
+    log.error('Get reports failed', err);
     res.status(500).json({ error: 'Failed to get reports' });
   }
 });
@@ -261,7 +257,7 @@ router.get('/:code', optionalAuth, async (req, res) => {
 
     res.json({ ...report, fights: reportFights });
   } catch (err) {
-    console.error('Get report error:', err);
+    log.error('Get report failed', err);
     res.status(500).json({ error: 'Failed to get report' });
   }
 });

@@ -3,7 +3,11 @@ import { characters, reports, fights } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { getCharacterReports, getReportData, getBatchFightStats, getBatchExtendedFightStats } from '../services/wcl.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
+import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
 import { acquireToken } from '../services/rateLimiter.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Scanner');
 
 // ── Retry / Circuit Breaker config ──
 const MAX_RETRIES = 3;
@@ -38,7 +42,7 @@ async function retryWithBackoff(fn, label) {
       if (attempt < MAX_RETRIES && isTransientError(err)) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
         const status = err.response?.status || err.code || 'unknown';
-        console.warn(`[Scanner] ${label} failed (${status}), retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+        log.warn(`${label} failed (${status}), retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
         await new Promise(r => setTimeout(r, delay));
       } else {
         break;
@@ -53,12 +57,12 @@ async function retryWithBackoff(fn, label) {
  * Includes retry with exponential backoff and circuit breaker.
  */
 export async function scanForNewReports() {
-  console.log('[Scanner] Starting WCL report scan...');
+  log.info('Starting WCL report scan...');
 
   const allChars = await db.select().from(characters).all();
 
   if (allChars.length === 0) {
-    console.log('[Scanner] No characters registered, skipping scan');
+    log.info('No characters registered, skipping scan');
     return { scanned: 0, imported: 0, failed: 0 };
   }
 
@@ -69,7 +73,7 @@ export async function scanForNewReports() {
   for (const char of allChars) {
     // Circuit breaker: if WCL is consistently failing, abort early
     if (consecutiveWclFailures >= CIRCUIT_BREAKER_THRESHOLD) {
-      console.error(`[Scanner] Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} consecutive WCL failures — aborting scan`);
+      log.error(`Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} consecutive WCL failures — aborting scan`);
       break;
     }
 
@@ -102,20 +106,7 @@ export async function scanForNewReports() {
           );
           if (!reportData) continue;
 
-          const [report] = await db.insert(reports).values({
-            wclCode: wclReport.code,
-            title: reportData.title,
-            startTime: reportData.startTime,
-            endTime: reportData.endTime,
-            region: reportData.region,
-            guildName: reportData.guild?.name || null,
-            zoneName: reportData.zone?.name || null,
-            participantsCount: reportData.participants?.length || 0,
-            importedBy: char.userId,
-            importSource: 'auto',
-          }).returning();
-
-          // Build char map for this user
+          // Build char map for this user (before transaction)
           const userChars = await db.select()
             .from(characters)
             .where(eq(characters.userId, char.userId))
@@ -125,17 +116,31 @@ export async function scanForNewReports() {
             charMap[c.name.normalize('NFC').toLowerCase()] = c.id;
           }
 
-          // Step 1: Insert all fights into DB and build mappings
           const encounterFights = (reportData.fights || []).filter(f => f.encounterID > 0);
-          const fightMappings = [];
-          for (const fight of encounterFights) {
-            const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
-            const difficulty = difficultyMap[fight.difficulty] || 'Normal';
-            const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
 
-            try {
-              const [storedFight] = await db.insert(fights).values({
-                reportId: report.id,
+          // Transaction: insert report + all fights atomically
+          const { fightMappings } = await db.transaction(async (tx) => {
+            const [txReport] = await tx.insert(reports).values({
+              wclCode: wclReport.code,
+              title: reportData.title,
+              startTime: reportData.startTime,
+              endTime: reportData.endTime,
+              region: reportData.region,
+              guildName: reportData.guild?.name || null,
+              zoneName: reportData.zone?.name || null,
+              participantsCount: reportData.participants?.length || 0,
+              importedBy: char.userId,
+              importSource: 'auto',
+            }).returning();
+
+            const txFightMappings = [];
+            for (const fight of encounterFights) {
+              const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
+              const difficulty = difficultyMap[fight.difficulty] || 'Normal';
+              const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
+
+              const [storedFight] = await tx.insert(fights).values({
+                reportId: txReport.id,
                 wclFightId: fight.id,
                 encounterId: fight.encounterID,
                 bossName: fight.name || 'Unknown',
@@ -144,17 +149,17 @@ export async function scanForNewReports() {
                 startTime: fight.startTime,
                 endTime: fight.endTime,
                 durationMs,
-              }).returning();
+              }).onConflictDoNothing().returning();
 
-              fightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
-            } catch (fightErr) {
-              if (!fightErr.message?.includes('UNIQUE')) {
-                console.warn(`[Scanner] Fight insert error:`, fightErr.message);
+              if (storedFight) {
+                txFightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
               }
             }
-          }
 
-          // Step 2: Batch fetch stats for ALL fights (2 API calls instead of 2*N)
+            return { report: txReport, fightMappings: txFightMappings };
+          });
+
+          // Performance data (outside transaction — tolerant of partial failure)
           if (fightMappings.length > 0) {
             await acquireToken();
             const allFightIds = fightMappings.map(f => f.wclFightId);
@@ -169,7 +174,6 @@ export async function scanForNewReports() {
               ),
             ]);
 
-            // Step 3: Process each fight with its pre-fetched data
             for (const mapping of fightMappings) {
               const basicStats = batchBasicStats.get(mapping.wclFightId);
               const extStats = batchExtStats.get(mapping.wclFightId);
@@ -179,7 +183,7 @@ export async function scanForNewReports() {
                     mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
                   );
                 } catch (statsErr) {
-                  console.warn(`[Scanner] Stats processing failed for fight ${mapping.wclFightId}:`, statsErr.message);
+                  log.warn(`Stats processing failed for fight ${mapping.wclFightId}`, statsErr.message);
                 }
               }
             }
@@ -191,27 +195,36 @@ export async function scanForNewReports() {
           }
 
           totalNew++;
-          console.log(`[Scanner] Imported report ${wclReport.code} for ${char.name}`);
+          log.info(`Imported report ${wclReport.code} for ${char.name}`);
         } catch (importErr) {
           totalFailed++;
           if (isTransientError(importErr)) consecutiveWclFailures++;
-          console.error(`[Scanner] Failed to import ${wclReport.code} after retries:`, importErr.message);
+          log.error(`Failed to import ${wclReport.code} after retries`, importErr.message);
         }
+      }
+      // Snapshot M+ score from Raider.IO
+      try {
+        const raiderIO = await getCharacterRaiderIO(char.region, char.realmSlug, char.name);
+        if (raiderIO?.mythicPlus?.score) {
+          await saveScoreSnapshot(char.id, raiderIO);
+        }
+      } catch (rioErr) {
+        log.warn(`RaiderIO snapshot failed for ${char.name}`, rioErr.message);
       }
     } catch (err) {
       totalFailed++;
       if (isTransientError(err)) {
         consecutiveWclFailures++;
       }
-      console.error(`[Scanner] Error scanning ${char.name}-${char.realmSlug}:`, err.message);
+      log.error(`Error scanning ${char.name}-${char.realmSlug}`, err.message);
     }
   }
 
   const summary = { scanned: allChars.length, imported: totalNew, failed: totalFailed };
   if (totalFailed > 0) {
-    console.warn(`[Scanner] Scan complete with errors — ${totalNew} imported, ${totalFailed} failed out of ${allChars.length} characters`);
+    log.warn(`Scan complete with errors — ${totalNew} imported, ${totalFailed} failed out of ${allChars.length} characters`);
   } else {
-    console.log(`[Scanner] Scan complete — ${totalNew} new reports imported from ${allChars.length} characters`);
+    log.info(`Scan complete — ${totalNew} new reports imported from ${allChars.length} characters`);
   }
 
   return summary;

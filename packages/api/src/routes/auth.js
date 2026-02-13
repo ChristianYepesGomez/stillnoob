@@ -15,7 +15,9 @@ import { getAuthorizeUrl, exchangeCode, getUserCharacters } from '../services/bl
 import { getWclAuthorizeUrl, exchangeWclCode, getWclUserInfo } from '../services/wcl.js';
 import { authProviders, characters } from '../db/schema.js';
 import { encryptToken } from '../utils/encryption.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Auth');
 const OAUTH_STATE_SECRET = process.env.OAUTH_STATE_SECRET;
 if (!OAUTH_STATE_SECRET) {
   throw new Error('OAUTH_STATE_SECRET environment variable is required');
@@ -110,7 +112,7 @@ router.post('/register', authLimiter, async (req, res) => {
       accessToken,
     });
   } catch (err) {
-    console.error('Registration error:', err);
+    log.error('Registration failed', err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
@@ -172,7 +174,7 @@ router.post('/login', authLimiter, async (req, res) => {
       accessToken,
     });
   } catch (err) {
-    console.error('Login error:', err);
+    log.error('Login failed', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -243,7 +245,7 @@ router.post('/refresh', async (req, res) => {
 
     res.json({ accessToken: newAccessToken });
   } catch (err) {
-    console.error('Refresh error:', err);
+    log.error('Refresh failed', err);
     res.status(500).json({ error: 'Token refresh failed' });
   }
 });
@@ -265,7 +267,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
     res.clearCookie('refreshToken', { path: '/api/v1/auth' });
     res.json({ message: 'Logged out' });
   } catch (err) {
-    console.error('Logout error:', err);
+    log.error('Logout failed', err);
     res.status(500).json({ error: 'Logout failed' });
   }
 });
@@ -291,7 +293,7 @@ router.get('/me', authenticateToken, async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    console.error('Get user error:', err);
+    log.error('Get user failed', err);
     res.status(500).json({ error: 'Failed to get user' });
   }
 });
@@ -307,7 +309,7 @@ router.get('/blizzard/link', authenticateToken, (req, res) => {
     const authorizeUrl = getAuthorizeUrl(state);
     res.json({ url: authorizeUrl });
   } catch (err) {
-    console.error('Blizzard link error:', err);
+    log.error('Blizzard link failed', err);
     res.status(500).json({ error: 'Failed to initiate Blizzard OAuth' });
   }
 });
@@ -369,7 +371,7 @@ router.get('/blizzard/callback', async (req, res) => {
     // Redirect to frontend with success
     res.redirect(`${frontendUrl}/dashboard?blizzard=linked&imported=${imported}`);
   } catch (err) {
-    console.error('Blizzard callback error:', err);
+    log.error('Blizzard callback failed', err);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/dashboard?error=blizzard_failed`);
   }
@@ -390,7 +392,7 @@ router.get('/wcl/link', authenticateToken, (req, res) => {
     const authorizeUrl = getWclAuthorizeUrl(state);
     res.json({ url: authorizeUrl });
   } catch (err) {
-    console.error('WCL link error:', err);
+    log.error('WCL link failed', err);
     res.status(500).json({ error: 'Failed to initiate WCL OAuth' });
   }
 });
@@ -430,7 +432,7 @@ router.get('/wcl/callback', async (req, res) => {
 
     res.redirect(`${frontendUrl}/dashboard?wcl=linked`);
   } catch (err) {
-    console.error('WCL callback error:', err);
+    log.error('WCL callback failed', err);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/dashboard?error=wcl_failed`);
   }

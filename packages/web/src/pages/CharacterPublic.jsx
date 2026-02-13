@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { publicAPI } from '../services/api';
 import { CLASS_COLORS, DIFFICULTY_COLORS } from '@stillnoob/shared';
 import { useAuth } from '../context/AuthContext';
+import LoadingScreen from '../components/LoadingScreen';
 import ScoreBadge from '../components/analysis/ScoreBadge';
 import MythicPlusSection from '../components/analysis/MythicPlusSection';
 
@@ -36,14 +37,7 @@ export default function CharacterPublic() {
   }, [region, realm, name]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-void-deep flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-void-bright border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-void-secondary">Analyzing {name}...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message={t('loading.analyzing', { name })} />;
   }
 
   if (error) {

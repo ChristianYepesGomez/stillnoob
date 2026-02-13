@@ -3,7 +3,9 @@ import { db } from '../db/client.js';
 import { characters } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { authenticateToken } from '../middleware/auth.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Characters');
 const router = Router();
 
 // All routes require auth
@@ -19,7 +21,7 @@ router.get('/', async (req, res) => {
 
     res.json(chars);
   } catch (err) {
-    console.error('Get characters error:', err);
+    log.error('Get characters failed', err);
     res.status(500).json({ error: 'Failed to get characters' });
   }
 });
@@ -51,7 +53,7 @@ router.post('/', async (req, res) => {
     if (err.message?.includes('UNIQUE')) {
       return res.status(409).json({ error: 'Character already exists' });
     }
-    console.error('Add character error:', err);
+    log.error('Add character failed', err);
     res.status(500).json({ error: 'Failed to add character' });
   }
 });
@@ -86,7 +88,7 @@ router.put('/:id/primary', async (req, res) => {
 
     res.json({ message: 'Primary character updated' });
   } catch (err) {
-    console.error('Set primary error:', err);
+    log.error('Set primary failed', err);
     res.status(500).json({ error: 'Failed to set primary character' });
   }
 });
@@ -108,7 +110,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Character removed' });
   } catch (err) {
-    console.error('Delete character error:', err);
+    log.error('Delete character failed', err);
     res.status(500).json({ error: 'Failed to remove character' });
   }
 });

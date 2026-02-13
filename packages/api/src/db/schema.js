@@ -182,6 +182,26 @@ export const fightPerformance = sqliteTable('fight_performance', {
 ]);
 
 // ============================================
+// M+ SCORE TRACKING
+// ============================================
+
+export const mplusSnapshots = sqliteTable('mplus_snapshots', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  characterId: integer('character_id').notNull().references(() => characters.id, { onDelete: 'cascade' }),
+  score: real('score').notNull(),
+  scoreDps: real('score_dps').default(0),
+  scoreHealer: real('score_healer').default(0),
+  scoreTank: real('score_tank').default(0),
+  itemLevel: real('item_level'),
+  bestRunLevel: integer('best_run_level'),
+  totalDungeons: integer('total_dungeons'),
+  snapshotAt: text('snapshot_at').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index('mplus_snap_char_idx').on(table.characterId),
+  index('mplus_snap_time_idx').on(table.characterId, table.snapshotAt),
+]);
+
+// ============================================
 // BOSS REFERENCE DATA
 // ============================================
 

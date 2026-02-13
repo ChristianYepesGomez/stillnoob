@@ -6,7 +6,7 @@ services:
     rootDir: packages/api
     buildCommand: npm install
     startCommand: node src/index.js
-    plan: free
+    plan: starter
     envVars:
       - key: NODE_ENV
         value: production
@@ -34,3 +34,7 @@ services:
         sync: false
       - key: BLIZZARD_REGION
         value: eu
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: OAUTH_STATE_SECRET
+        generateValue: true

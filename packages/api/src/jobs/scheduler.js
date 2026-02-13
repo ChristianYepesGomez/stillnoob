@@ -1,5 +1,8 @@
 import cron from 'node-cron';
 import { scanForNewReports } from './scanReports.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('Scheduler');
 
 /**
  * Initialize all background jobs.
@@ -8,7 +11,7 @@ import { scanForNewReports } from './scanReports.js';
 export function initScheduler() {
   // Only run background jobs if WCL credentials are configured
   if (!process.env.WCL_CLIENT_ID || !process.env.WCL_CLIENT_SECRET) {
-    console.log('[Scheduler] WCL credentials not configured, background scanning disabled');
+    log.info('WCL credentials not configured, background scanning disabled');
     return;
   }
 
@@ -17,12 +20,12 @@ export function initScheduler() {
     try {
       const result = await scanForNewReports();
       if (result.failed > 0) {
-        console.warn(`[Scheduler] Scan finished with ${result.failed} failures — check logs for details`);
+        log.warn(`Scan finished with ${result.failed} failures — check logs for details`);
       }
     } catch (err) {
-      console.error('[Scheduler] Report scan crashed:', err.message, err.stack);
+      log.error('Report scan crashed', err);
     }
   });
 
-  console.log('[Scheduler] Background jobs initialized (report scan every 30min)');
+  log.info('Background jobs initialized (report scan every 30min)');
 }

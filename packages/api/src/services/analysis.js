@@ -1,10 +1,14 @@
 import { db } from '../db/client.js';
 import { fightPerformance } from '../db/schema.js';
 import { CONSUMABLE_PATTERNS, BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS, AUTO_ATTACK_PATTERNS } from '@stillnoob/shared';
+import { createLogger } from '../utils/logger.js';
 
-// ── In-memory analysis cache (TTL: 5 minutes) ──
+const log = createLogger('Analysis');
+
+// ── In-memory analysis cache (TTL: 5 minutes, max 200 entries) ──
 const analysisCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 200;
 
 function buildCacheKey(characterId, { weeks, bossId, difficulty } = {}) {
   return `${characterId}:${weeks || ''}:${bossId || ''}:${difficulty || ''}`;
@@ -132,7 +136,7 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
   for (const [playerName, data] of Object.entries(playerData)) {
     const characterId = charMap[playerName.normalize('NFC').toLowerCase()];
     if (!characterId) {
-      console.debug(`[Analysis] Player "${playerName}" not found in charMap, skipping`);
+      log.debug(`Player "${playerName}" not found in charMap, skipping`);
       continue;
     }
 
@@ -167,7 +171,7 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
       inserted++;
     } catch (err) {
       if (!err.message?.includes('UNIQUE')) {
-        console.warn(`Failed to insert fight perf for ${playerName}:`, err.message);
+        log.warn(`Failed to insert fight perf for ${playerName}`, err.message);
       }
     }
   }
@@ -440,7 +444,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
         );
       }
     } catch (err) {
-      console.warn('Failed to fetch parse percentiles:', err.message);
+      log.warn('Failed to fetch parse percentiles', err.message);
     }
   }
 
@@ -457,6 +461,14 @@ export async function getCharacterPerformance(characterId, options = {}) {
     recentFights,
     recommendations,
   };
+
+  // Evict oldest entries if cache is full
+  if (analysisCache.size >= MAX_CACHE_SIZE) {
+    const oldest = analysisCache.keys().next().value;
+    const entry = analysisCache.get(oldest);
+    if (entry) clearTimeout(entry.timer);
+    analysisCache.delete(oldest);
+  }
 
   // Store in cache with auto-eviction timer
   const timer = setTimeout(() => analysisCache.delete(cacheKey), CACHE_TTL);

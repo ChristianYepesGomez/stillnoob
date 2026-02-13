@@ -14,6 +14,11 @@
     "weeks": "semanas",
     "allTime": "Todo el tiempo"
   },
+  "loading": {
+    "analyzing": "Analizando a {{name}}...",
+    "wakingUp": "El servidor está despertando — un momento...",
+    "firstVisit": "La primera visita puede tardar hasta 30 segundos"
+  },
   "auth": {
     "login": "Iniciar sesión",
     "register": "Crear cuenta",
@@ -154,7 +159,8 @@
     "survivability": "Supervivencia",
     "consumables": "Consumibles",
     "performance": "Rendimiento",
-    "utility": "Utilidad"
+    "utility": "Utilidad",
+    "mythicPlus": "Mítica+"
   },
   "severity": {
     "positive": "Bien",
@@ -194,7 +200,15 @@
     "good_cpm": "¡Gran fluidez de rotación! {{cpm}} casts por minuto muestra una ejecución sólida.",
     "low_parse": "Tu parse promedio es {{pct}}% — estás en el cuartil más bajo globalmente. Enfócate en los fundamentos de rotación y uptime.",
     "below_avg_parse": "Tu parse promedio ({{pct}}%) está por debajo de la mediana global. Pequeñas mejoras en rotación y uptime pueden subirte.",
-    "high_parse": "¡Impresionante! Tu parse promedio de {{pct}}% te pone muy por encima de la mayoría de jugadores globalmente."
+    "high_parse": "¡Impresionante! Tu parse promedio de {{pct}}% te pone muy por encima de la mayoría de jugadores globalmente.",
+    "mplus_dungeon_gap": "Tu dungeon más débil es {{dungeon}} (+{{level}}) mientras que tu mejor es +{{bestLevel}}. Correr {{dungeon}} más subirá tu score significativamente.",
+    "mplus_untimed_runs": "Tienes {{count}} key(s) sin cronometrar en tus mejores runs ({{dungeons}}). Recronometrar al mismo nivel da puntos fáciles.",
+    "mplus_timing_tight": "Tu {{dungeon}} (+{{level}}) fue ajustado ({{pct}}% del tiempo par). Considera optimizar la ruta o hacer pulls más grandes.",
+    "mplus_all_timed": "¡Tus {{count}} mejores runs están cronometrados! Estás listo para subir al siguiente nivel de key.",
+    "mplus_push_target": "Según tu perfil, {{dungeon}} es tu mejor candidato para subir de +{{current}} a +{{target}}.",
+    "mplus_score_bracket": "Tu score ({{score}}) está en el rango {{bracket}}. Siguiente objetivo: {{nextBracket}} a {{nextScore}}.",
+    "mplus_role_score_gap": "Tu score de {{role}} ({{roleScore}}) es mucho menor que tu rol principal ({{mainScore}}). Keys de off-spec podrían subir tu score total.",
+    "mplus_low_score": "Tu score M+ es {{score}}. Enfócate en cronometrar keys a tu nivel actual antes de subir."
   },
   "raiderio": {
     "mplusScore": "Score M+",
@@ -202,6 +216,16 @@
     "raidProgress": "Progreso Raid",
     "bestRuns": "Mejores Runs M+",
     "recentRuns": "Runs Recientes",
-    "mythicPlus": "Mítica+"
+    "mythicPlus": "Mítica+",
+    "dungeonBalance": "Balance de Dungeons",
+    "pushTargets": "Objetivos de Push",
+    "timingEfficiency": "Eficiencia de Timing",
+    "strongDungeons": "Dungeons Fuertes",
+    "weakDungeons": "Dungeons Débiles",
+    "scoreTrend": "Tendencia de Score",
+    "scoreChange": "{{change}} pts en {{weeks}} semanas",
+    "noHistory": "Sin historial de score aún",
+    "highestKey": "Key Más Alta",
+    "totalDungeons": "Dungeons Cronometrados"
   }
 }

@@ -42,7 +42,7 @@ export const REGIONS = ['us', 'eu', 'kr', 'tw'];
 export const USER_TIERS = ['free', 'premium', 'admin'];
 
 /** Recommendation categories */
-export const REC_CATEGORIES = ['survivability', 'consumables', 'performance', 'utility'];
+export const REC_CATEGORIES = ['survivability', 'consumables', 'performance', 'utility', 'mythicPlus'];
 
 /** Recommendation severities */
 export const REC_SEVERITIES = ['positive', 'info', 'warning', 'critical'];
@@ -61,6 +61,7 @@ export const CATEGORY_STYLES = {
   consumables: { icon: 'fa-flask', color: 'text-green-400' },
   performance: { icon: 'fa-chart-line', color: 'text-blue-400' },
   utility: { icon: 'fa-wrench', color: 'text-purple-400' },
+  mythicPlus: { icon: 'fa-key', color: 'text-sunwell-amber' },
 };
 
 /** Abilities to exclude from CPM count (auto-attacks) */
@@ -148,3 +149,13 @@ export const LEVEL_DETECTION = {
   advancedThreshold: 70,
   intermediateThreshold: 35,
 };
+
+/** M+ Score brackets for coaching */
+export const MPLUS_BRACKETS = [
+  { min: 0,    max: 750,  key: 'starter',         label: 'Starter',         color: '#888888' },
+  { min: 751,  max: 1500, key: 'apprentice',       label: 'Apprentice',      color: '#1eff00' },
+  { min: 1501, max: 2000, key: 'challenger',       label: 'Challenger',      color: '#0070dd' },
+  { min: 2001, max: 2500, key: 'keystone_hero',    label: 'Keystone Hero',   color: '#a335ee' },
+  { min: 2501, max: 3000, key: 'keystone_master',  label: 'Keystone Master', color: '#ff8000' },
+  { min: 3001, max: 9999, key: 'keystone_legend',  label: 'Keystone Legend', color: '#e268a8' },
+];

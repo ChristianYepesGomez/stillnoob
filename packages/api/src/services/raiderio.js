@@ -5,6 +5,12 @@
 
 const BASE_URL = 'https://raider.io/api/v1';
 
+import { db } from '../db/client.js';
+import { mplusSnapshots } from '../db/schema.js';
+import { eq, desc } from 'drizzle-orm';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('RaiderIO');
+
 // In-memory cache: key → { data, timestamp }
 const cache = new Map();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
@@ -67,7 +73,7 @@ export async function getCharacterRaiderIO(region, realm, name) {
     }
 
     if (!response.ok) {
-      console.error(`Raider.io API error: ${response.status}`);
+      log.error(`API error: ${response.status}`);
       return null;
     }
 
@@ -76,8 +82,58 @@ export async function getCharacterRaiderIO(region, realm, name) {
     setCache(cacheKey, result);
     return result;
   } catch (err) {
-    console.error('Raider.io fetch error:', err.message);
+    log.error('Fetch failed', err.message);
     return null;
+  }
+}
+
+/**
+ * Save M+ score snapshot if score has changed since last snapshot.
+ * @param {number} characterId - DB character ID
+ * @param {object} raiderIO - Transformed Raider.IO data
+ * @returns {boolean} true if a new snapshot was saved
+ */
+export async function saveScoreSnapshot(characterId, raiderIO) {
+  if (!raiderIO?.mythicPlus?.score) return false;
+
+  try {
+    // Get the most recent snapshot
+    const [lastSnapshot] = await db.select()
+      .from(mplusSnapshots)
+      .where(eq(mplusSnapshots.characterId, characterId))
+      .orderBy(desc(mplusSnapshots.snapshotAt))
+      .limit(1)
+      .all();
+
+    const currentScore = raiderIO.mythicPlus.score;
+
+    // Only snapshot if score changed (or first snapshot)
+    if (lastSnapshot && lastSnapshot.score === currentScore) return false;
+
+    const bestRunLevel = raiderIO.bestRuns?.length
+      ? Math.max(...raiderIO.bestRuns.map(r => r.level))
+      : null;
+
+    // Count unique dungeons with timed runs
+    const timedDungeons = new Set(
+      (raiderIO.bestRuns || []).filter(r => r.upgrades > 0).map(r => r.dungeon)
+    );
+
+    await db.insert(mplusSnapshots).values({
+      characterId,
+      score: currentScore,
+      scoreDps: raiderIO.mythicPlus.scoreDps || 0,
+      scoreHealer: raiderIO.mythicPlus.scoreHealer || 0,
+      scoreTank: raiderIO.mythicPlus.scoreTank || 0,
+      itemLevel: raiderIO.gear?.itemLevel || null,
+      bestRunLevel,
+      totalDungeons: timedDungeons.size || null,
+    });
+
+    return true;
+  } catch (err) {
+    log.error('Failed to save M+ snapshot', err.message);
+    return false;
   }
 }
 

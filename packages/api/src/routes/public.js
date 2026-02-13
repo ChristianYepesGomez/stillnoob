@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
 import { characters } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc, gte } from 'drizzle-orm';
 import { getCharacterPerformance } from '../services/analysis.js';
-import { getCharacterRaiderIO } from '../services/raiderio.js';
+import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
+import { analyzeMythicPlus } from '../services/mythicPlusAnalysis.js';
+import { mplusSnapshots } from '../db/schema.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Public');
 const router = Router();
 
 /**
@@ -80,11 +84,67 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
         avgCpm: b.avgCpm,
       })),
       raiderIO,
+      mplusAnalysis: raiderIO ? (() => {
+        const mpa = analyzeMythicPlus(raiderIO, data.recommendations?.playerLevel);
+        return mpa ? {
+          dungeonAnalysis: mpa.dungeonAnalysis,
+          scoreAnalysis: mpa.scoreAnalysis,
+          timingAnalysis: mpa.timingAnalysis,
+          upgradeAnalysis: mpa.upgradeAnalysis,
+          pushTargets: mpa.pushTargets,
+        } : null;
+      })() : null,
       lastUpdated: new Date().toISOString(),
     });
+
+    // Snapshot M+ score (fire-and-forget)
+    if (raiderIO?.mythicPlus?.score && match.id) {
+      saveScoreSnapshot(match.id, raiderIO).catch(() => {});
+    }
   } catch (err) {
-    console.error('Public character error:', err);
+    log.error('Public character failed', err);
     res.status(500).json({ error: 'Failed to get character data' });
+  }
+});
+
+// GET /api/v1/public/character/:region/:realm/:name/mplus-history
+router.get('/character/:region/:realm/:name/mplus-history', async (req, res) => {
+  try {
+    const { region, realm, name } = req.params;
+    const weeks = parseInt(req.query.weeks) || 12;
+
+    const realmSlug = realm.toLowerCase().replace(/\s+/g, '-');
+    const allChars = await db.select()
+      .from(characters)
+      .where(and(eq(characters.realmSlug, realmSlug), eq(characters.region, region.toLowerCase())))
+      .all();
+
+    const normalizedName = name.normalize('NFC').toLowerCase();
+    const match = allChars.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
+
+    if (!match) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    const cutoff = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
+    const snapshots = await db.select()
+      .from(mplusSnapshots)
+      .where(and(eq(mplusSnapshots.characterId, match.id), gte(mplusSnapshots.snapshotAt, cutoff)))
+      .orderBy(desc(mplusSnapshots.snapshotAt))
+      .all();
+
+    let trend = null;
+    if (snapshots.length >= 2) {
+      const newest = snapshots[0].score;
+      const oldest = snapshots[snapshots.length - 1].score;
+      const change = newest - oldest;
+      trend = { change: Math.round(change), direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat' };
+    }
+
+    res.json({ snapshots, trend });
+  } catch (err) {
+    log.error('Public M+ history failed', err);
+    res.status(500).json({ error: 'Failed to get M+ history' });
   }
 });
 

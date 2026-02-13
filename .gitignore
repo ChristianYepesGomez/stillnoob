@@ -8,3 +8,4 @@ packages/api/data/
 FOUNDATIONS.md
 COACHING-RESEARCH.md
 .turbo/
+.claude/settings*.json

@@ -38,3 +38,5 @@ services:
         generateValue: true
       - key: OAUTH_STATE_SECRET
         generateValue: true
+      - key: SENTRY_DSN
+        sync: false

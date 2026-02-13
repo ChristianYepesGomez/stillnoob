@@ -318,7 +318,7 @@ router.get('/blizzard/link', authenticateToken, (req, res) => {
 router.get('/blizzard/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
 
     if (!code || !state) {
       return res.redirect(`${frontendUrl}/dashboard?error=blizzard_denied`);
@@ -372,7 +372,7 @@ router.get('/blizzard/callback', async (req, res) => {
     res.redirect(`${frontendUrl}/dashboard?blizzard=linked&imported=${imported}`);
   } catch (err) {
     log.error('Blizzard callback failed', err);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
     res.redirect(`${frontendUrl}/dashboard?error=blizzard_failed`);
   }
 });
@@ -401,7 +401,7 @@ router.get('/wcl/link', authenticateToken, (req, res) => {
 router.get('/wcl/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
 
     if (!code || !state) {
       return res.redirect(`${frontendUrl}/dashboard?error=wcl_denied`);
@@ -433,7 +433,7 @@ router.get('/wcl/callback', async (req, res) => {
     res.redirect(`${frontendUrl}/dashboard?wcl=linked`);
   } catch (err) {
     log.error('WCL callback failed', err);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
     res.redirect(`${frontendUrl}/dashboard?error=wcl_failed`);
   }
 });

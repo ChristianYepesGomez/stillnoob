@@ -70,7 +70,8 @@ export default function CharacterPublic() {
     );
   }
 
-  const { character, score, summary, bossBreakdown, raiderIO } = data;
+  const { character, score, summary, bossBreakdown, raiderIO, mplusAnalysis, buildAnalysis, source } = data;
+  const isLive = source === 'live';
   const classColor = CLASS_COLORS[character.className] || '#fff';
 
   return (
@@ -100,6 +101,14 @@ export default function CharacterPublic() {
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
         {/* Character header */}
         <div className="flex items-center gap-4 flex-wrap">
+          {isLive && character.media?.avatar && (
+            <img
+              src={character.media.avatar}
+              alt={character.name}
+              className="w-14 h-14 rounded-xl border-2"
+              style={{ borderColor: classColor }}
+            />
+          )}
           <h1 className="font-cinzel text-3xl font-bold" style={{ color: classColor }}>
             {character.name}
           </h1>
@@ -114,43 +123,89 @@ export default function CharacterPublic() {
               {character.spec} {character.className}
             </span>
           )}
+          {isLive && character.equippedItemLevel && (
+            <span className="text-sm font-orbitron text-sunwell-gold">
+              {character.equippedItemLevel} ilvl
+            </span>
+          )}
         </div>
 
         {/* Score */}
         {score && <ScoreBadge score={score} />}
 
+        {/* Live data banner */}
+        {isLive && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-void-glow/10 to-void-bright/5 border border-void-glow/25">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="w-2 h-2 bg-fel-green rounded-full animate-pulse" />
+              <h2 className="font-cinzel text-lg font-bold text-white">Live Character Data</h2>
+            </div>
+            <p className="text-sm text-void-secondary mb-4">
+              Showing real-time data from Blizzard API and Raider.io.
+              Import your WarcraftLogs reports to unlock full coaching analysis with performance scores, boss breakdowns, and personalized improvement tips.
+            </p>
+            <Link
+              to={user ? '/dashboard' : '/register'}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-opacity"
+            >
+              <i className="fas fa-chart-line" />
+              {user ? 'Import Logs in Dashboard' : 'Get Full Coaching Analysis'}
+            </Link>
+          </div>
+        )}
+
         {/* Summary stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-            <p className="font-orbitron text-xl font-bold text-blue-400">{formatDps(summary.avgDps)}</p>
-            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.avgDps')}</p>
+        {summary && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+              <p className="font-orbitron text-xl font-bold text-blue-400">{formatDps(summary.avgDps)}</p>
+              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.avgDps')}</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+              <p className="font-orbitron text-xl font-bold text-white">{summary.totalFights}</p>
+              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.totalFights')}</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+              <p className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}>
+                {(summary.deathRate || 0).toFixed(2)}
+              </p>
+              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.deathsPerFight')}</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+              <p className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}>
+                {summary.consumableScore || 0}
+              </p>
+              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.consumableScore')}</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+              <p className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}>
+                {Math.round(summary.dpsVsMedianPct || 100)}%
+              </p>
+              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
+            </div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-            <p className="font-orbitron text-xl font-bold text-white">{summary.totalFights}</p>
-            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.totalFights')}</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-            <p className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}>
-              {(summary.deathRate || 0).toFixed(2)}
-            </p>
-            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.deathsPerFight')}</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-            <p className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}>
-              {summary.consumableScore || 0}
-            </p>
-            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.consumableScore')}</p>
-          </div>
-          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-            <p className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}>
-              {Math.round(summary.dpsVsMedianPct || 100)}%
-            </p>
-            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
-          </div>
-        </div>
+        )}
 
         {/* Mythic+ data from Raider.io */}
         {raiderIO && <MythicPlusSection raiderIO={raiderIO} compact />}
+
+        {/* Raid progression (live mode) */}
+        {isLive && raiderIO?.raidProgression?.length > 0 && (
+          <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5">
+            <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+              <i className="fas fa-dungeon mr-2 text-void-accent" />
+              Raid Progression
+            </h2>
+            <div className="space-y-2">
+              {raiderIO.raidProgression.map((raid) => (
+                <div key={raid.slug} className="flex items-center justify-between p-3 rounded-xl bg-void-deep/50 border border-void-bright/5">
+                  <span className="text-sm text-white font-medium">{raid.slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                  <span className="text-sm font-orbitron text-void-accent">{raid.raid}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Boss breakdown */}
         {bossBreakdown?.length > 0 && (
@@ -218,7 +273,12 @@ export default function CharacterPublic() {
 
         {/* Footer */}
         <footer className="text-center py-4 text-xs text-void-muted border-t border-void-bright/10">
-          <p>Data from public Warcraft Logs reports. Last updated: {data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : 'N/A'}</p>
+          <p>
+            {isLive
+              ? 'Data from Blizzard API and Raider.io. Shown in real-time.'
+              : `Data from public Warcraft Logs reports. Last updated: ${data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : 'N/A'}`
+            }
+          </p>
           <p className="mt-1">StillNoob is not affiliated with Blizzard Entertainment or Warcraft Logs.</p>
         </footer>
       </main>

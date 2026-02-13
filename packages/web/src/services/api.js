@@ -104,6 +104,7 @@ export const publicAPI = {
   build: (region, realm, name) =>
     api.get(`/public/character/${region}/${realm}/${name}/build`),
   meta: (className, spec) => api.get(`/public/meta/${encodeURIComponent(className)}/${encodeURIComponent(spec)}`),
+  realms: (region) => api.get(`/public/realms/${region.toLowerCase()}`),
 };
 
 export const guildsAPI = {

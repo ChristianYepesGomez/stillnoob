@@ -11,6 +11,14 @@ vi.mock('../services/raiderio.js', () => ({
   getCharacterRaiderIO: vi.fn(),
 }));
 
+vi.mock('../services/blizzard.js', () => ({
+  getCharacterEquipment: vi.fn().mockResolvedValue(null),
+  transformEquipment: vi.fn(),
+  getRealmList: vi.fn(),
+  getCharacterProfile: vi.fn().mockResolvedValue(null),
+  getCharacterMedia: vi.fn().mockResolvedValue(null),
+}));
+
 // Mock db with in-memory SQLite
 vi.mock('../db/client.js', async () => {
   const { createClient } = await import('@libsql/client');
@@ -26,6 +34,7 @@ import app from '../app.js';
 import { client } from '../db/client.js';
 import { getCharacterPerformance } from '../services/analysis.js';
 import { getCharacterRaiderIO } from '../services/raiderio.js';
+import { getCharacterProfile, getCharacterMedia, getRealmList } from '../services/blizzard.js';
 
 const mockPerformanceData = {
   score: { total: 75, tier: { name: 'Good', min: 60, max: 79 }, breakdown: {} },
@@ -95,12 +104,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   getCharacterPerformance.mockResolvedValue(mockPerformanceData);
   getCharacterRaiderIO.mockResolvedValue(mockRaiderIO);
+  getCharacterProfile.mockResolvedValue(null);
+  getCharacterMedia.mockResolvedValue(null);
 });
 
 describe('GET /api/v1/public/character/:region/:realm/:name', () => {
-  it('returns character data for existing character', async () => {
+  it('returns character data with source: database for existing character', async () => {
     const res = await request(app).get('/api/v1/public/character/eu/silvermoon/Testchar');
     expect(res.status).toBe(200);
+    expect(res.body.source).toBe('database');
     expect(res.body.character).toBeDefined();
     expect(res.body.character.name).toBe('Testchar');
     expect(res.body.character.className).toBe('Mage');
@@ -117,15 +129,58 @@ describe('GET /api/v1/public/character/:region/:realm/:name', () => {
     expect(res.body.character.name).toBe('Testchar');
   });
 
-  it('returns 404 for non-existent character', async () => {
+  it('falls back to live Blizzard API when character not in DB', async () => {
+    getCharacterProfile.mockResolvedValue({
+      name: 'Newchar', realm: 'Stormrage', realmSlug: 'stormrage',
+      className: 'Warrior', spec: 'Arms', raidRole: 'DPS',
+      level: 80, averageItemLevel: 620, equippedItemLevel: 618,
+    });
+    getCharacterMedia.mockResolvedValue({ avatar: 'http://img/avatar.jpg', inset: null, main: null, mainRaw: null });
+    getCharacterRaiderIO.mockResolvedValue(mockRaiderIO);
+
+    const res = await request(app).get('/api/v1/public/character/eu/stormrage/Newchar');
+    expect(res.status).toBe(200);
+    expect(res.body.source).toBe('live');
+    expect(res.body.character.name).toBe('Newchar');
+    expect(res.body.character.className).toBe('Warrior');
+    expect(res.body.character.equippedItemLevel).toBe(618);
+    expect(res.body.character.media).toBeDefined();
+    expect(res.body.score).toBeNull();
+    expect(res.body.summary).toBeNull();
+    expect(res.body.bossBreakdown).toEqual([]);
+    expect(res.body.raiderIO).toBeDefined();
+  });
+
+  it('returns 404 when character not in DB and not on Blizzard', async () => {
+    getCharacterProfile.mockResolvedValue(null);
     const res = await request(app).get('/api/v1/public/character/eu/silvermoon/Nobody');
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
   });
 
-  it('returns 404 for wrong realm', async () => {
+  it('returns 404 for wrong realm when not on Blizzard either', async () => {
+    getCharacterProfile.mockResolvedValue(null);
     const res = await request(app).get('/api/v1/public/character/eu/stormrage/Testchar');
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
+  });
+});
+
+describe('GET /api/v1/public/realms/:region', () => {
+  it('returns realm list for valid region', async () => {
+    getRealmList.mockResolvedValue([
+      { id: 1, name: 'Silvermoon', slug: 'silvermoon' },
+      { id: 2, name: 'Stormrage', slug: 'stormrage' },
+    ]);
+    const res = await request(app).get('/api/v1/public/realms/eu');
+    expect(res.status).toBe(200);
+    expect(res.body.realms).toHaveLength(2);
+    expect(res.body.realms[0].name).toBe('Silvermoon');
+  });
+
+  it('returns 400 for invalid region', async () => {
+    const res = await request(app).get('/api/v1/public/realms/xx');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid region/i);
   });
 });

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { guildsAPI } from '../services/api';
+import RealmSelect from '../components/RealmSelect';
 
 export default function GuildPage() {
   const { t } = useTranslation();
@@ -13,7 +14,7 @@ export default function GuildPage() {
   const [selectedGuild, setSelectedGuild] = useState(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', realm: '', region: 'eu' });
+  const [form, setForm] = useState({ name: '', realm: '', realmSlug: '', region: 'eu' });
   const [joinForm, setJoinForm] = useState({ guildId: '', inviteCode: '' });
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
@@ -43,10 +44,10 @@ export default function GuildPage() {
     setError('');
     setCreating(true);
     try {
-      const realmSlug = form.realm.toLowerCase().replace(/\s+/g, '-');
+      const realmSlug = form.realmSlug || form.realm.toLowerCase().replace(/\s+/g, '-');
       const { data } = await guildsAPI.create({ ...form, realmSlug });
       setGuilds(prev => [...prev, data.guild]);
-      setForm({ name: '', realm: '', region: 'eu' });
+      setForm({ name: '', realm: '', realmSlug: '', region: 'eu' });
       navigate(`/guild/${data.guild.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to create guild');
@@ -289,17 +290,9 @@ export default function GuildPage() {
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               required
             />
-            <input
-              type="text"
-              value={form.realm}
-              onChange={(e) => setForm(p => ({ ...p, realm: e.target.value }))}
-              placeholder="Realm (e.g. Tarren Mill)"
-              className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
-              required
-            />
             <select
               value={form.region}
-              onChange={(e) => setForm(p => ({ ...p, region: e.target.value }))}
+              onChange={(e) => setForm(p => ({ ...p, region: e.target.value, realm: '', realmSlug: '' }))}
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none"
             >
               <option value="eu">EU</option>
@@ -307,6 +300,13 @@ export default function GuildPage() {
               <option value="kr">KR</option>
               <option value="tw">TW</option>
             </select>
+            <RealmSelect
+              region={form.region}
+              value={form.realm}
+              onChange={(name, slug) => setForm(p => ({ ...p, realm: name, realmSlug: slug }))}
+              inputClassName="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
+              placeholder="Realm (e.g. Tarren Mill)"
+            />
             <button
               type="submit"
               disabled={creating}

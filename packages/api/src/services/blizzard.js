@@ -524,3 +524,38 @@ export function transformEquipment(rawEquipment) {
     },
   };
 }
+
+// --- Realm List API ---
+
+const realmCache = new Map();
+const REALM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Fetch realm list from Blizzard API for a given region.
+ * Returns array of { id, name, slug } sorted by name.
+ * Cached in-memory for 24 hours.
+ */
+export async function getRealmList(region) {
+  const normalizedRegion = region.toLowerCase();
+  const cached = realmCache.get(normalizedRegion);
+  if (cached && Date.now() - cached.timestamp < REALM_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const token = await getAccessToken();
+
+  const response = await axios.get(
+    `${getApiUrl(normalizedRegion)}/data/wow/realm/index`,
+    {
+      params: { namespace: `dynamic-${normalizedRegion}`, locale: 'en_US' },
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+
+  const realms = (response.data.realms || [])
+    .map(r => ({ id: r.id, name: r.name, slug: r.slug }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  realmCache.set(normalizedRegion, { data: realms, timestamp: Date.now() });
+  return realms;
+}

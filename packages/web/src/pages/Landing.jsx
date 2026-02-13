@@ -2,22 +2,24 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SCORE_TIERS } from '@stillnoob/shared';
+import RealmSelect from '../components/RealmSelect';
 
 export default function Landing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [charName, setCharName] = useState('');
   const [realm, setRealm] = useState('');
+  const [realmSlug, setRealmSlug] = useState('');
   const [region, setRegion] = useState('EU');
   const [searching, setSearching] = useState(false);
 
   function handleAnalyze(e) {
     e.preventDefault();
     const name = charName.trim();
-    const realmSlug = realm.trim().toLowerCase().replace(/\s+/g, '-');
-    if (!name || !realmSlug) return;
+    const slug = realmSlug.trim() || realm.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!name || !slug) return;
     setSearching(true);
-    navigate(`/character/${region.toLowerCase()}/${realmSlug}/${name}`);
+    navigate(`/character/${region.toLowerCase()}/${slug}/${name}`);
   }
 
   return (
@@ -86,24 +88,12 @@ export default function Landing() {
               />
             </div>
             <div className="flex-1 relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
-              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted">
-                Realm
-              </label>
-              <input
-                type="text"
-                placeholder="Ragnaros"
-                value={realm}
-                onChange={e => setRealm(e.target.value)}
-                className="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50"
-              />
-            </div>
-            <div className="flex-1 relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
-              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted">
+              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
                 Region
               </label>
               <select
                 value={region}
-                onChange={e => setRegion(e.target.value)}
+                onChange={e => { setRegion(e.target.value); setRealm(''); setRealmSlug(''); }}
                 className="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none appearance-none cursor-pointer"
               >
                 <option className="bg-void-mid" value="EU">EU</option>
@@ -111,6 +101,18 @@ export default function Landing() {
                 <option className="bg-void-mid" value="KR">KR</option>
                 <option className="bg-void-mid" value="TW">TW</option>
               </select>
+            </div>
+            <div className="flex-[1.5] relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
+              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
+                Realm
+              </label>
+              <RealmSelect
+                region={region.toLowerCase()}
+                value={realm}
+                onChange={(name, slug) => { setRealm(name); setRealmSlug(slug); }}
+                inputClassName="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50"
+                placeholder="Ragnaros"
+              />
             </div>
             <button
               type="submit"

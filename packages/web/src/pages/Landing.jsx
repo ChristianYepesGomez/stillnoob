@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SCORE_TIERS } from '@stillnoob/shared';
 import RealmSelect from '../components/RealmSelect';
+import RegionSelect from '../components/RegionSelect';
 
 export default function Landing() {
   const { t } = useTranslation();
@@ -74,7 +75,7 @@ export default function Landing() {
 
         {/* Search Box */}
         <form onSubmit={handleAnalyze} className="w-full max-w-2xl animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          <div className="flex flex-col sm:flex-row bg-void-surface border border-void-glow/25 rounded-2xl overflow-hidden focus-within:border-void-glow focus-within:shadow-[0_0_30px_rgba(123,47,242,0.2)] transition-all">
+          <div className="flex flex-col sm:flex-row bg-void-surface border border-void-glow/25 rounded-2xl focus-within:border-void-glow focus-within:shadow-[0_0_30px_rgba(123,47,242,0.2)] transition-all">
             <div className="flex-[2] relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
               <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted">
                 Character Name
@@ -91,16 +92,11 @@ export default function Landing() {
               <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
                 Region
               </label>
-              <select
+              <RegionSelect
                 value={region}
-                onChange={e => { setRegion(e.target.value); setRealm(''); setRealmSlug(''); }}
-                className="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none appearance-none cursor-pointer"
-              >
-                <option className="bg-void-mid" value="EU">EU</option>
-                <option className="bg-void-mid" value="US">US</option>
-                <option className="bg-void-mid" value="KR">KR</option>
-                <option className="bg-void-mid" value="TW">TW</option>
-              </select>
+                onChange={(val) => { setRegion(val); setRealm(''); setRealmSlug(''); }}
+                inputClassName="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none text-left cursor-pointer"
+              />
             </div>
             <div className="flex-[1.5] relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
               <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
@@ -117,7 +113,7 @@ export default function Landing() {
             <button
               type="submit"
               disabled={searching}
-              className="px-8 py-4 sm:py-0 bg-gradient-to-r from-void-glow to-void-bright text-white font-cinzel font-bold text-sm tracking-widest uppercase hover:shadow-[0_0_30px_rgba(123,47,242,0.4)] transition-all disabled:opacity-60"
+              className="px-8 py-4 sm:py-0 bg-gradient-to-r from-void-glow to-void-bright text-white font-cinzel font-bold text-sm tracking-widest uppercase hover:shadow-[0_0_30px_rgba(123,47,242,0.4)] transition-all disabled:opacity-60 rounded-b-2xl sm:rounded-b-none sm:rounded-r-2xl"
             >
               {searching ? 'Analyzing...' : 'Analyze Me'}
             </button>

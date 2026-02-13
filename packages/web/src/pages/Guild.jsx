@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { guildsAPI } from '../services/api';
 import RealmSelect from '../components/RealmSelect';
+import RegionSelect from '../components/RegionSelect';
 
 export default function GuildPage() {
   const { t } = useTranslation();
@@ -290,16 +291,11 @@ export default function GuildPage() {
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               required
             />
-            <select
-              value={form.region}
-              onChange={(e) => setForm(p => ({ ...p, region: e.target.value, realm: '', realmSlug: '' }))}
-              className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none"
-            >
-              <option value="eu">EU</option>
-              <option value="us">US</option>
-              <option value="kr">KR</option>
-              <option value="tw">TW</option>
-            </select>
+            <RegionSelect
+              value={form.region.toUpperCase()}
+              onChange={(val) => setForm(p => ({ ...p, region: val.toLowerCase(), realm: '', realmSlug: '' }))}
+              inputClassName="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none text-left cursor-pointer"
+            />
             <RealmSelect
               region={form.region}
               value={form.realm}

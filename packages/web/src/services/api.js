@@ -16,10 +16,34 @@ export function getAccessToken() {
   return accessToken;
 }
 
-// Request interceptor — attach access token
+// Cold start detection — shows overlay when first API call takes >3s
+const COLD_START_THRESHOLD_MS = 3000;
+let serverAwake = false;
+let coldStartTimer = null;
+let coldStartShown = false;
+
+function markServerAwake() {
+  if (serverAwake) return;
+  serverAwake = true;
+  if (coldStartTimer) {
+    clearTimeout(coldStartTimer);
+    coldStartTimer = null;
+  }
+  if (coldStartShown) {
+    window.dispatchEvent(new Event('coldstart:resolved'));
+  }
+}
+
+// Request interceptor — attach access token + cold start timer
 api.interceptors.request.use((config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+  if (!serverAwake && !coldStartTimer) {
+    coldStartTimer = setTimeout(() => {
+      coldStartShown = true;
+      window.dispatchEvent(new Event('coldstart:detected'));
+    }, COLD_START_THRESHOLD_MS);
   }
   return config;
 });
@@ -34,8 +58,12 @@ function onRefreshed(token) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    markServerAwake();
+    return response;
+  },
   async (error) => {
+    markServerAwake();
     const originalRequest = error.config;
 
     if (

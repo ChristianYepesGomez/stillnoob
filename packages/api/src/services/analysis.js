@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { fightPerformance } from '../db/schema.js';
-import { CONSUMABLE_PATTERNS, BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS, AUTO_ATTACK_PATTERNS } from '@stillnoob/shared';
+import { BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Analysis');
@@ -32,10 +32,18 @@ export function invalidateAnalysisCache(characterId) {
  * Process extended fight data from WCL and store per-fight performance snapshots.
  * Called during report import for each fight.
  *
+ * Data sources:
+ *   - basicStats: { damage, healing, damageTaken, deaths } (per-player arrays)
+ *   - extendedStats.casts: Casts table → entry.total for CPM (top-level total includes all casts)
+ *   - extendedStats.summary: Summary playerDetails → potionUse, healthstoneUse per player
+ *   - extendedStats.combatantInfo: CombatantInfo events → pre-fight auras (flask/food/augment)
+ *   - extendedStats.interrupts: Interrupts table → nested details with per-player totals
+ *   - extendedStats.dispels: Dispels table → same nested structure
+ *
  * @param {number} storedFightId - DB fight ID (fights table)
  * @param {number} fightDurationMs - Fight duration in milliseconds
  * @param {object} basicStats - { damage, healing, damageTaken, deaths }
- * @param {object} extendedStats - { casts, buffs, interrupts, dispels }
+ * @param {object} extendedStats - { casts, summary, combatantInfo, interrupts, dispels }
  * @param {object} charMap - { "lowercaseName": characterId }
  * @returns {number} Number of records inserted
  */
@@ -61,62 +69,70 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
   for (const e of basicStats.damageTaken || []) { ensurePlayer(e.name); playerData[e.name].damageTaken = e.total || 0; }
   for (const e of basicStats.deaths || []) { ensurePlayer(e.name); playerData[e.name].deaths = e.total || 0; }
 
-  // Casts — scan for consumable usage + CPM tracking
+  // Casts — use entry.total for CPM (the WCL Casts table truncates abilities to top 5,
+  // but entry.total includes ALL casts for that player)
+  const sourceIdToName = {};
   for (const entry of extendedStats.casts || []) {
     if (!entry.name) continue;
     ensurePlayer(entry.name);
-    const abilities = entry.abilities || entry.entries || [];
-    for (const ability of abilities) {
-      const name = ability.name || '';
-      const castCount = ability.total || ability.hitCount || 0;
+    playerData[entry.name].totalCasts = entry.total || 0;
+    // Build sourceID → name mapping for CombatantInfo lookup
+    if (entry.id != null) sourceIdToName[entry.id] = entry.name;
+  }
 
-      // CPM: count non-auto-attack casts
-      if (!AUTO_ATTACK_PATTERNS.test(name)) {
-        playerData[entry.name].totalCasts += castCount;
-      }
-
-      if (CONSUMABLE_PATTERNS.healthPotion.test(name)) {
-        playerData[entry.name].healthPotions += (castCount || 1);
-      }
-      if (CONSUMABLE_PATTERNS.healthstone.test(name)) {
-        playerData[entry.name].healthstones += (castCount || 1);
-      }
-      if (CONSUMABLE_PATTERNS.combatPotion.test(name)) {
-        playerData[entry.name].combatPotions += (castCount || 1);
+  // Summary playerDetails — potion and healthstone usage per player
+  if (extendedStats.summary) {
+    for (const role of ['dps', 'tanks', 'healers']) {
+      for (const p of extendedStats.summary[role] || []) {
+        if (!p.name) continue;
+        ensurePlayer(p.name);
+        playerData[p.name].combatPotions = p.potionUse || 0;
+        playerData[p.name].healthstones = p.healthstoneUse || 0;
+        // Also build sourceID → name from summary (has id field too)
+        if (p.id != null) sourceIdToName[p.id] = p.name;
       }
     }
   }
 
-  // Buffs — flask, food, augment rune
-  for (const entry of extendedStats.buffs || []) {
-    if (!entry.name) continue;
-    ensurePlayer(entry.name);
-    const auras = entry.abilities || entry.entries || [];
-    for (const aura of auras) {
+  // CombatantInfo events — pre-fight auras (flask, food, augment rune)
+  for (const event of extendedStats.combatantInfo || []) {
+    const playerName = sourceIdToName[event.sourceID];
+    if (!playerName) continue;
+    ensurePlayer(playerName);
+    for (const aura of event.auras || []) {
       const name = aura.name || '';
-      const uptime = aura.uptime || 0;
       if (BUFF_PATTERNS.flask.test(name)) {
-        playerData[entry.name].flaskUptime = Math.max(playerData[entry.name].flaskUptime, uptime);
+        playerData[playerName].flaskUptime = 100; // present at pull = 100% uptime
       }
       if (BUFF_PATTERNS.food.test(name)) {
-        playerData[entry.name].foodBuff = true;
+        playerData[playerName].foodBuff = true;
       }
       if (BUFF_PATTERNS.augmentRune.test(name)) {
-        playerData[entry.name].augmentRune = true;
+        playerData[playerName].augmentRune = true;
       }
     }
   }
 
-  // Interrupts & Dispels
-  for (const entry of extendedStats.interrupts || []) {
-    if (!entry.name) continue;
-    ensurePlayer(entry.name);
-    playerData[entry.name].interrupts = entry.total || 0;
+  // Interrupts — nested structure: entries[0].entries[].details[].{name, total}
+  for (const wrapper of extendedStats.interrupts || []) {
+    for (const ability of wrapper.entries || []) {
+      for (const player of ability.details || []) {
+        if (!player.name) continue;
+        ensurePlayer(player.name);
+        playerData[player.name].interrupts += player.total || 0;
+      }
+    }
   }
-  for (const entry of extendedStats.dispels || []) {
-    if (!entry.name) continue;
-    ensurePlayer(entry.name);
-    playerData[entry.name].dispels = entry.total || 0;
+
+  // Dispels — same nested structure as interrupts
+  for (const wrapper of extendedStats.dispels || []) {
+    for (const ability of wrapper.entries || []) {
+      for (const player of ability.details || []) {
+        if (!player.name) continue;
+        ensurePlayer(player.name);
+        playerData[player.name].dispels += player.total || 0;
+      }
+    }
   }
 
   // Calculate raid medians
@@ -199,7 +215,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
   const needsReportsJoin = !!visibilityFilter;
   const reportsJoin = needsReportsJoin ? 'JOIN reports r ON r.id = f.report_id' : '';
 
-  let where = 'WHERE fp.character_id = ? AND f.start_time >= ?';
+  let where = "WHERE fp.character_id = ? AND f.start_time >= ? AND f.difficulty != 'Mythic+'";
   const params = [characterId, cutoff.getTime()];
   if (bossId) { where += ' AND f.encounter_id = ?'; params.push(bossId); }
   if (difficulty) { where += ' AND f.difficulty = ?'; params.push(difficulty); }
@@ -640,7 +656,7 @@ export function generateRecommendations({ summary, bossBreakdown, weeklyTrends: 
 
 function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
   const tips = [];
-  const eligibleBosses = bossBreakdown.filter(b => b.fights >= 3);
+  const eligibleBosses = bossBreakdown.filter(b => b.fights >= 1);
 
   // boss_uptime_drop — active time drops significantly on a specific boss
   for (const boss of eligibleBosses) {
@@ -700,7 +716,7 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
   }
 
   // boss_potion_neglect — low potion usage specifically on the worst-performing boss
-  const bossesWithEnoughFights = bossBreakdown.filter(b => b.fights >= 3 && b.dpsVsMedian > 0);
+  const bossesWithEnoughFights = bossBreakdown.filter(b => b.fights >= 1 && b.dpsVsMedian > 0);
   if (bossesWithEnoughFights.length >= 2) {
     const weakest = bossesWithEnoughFights.reduce((w, b) => b.dpsVsMedian < w.dpsVsMedian ? b : w);
     if (weakest.combatPotionRate < 50) {
@@ -717,7 +733,7 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
 
   // boss_weakest_dps — biggest DPS gap across bosses (all levels)
   if (bossBreakdown.length >= 2) {
-    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 2);
+    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 1);
     if (bossesWithDps.length >= 2) {
       const weakest = bossesWithDps.reduce((w, b) => b.dpsVsMedian < w.dpsVsMedian ? b : w);
       const strongest = bossesWithDps.reduce((s, b) => b.dpsVsMedian > s.dpsVsMedian ? b : s);
@@ -745,7 +761,7 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
 
 function generateCrossPatternTips(summary, bossBreakdown) {
   const tips = [];
-  const eligible = bossBreakdown.filter(b => b.fights >= 3);
+  const eligible = bossBreakdown.filter(b => b.fights >= 1);
 
   // deaths_from_damage — bosses with highest deaths also have highest DTPS
   if (eligible.length >= 2) {
@@ -919,7 +935,7 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel) {
 
   // Strong boss (positive benchmark — shows best performance as reference)
   if (bossBreakdown.length >= 2) {
-    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 2);
+    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 1);
     if (bossesWithDps.length >= 2) {
       const strongest = bossesWithDps.reduce((s, b) => b.dpsVsMedian > s.dpsVsMedian ? b : s);
       if (strongest.dpsVsMedian > 110) {

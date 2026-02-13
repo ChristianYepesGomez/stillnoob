@@ -298,3 +298,221 @@ export async function getCharacterMedia(name, realmSlug, region) {
     return null;
   }
 }
+
+// --- Equipment API ---
+
+// In-memory cache: key → { data, timestamp }
+const equipmentCache = new Map();
+const EQUIPMENT_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
+
+function getEquipmentCacheKey(region, realmSlug, name) {
+  return `equip:${region}:${realmSlug}:${name}`.normalize('NFC').toLowerCase();
+}
+
+function getEquipmentCached(key) {
+  const entry = equipmentCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > EQUIPMENT_CACHE_TTL) {
+    equipmentCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setEquipmentCache(key, data) {
+  equipmentCache.set(key, { data, timestamp: Date.now() });
+  // Evict old entries if cache grows too large
+  if (equipmentCache.size > 500) {
+    const oldest = [...equipmentCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < 100; i++) equipmentCache.delete(oldest[i][0]);
+  }
+}
+
+/** Blizzard slot type → normalized slot name */
+const SLOT_TYPE_MAP = {
+  HEAD: 'head',
+  NECK: 'neck',
+  SHOULDER: 'shoulder',
+  BACK: 'back',
+  CHEST: 'chest',
+  WRIST: 'wrist',
+  HANDS: 'hands',
+  WAIST: 'waist',
+  LEGS: 'legs',
+  FEET: 'feet',
+  FINGER_1: 'finger1',
+  FINGER_2: 'finger2',
+  TRINKET_1: 'trinket1',
+  TRINKET_2: 'trinket2',
+  MAIN_HAND: 'mainHand',
+  OFF_HAND: 'offHand',
+};
+
+/** Blizzard stat type → normalized stat key */
+const STAT_TYPE_MAP = {
+  CRIT_RATING: 'crit',
+  HASTE_RATING: 'haste',
+  MASTERY_RATING: 'mastery',
+  VERSATILITY: 'versatility',
+};
+
+/** Slots that should have an enchant */
+const ENCHANTABLE_SLOTS = new Set([
+  'head', 'back', 'chest', 'wrist', 'legs', 'feet',
+  'finger1', 'finger2', 'mainHand',
+]);
+
+/**
+ * Fetch character equipment from Blizzard API.
+ * Uses app-level token (no user auth needed).
+ * Returns null on 404.
+ */
+export async function getCharacterEquipment(name, realmSlug, region) {
+  const cacheKey = getEquipmentCacheKey(region, realmSlug, name);
+  const cached = getEquipmentCached(cacheKey);
+  if (cached) return cached;
+
+  const token = await getAccessToken();
+
+  try {
+    const response = await axios.get(
+      `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(realmSlug)}/${encodeURIComponent(name.normalize('NFC').toLowerCase())}/equipment`,
+      {
+        params: { namespace: `profile-${region}`, locale: 'en_US' },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    setEquipmentCache(cacheKey, response.data);
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
+ * Transform raw Blizzard equipment API response into a structured format
+ * with item details, aggregated stats, enchant audit, and gem audit.
+ */
+export function transformEquipment(rawEquipment) {
+  const equippedItems = rawEquipment?.equipped_items || [];
+
+  // --- Parse individual items ---
+  const items = equippedItems.map((item) => {
+    const slotType = item.slot?.type || '';
+    const slot = SLOT_TYPE_MAP[slotType] || slotType.toLowerCase();
+
+    // Parse stats
+    const stats = { crit: 0, haste: 0, mastery: 0, versatility: 0 };
+    for (const stat of item.stats || []) {
+      const key = STAT_TYPE_MAP[stat.type?.type];
+      if (key) stats[key] = stat.value;
+    }
+
+    // Parse enchant (take first enchantment display string)
+    const enchant = item.enchantments?.[0]?.display_string
+      ? item.enchantments[0].display_string.replace(/^Enchanted:\s*/i, '')
+      : null;
+
+    // Parse gems and empty sockets
+    const gems = [];
+    let emptySockets = 0;
+    for (const socket of item.sockets || []) {
+      if (socket.item?.name) {
+        gems.push(socket.item.name);
+      } else {
+        emptySockets++;
+      }
+    }
+
+    return {
+      slot,
+      name: item.name || 'Unknown',
+      itemLevel: item.level?.value || 0,
+      stats,
+      enchant,
+      gems,
+      emptySockets,
+    };
+  });
+
+  // --- Aggregated stats ---
+  let totalItemLevel = 0;
+  const totalStats = { crit: 0, haste: 0, mastery: 0, versatility: 0 };
+
+  for (const item of items) {
+    totalItemLevel += item.itemLevel;
+    totalStats.crit += item.stats.crit;
+    totalStats.haste += item.stats.haste;
+    totalStats.mastery += item.stats.mastery;
+    totalStats.versatility += item.stats.versatility;
+  }
+
+  const averageItemLevel = items.length > 0
+    ? Math.round((totalItemLevel / items.length) * 10) / 10
+    : 0;
+
+  const totalSecondary = totalStats.crit + totalStats.haste + totalStats.mastery + totalStats.versatility;
+  const statDistribution = {
+    crit: totalSecondary > 0 ? Math.round((totalStats.crit / totalSecondary) * 1000) / 10 : 0,
+    haste: totalSecondary > 0 ? Math.round((totalStats.haste / totalSecondary) * 1000) / 10 : 0,
+    mastery: totalSecondary > 0 ? Math.round((totalStats.mastery / totalSecondary) * 1000) / 10 : 0,
+    versatility: totalSecondary > 0 ? Math.round((totalStats.versatility / totalSecondary) * 1000) / 10 : 0,
+  };
+
+  // --- Enchant audit ---
+  const enchantMissing = [];
+  const enchantPresent = [];
+  const itemSlotSet = new Set(items.map(i => i.slot));
+
+  for (const slot of ENCHANTABLE_SLOTS) {
+    // Only audit slots the character actually has equipped
+    if (!itemSlotSet.has(slot)) continue;
+    const item = items.find(i => i.slot === slot);
+    if (item?.enchant) {
+      enchantPresent.push(slot);
+    } else {
+      enchantMissing.push(slot);
+    }
+  }
+
+  // --- Gem audit ---
+  let totalSockets = 0;
+  let filledSockets = 0;
+  let emptySockTotal = 0;
+  const emptySlots = [];
+
+  for (const item of items) {
+    const socketCount = item.gems.length + item.emptySockets;
+    if (socketCount > 0) {
+      totalSockets += socketCount;
+      filledSockets += item.gems.length;
+      emptySockTotal += item.emptySockets;
+      if (item.emptySockets > 0) {
+        emptySlots.push(item.slot);
+      }
+    }
+  }
+
+  return {
+    items,
+    aggregated: {
+      averageItemLevel,
+      totalStats,
+      statDistribution,
+    },
+    enchantAudit: {
+      missing: enchantMissing,
+      present: enchantPresent,
+      total: ENCHANTABLE_SLOTS.size,
+      enchanted: enchantPresent.length,
+    },
+    gemAudit: {
+      totalSockets,
+      filled: filledSockets,
+      empty: emptySockTotal,
+      emptySlots,
+    },
+  };
+}

@@ -42,7 +42,7 @@ export const REGIONS = ['us', 'eu', 'kr', 'tw'];
 export const USER_TIERS = ['free', 'premium', 'admin'];
 
 /** Recommendation categories */
-export const REC_CATEGORIES = ['survivability', 'consumables', 'performance', 'utility', 'mythicPlus'];
+export const REC_CATEGORIES = ['survivability', 'consumables', 'performance', 'utility', 'mythicPlus', 'gear'];
 
 /** Recommendation severities */
 export const REC_SEVERITIES = ['positive', 'info', 'warning', 'critical'];
@@ -62,6 +62,7 @@ export const CATEGORY_STYLES = {
   performance: { icon: 'fa-chart-line', color: 'text-blue-400' },
   utility: { icon: 'fa-wrench', color: 'text-purple-400' },
   mythicPlus: { icon: 'fa-key', color: 'text-sunwell-amber' },
+  gear: { icon: 'fa-shield-halved', color: 'text-amber-400' },
 };
 
 /** Abilities to exclude from CPM count (auto-attacks) */

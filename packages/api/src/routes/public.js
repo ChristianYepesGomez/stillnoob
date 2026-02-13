@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { characters } from '../db/schema.js';
+import { characters, specMetaCache } from '../db/schema.js';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { getCharacterPerformance } from '../services/analysis.js';
+import { getCharacterEquipment, transformEquipment } from '../services/blizzard.js';
+import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
 import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
 import { analyzeMythicPlus } from '../services/mythicPlusAnalysis.js';
 import { mplusSnapshots } from '../db/schema.js';
+import { getSpecMeta } from '../services/metaAggregation.js';
+import { getSpecData } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Route:Public');
@@ -42,11 +46,44 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    // Fetch WCL analysis + Raider.io data in parallel
-    const [data, raiderIO] = await Promise.all([
+    // Fetch WCL analysis + Raider.io data + equipment in parallel
+    const [data, raiderIO, equipment] = await Promise.all([
       getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public', characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region } }),
       getCharacterRaiderIO(match.region, match.realmSlug, match.name),
+      getCharacterEquipment(match.name, match.realmSlug, match.region).catch(() => null),
     ]);
+
+    // Build / gear analysis
+    let buildAnalysis = null;
+    if (equipment) {
+      const transformed = transformEquipment(equipment);
+
+      // Try to get specMeta from cache
+      let specMeta = null;
+      if (match.className && match.spec) {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const cached = await db.select()
+          .from(specMetaCache)
+          .where(and(
+            eq(specMetaCache.className, match.className),
+            eq(specMetaCache.spec, match.spec),
+            eq(specMetaCache.region, 'world'),
+            gte(specMetaCache.lastUpdated, sevenDaysAgo),
+          ))
+          .get();
+        if (cached) {
+          specMeta = {
+            avgStats: JSON.parse(cached.avgStats || '{}'),
+            avgItemLevel: cached.avgItemLevel,
+            commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
+            commonGems: JSON.parse(cached.commonGems || '{}'),
+            sampleSize: cached.sampleSize,
+          };
+        }
+      }
+
+      buildAnalysis = analyzeCharacterBuild(transformed, match.className, match.spec, specMeta);
+    }
 
     // Return public-safe subset (no detailed consumable breakdown per fight)
     res.json({
@@ -85,7 +122,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
       })),
       raiderIO,
       mplusAnalysis: raiderIO ? (() => {
-        const mpa = analyzeMythicPlus(raiderIO, data.recommendations?.playerLevel);
+        const mpa = analyzeMythicPlus(raiderIO);
         return mpa ? {
           dungeonAnalysis: mpa.dungeonAnalysis,
           scoreAnalysis: mpa.scoreAnalysis,
@@ -94,6 +131,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           pushTargets: mpa.pushTargets,
         } : null;
       })() : null,
+      buildAnalysis,
       lastUpdated: new Date().toISOString(),
     });
 
@@ -145,6 +183,90 @@ router.get('/character/:region/:realm/:name/mplus-history', async (req, res) => 
   } catch (err) {
     log.error('Public M+ history failed', err);
     res.status(500).json({ error: 'Failed to get M+ history' });
+  }
+});
+
+// GET /api/v1/public/character/:region/:realm/:name/build — public build analysis
+router.get('/character/:region/:realm/:name/build', async (req, res) => {
+  try {
+    const { region, realm, name } = req.params;
+
+    const realmSlug = realm.toLowerCase().replace(/\s+/g, '-');
+
+    // Find the character (case-insensitive name match)
+    const allChars = await db.select()
+      .from(characters)
+      .where(
+        and(
+          eq(characters.realmSlug, realmSlug),
+          eq(characters.region, region.toLowerCase()),
+        )
+      )
+      .all();
+
+    const normalizedName = name.normalize('NFC').toLowerCase();
+    const match = allChars.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
+
+    if (!match) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    const equipment = await getCharacterEquipment(match.name, match.realmSlug, match.region);
+    if (!equipment) {
+      return res.status(404).json({ error: 'Equipment data not available' });
+    }
+
+    const transformed = transformEquipment(equipment);
+
+    // Try to get specMeta from cache
+    let specMeta = null;
+    if (match.className && match.spec) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const cached = await db.select()
+        .from(specMetaCache)
+        .where(and(
+          eq(specMetaCache.className, match.className),
+          eq(specMetaCache.spec, match.spec),
+          eq(specMetaCache.region, 'world'),
+          gte(specMetaCache.lastUpdated, sevenDaysAgo),
+        ))
+        .get();
+      if (cached) {
+        specMeta = {
+          avgStats: JSON.parse(cached.avgStats || '{}'),
+          avgItemLevel: cached.avgItemLevel,
+          commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
+          commonGems: JSON.parse(cached.commonGems || '{}'),
+          sampleSize: cached.sampleSize,
+        };
+      }
+    }
+
+    const result = analyzeCharacterBuild(transformed, match.className, match.spec, specMeta);
+    res.json(result);
+  } catch (err) {
+    log.error('Public build analysis failed', err);
+    res.status(500).json({ error: 'Failed to get build analysis' });
+  }
+});
+
+// GET /api/v1/public/meta/:className/:spec — public spec meta data
+router.get('/meta/:className/:spec', async (req, res) => {
+  try {
+    const { className, spec } = req.params;
+
+    const [specMeta, specData] = await Promise.all([
+      getSpecMeta(className, spec),
+      Promise.resolve(getSpecData(className, spec)),
+    ]);
+
+    res.json({
+      specData: specData || null,
+      meta: specMeta || null,
+    });
+  } catch (err) {
+    log.error('Public meta failed', err);
+    res.status(500).json({ error: 'Failed to get spec meta data' });
   }
 });
 

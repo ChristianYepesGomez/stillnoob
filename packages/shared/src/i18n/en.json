@@ -136,7 +136,22 @@
     "activeTime": "Active Time",
     "cpm": "Casts / Min",
     "avgParse": "Avg Parse",
-    "parsePercentile": "Parse %"
+    "parsePercentile": "Parse %",
+    "build": "Build",
+    "statDistribution": "Stat Distribution",
+    "enchantAudit": "Enchant Audit",
+    "gemAudit": "Gem Audit",
+    "vsMeta": "vs Meta",
+    "specPriority": "Spec Priority: {{priority}}",
+    "enchanted": "Enchanted",
+    "missing": "Missing",
+    "sockets": "Sockets",
+    "filled": "Filled",
+    "empty": "Empty",
+    "statAlignment": "Stat Alignment",
+    "alignmentGood": "Well aligned",
+    "alignmentMixed": "Partially aligned",
+    "alignmentPoor": "Misaligned"
   },
   "score": {
     "noob": "Noob",
@@ -160,7 +175,8 @@
     "consumables": "Consumables",
     "performance": "Performance",
     "utility": "Utility",
-    "mythicPlus": "Mythic+"
+    "mythicPlus": "Mythic+",
+    "gear": "Gear & Build"
   },
   "severity": {
     "positive": "Good",
@@ -190,14 +206,14 @@
     "below_avg_parse": "Your average parse ({{pct}}%) is below the global median. Small rotation and uptime improvements can push you higher.",
     "good_preparation": "Excellent consumable preparation! Flasks, potions, and food are consistently used.",
     "strong_boss": "Your strongest boss is {{boss}} ({{difficulty}}) at {{dpsVsMedian}}% vs median — a great benchmark for your other encounters.",
-    "mplus_dungeon_gap": "Your weakest dungeon is {{dungeon}} (+{{level}}) while your best is +{{bestLevel}}. Running {{dungeon}} more will boost your score significantly.",
-    "mplus_untimed_runs": "You have {{count}} untimed key(s) in your best runs ({{dungeons}}). Retime these at the same level for easy score gains.",
-    "mplus_timing_tight": "Your {{dungeon}} (+{{level}}) clear was tight ({{pct}}% of par time). Consider route optimization or bigger pulls.",
-    "mplus_all_timed": "All {{count}} best runs are timed! You're ready to push the next key level.",
-    "mplus_push_target": "Based on your profile, {{dungeon}} is your best candidate to push from +{{current}} to +{{target}}.",
-    "mplus_score_bracket": "Your score ({{score}}) is in the {{bracket}} range. Next milestone: {{nextBracket}} at {{nextScore}}.",
-    "mplus_role_score_gap": "Your {{role}} score ({{roleScore}}) is much lower than your main role ({{mainScore}}). Off-spec keys could boost total score.",
-    "mplus_low_score": "Your M+ score is {{score}}. Focus on timing keys at your current level rather than pushing higher."
+    "gear_missing_enchants": "You're missing enchants on {{count}} slots ({{slots}}). Each enchant adds ~200+ stats — don't leave free power on the table.",
+    "gear_missing_gems": "You have {{count}} empty gem socket(s) in {{slots}}. Gems are one of the easiest ways to boost your stats.",
+    "gear_stat_vs_meta": "Top {{spec}} players stack {{metaPct}}% {{stat}}, but you only have {{playerPct}}%. That's a {{gap}}% gap vs the meta.",
+    "gear_wrong_stat_priority": "Your top stat is {{topStat}} ({{topPct}}%), but your spec prioritizes {{expectedStats}}. Consider reforging or replacing off-stat gear. Priority: {{specPriority}}.",
+    "gear_low_ilvl_slot": "Your {{slot}} (ilvl {{itemLevel}}) is {{gap}} levels below your average ({{average}}). Upgrading this slot will have the biggest impact.",
+    "gear_enchant_vs_meta": "On {{slot}}, {{metaPct}}% of top players use \"{{metaEnchant}}\" but you have \"{{playerEnchant}}\". Consider switching for optimal stats.",
+    "gear_stat_overcap": "Your {{stat}} ({{value}}) exceeds the soft cap of {{cap}}. Consider redistributing excess stats to other secondaries.",
+    "gear_well_optimized": "Your gear is well optimized! All enchants present, gems socketed, and stats aligned with your spec priority."
   },
   "raiderio": {
     "mplusScore": "M+ Score",

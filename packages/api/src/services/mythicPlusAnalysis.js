@@ -1,20 +1,20 @@
 /**
- * Mythic+ Coaching Engine
- * Analyzes Raider.IO data to generate actionable M+ coaching insights.
+ * Mythic+ Analysis Engine
+ * Analyzes Raider.IO data to produce visual analysis data (charts, brackets, trends).
+ * Coaching tips are generated separately by the build analysis system (Phase 3+4).
  */
 
 import { MPLUS_BRACKETS } from '@stillnoob/shared';
 
 /**
- * Analyze M+ data from Raider.IO and generate coaching insights.
+ * Analyze M+ data from Raider.IO for visual display.
  * @param {object} raiderIO - Transformed Raider.IO data from getCharacterRaiderIO()
- * @param {string} playerLevel - 'beginner' | 'intermediate' | 'advanced'
- * @returns {object} { dungeonAnalysis, scoreAnalysis, timingAnalysis, mplusTips }
+ * @returns {object} { dungeonAnalysis, scoreAnalysis, timingAnalysis, upgradeAnalysis, pushTargets }
  */
-export function analyzeMythicPlus(raiderIO, playerLevel = 'beginner') {
+export function analyzeMythicPlus(raiderIO) {
   if (!raiderIO?.mythicPlus) return null;
 
-  const { mythicPlus, bestRuns = [], recentRuns = [] } = raiderIO;
+  const { mythicPlus, bestRuns = [] } = raiderIO;
 
   const dungeonAnalysis = analyzeDungeonBalance(bestRuns);
   const timingAnalysis = analyzeTimingEfficiency(bestRuns);
@@ -22,32 +22,13 @@ export function analyzeMythicPlus(raiderIO, playerLevel = 'beginner') {
   const pushTargets = identifyPushTargets(bestRuns, dungeonAnalysis);
   const scoreAnalysis = analyzeScore(mythicPlus);
 
-  const mplusTips = generateMPlusTips({
-    mythicPlus, bestRuns, recentRuns,
-    dungeonAnalysis, timingAnalysis, upgradeAnalysis, pushTargets, scoreAnalysis,
-  }, playerLevel);
-
   return {
     dungeonAnalysis,
     scoreAnalysis,
     timingAnalysis,
     upgradeAnalysis,
     pushTargets,
-    mplusTips,
   };
-}
-
-/**
- * Merge M+ tips into the existing recommendations structure.
- */
-export function mergeMPlusTips(recommendations, mplusTips) {
-  if (!recommendations || !mplusTips?.length) return;
-  const primary = mplusTips.filter(t => t.priority <= 3);
-  const secondary = mplusTips.filter(t => t.priority > 3);
-  recommendations.primaryTips = [...(recommendations.primaryTips || []), ...primary];
-  recommendations.secondaryTips = [...(recommendations.secondaryTips || []), ...secondary];
-  recommendations.primaryTips.sort((a, b) => a.priority - b.priority);
-  recommendations.secondaryTips.sort((a, b) => a.priority - b.priority);
 }
 
 // ─── Analysis Functions ─────────────────────────────────────
@@ -152,102 +133,3 @@ function analyzeScore(mythicPlus) {
   return { score, currentBracket, nextBracket, mainRole: { role: mainRole[0], score: mainRole[1] }, offRoles };
 }
 
-// ─── Tip Generation ─────────────────────────────────────────
-
-function generateMPlusTips(ctx, playerLevel) {
-  const tips = [];
-  const { dungeonAnalysis, timingAnalysis, upgradeAnalysis, pushTargets, scoreAnalysis } = ctx;
-
-  // 1. Dungeon gap detection
-  if (dungeonAnalysis.levelSpread > 3 && dungeonAnalysis.weakDungeons.length > 0) {
-    const weakest = dungeonAnalysis.weakDungeons[0];
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_dungeon_gap',
-      severity: dungeonAnalysis.levelSpread > 5 ? 'critical' : 'warning',
-      priority: 1,
-      data: { dungeon: weakest.dungeon, level: weakest.level, bestLevel: dungeonAnalysis.maxLevel, spread: dungeonAnalysis.levelSpread },
-    });
-  }
-
-  // 2. Untimed best runs
-  const untimedRuns = ctx.bestRuns.filter(r => r.upgrades === 0);
-  if (untimedRuns.length > 0) {
-    const dungeonNames = [...new Set(untimedRuns.map(r => r.dungeon))].slice(0, 3).join(', ');
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_untimed_runs',
-      severity: 'warning', priority: 2,
-      data: { dungeons: dungeonNames, count: untimedRuns.length },
-    });
-  }
-
-  // 3. Tight timing runs
-  if (timingAnalysis.tightRuns?.length > 0) {
-    const tightest = timingAnalysis.tightRuns[0];
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_timing_tight',
-      severity: 'info', priority: 5,
-      data: { dungeon: tightest.dungeon, pct: tightest.timingPct, level: tightest.level },
-    });
-  }
-
-  // 4. All timed (positive)
-  if (ctx.bestRuns.length >= 4 && upgradeAnalysis.untimed === 0) {
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_all_timed',
-      severity: 'positive', priority: 6,
-      data: { count: ctx.bestRuns.length, avgUpgrades: upgradeAnalysis.avgUpgrades },
-    });
-  }
-
-  // 5. Push targets
-  if (pushTargets.length > 0) {
-    const top = pushTargets[0];
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_push_target',
-      severity: 'info', priority: 3,
-      data: { dungeon: top.dungeon, current: top.currentLevel, target: top.targetLevel },
-    });
-  }
-
-  // 6. Score bracket info
-  if (scoreAnalysis.score > 0) {
-    const bracketData = {
-      score: Math.round(scoreAnalysis.score),
-      bracket: scoreAnalysis.currentBracket.label,
-    };
-    if (scoreAnalysis.nextBracket) {
-      bracketData.nextBracket = scoreAnalysis.nextBracket.label;
-      bracketData.nextScore = scoreAnalysis.nextBracket.min;
-    }
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_score_bracket',
-      severity: 'info', priority: 7,
-      data: bracketData,
-    });
-  }
-
-  // 7. Role score gap
-  if (scoreAnalysis.offRoles.length > 0 && scoreAnalysis.mainRole.score > 500) {
-    const biggestGap = scoreAnalysis.offRoles
-      .filter(([, s]) => s > 0 && scoreAnalysis.mainRole.score - s > 300)
-      .sort((a, b) => a[1] - b[1]);
-    if (biggestGap.length > 0) {
-      tips.push({
-        category: 'mythicPlus', key: 'mplus_role_score_gap',
-        severity: 'info', priority: 8,
-        data: { role: biggestGap[0][0], roleScore: Math.round(biggestGap[0][1]), mainScore: Math.round(scoreAnalysis.mainRole.score) },
-      });
-    }
-  }
-
-  // 8. Low score coaching
-  if (scoreAnalysis.score > 0 && scoreAnalysis.score < 1500 && playerLevel === 'beginner') {
-    tips.push({
-      category: 'mythicPlus', key: 'mplus_low_score',
-      severity: 'info', priority: 4,
-      data: { score: Math.round(scoreAnalysis.score) },
-    });
-  }
-
-  return tips;
-}

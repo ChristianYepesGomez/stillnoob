@@ -212,3 +212,23 @@ export const bosses = sqliteTable('bosses', {
   zoneName: text('zone_name'),
   imageUrl: text('image_url'),
 });
+
+// ============================================
+// SPEC META CACHE (for build analysis)
+// ============================================
+
+export const specMetaCache = sqliteTable('spec_meta_cache', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  className: text('class_name').notNull(),
+  spec: text('spec').notNull(),
+  region: text('region').notNull().default('world'),
+  season: text('season').notNull(),
+  avgStats: text('avg_stats').default('{}'),
+  avgItemLevel: real('avg_item_level').default(0),
+  commonEnchants: text('common_enchants').default('{}'),
+  commonGems: text('common_gems').default('{}'),
+  sampleSize: integer('sample_size').default(0),
+  lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex('spec_meta_unique').on(table.className, table.spec, table.region, table.season),
+]);

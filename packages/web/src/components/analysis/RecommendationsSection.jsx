@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SEVERITY_STYLES, CATEGORY_STYLES } from '@stillnoob/shared';
+import { SEVERITY_STYLES, CATEGORY_STYLES, TIP_LIMITS } from '@stillnoob/shared';
 
 function TipCard({ tip, t }) {
   const sevStyle = SEVERITY_STYLES[tip.severity] || SEVERITY_STYLES.info;
@@ -21,11 +21,25 @@ function TipCard({ tip, t }) {
 
 export default function RecommendationsSection({ data }) {
   const { t } = useTranslation();
-  const { recommendations } = data;
+  const { recommendations, buildAnalysis } = data;
   const [showMore, setShowMore] = useState(false);
 
-  const primaryTips = recommendations?.primaryTips || [];
-  const secondaryTips = recommendations?.secondaryTips || [];
+  const gearTips = buildAnalysis?.gearTips || [];
+  const playerLevel = recommendations?.playerLevel || 'beginner';
+  const limit = TIP_LIMITS[playerLevel] || 3;
+
+  // Merge performance tips + gear tips, sort by priority, re-split
+  const { primaryTips, secondaryTips } = useMemo(() => {
+    const perfPrimary = recommendations?.primaryTips || [];
+    const perfSecondary = recommendations?.secondaryTips || [];
+    const merged = [...perfPrimary, ...perfSecondary, ...gearTips];
+    merged.sort((a, b) => a.priority - b.priority);
+    return {
+      primaryTips: merged.slice(0, limit),
+      secondaryTips: merged.slice(limit),
+    };
+  }, [recommendations, gearTips, limit]);
+
   const allTips = useMemo(
     () => (showMore ? [...primaryTips, ...secondaryTips] : primaryTips),
     [showMore, primaryTips, secondaryTips],

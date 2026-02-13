@@ -136,7 +136,22 @@
     "activeTime": "Tiempo Activo",
     "cpm": "Casts / Min",
     "avgParse": "Parse Prom",
-    "parsePercentile": "Parse %"
+    "parsePercentile": "Parse %",
+    "build": "Build",
+    "statDistribution": "Distribución de Stats",
+    "enchantAudit": "Auditoría de Encantamientos",
+    "gemAudit": "Auditoría de Gemas",
+    "vsMeta": "vs Meta",
+    "specPriority": "Prioridad del Spec: {{priority}}",
+    "enchanted": "Encantado",
+    "missing": "Faltante",
+    "sockets": "Engarces",
+    "filled": "Ocupados",
+    "empty": "Vacíos",
+    "statAlignment": "Alineación de Stats",
+    "alignmentGood": "Bien alineado",
+    "alignmentMixed": "Parcialmente alineado",
+    "alignmentPoor": "Desalineado"
   },
   "score": {
     "noob": "Noob",
@@ -160,7 +175,8 @@
     "consumables": "Consumibles",
     "performance": "Rendimiento",
     "utility": "Utilidad",
-    "mythicPlus": "Mítica+"
+    "mythicPlus": "Mítica+",
+    "gear": "Equipo & Build"
   },
   "severity": {
     "positive": "Bien",
@@ -190,14 +206,14 @@
     "below_avg_parse": "Tu parse promedio ({{pct}}%) está por debajo de la mediana global. Pequeñas mejoras en rotación y uptime pueden subirte.",
     "good_preparation": "¡Excelente preparación de consumibles! Frascos, pociones y comida se usan consistentemente.",
     "strong_boss": "Tu boss más fuerte es {{boss}} ({{difficulty}}) con {{dpsVsMedian}}% vs mediana — un gran referente para tus otros encuentros.",
-    "mplus_dungeon_gap": "Tu dungeon más débil es {{dungeon}} (+{{level}}) mientras que tu mejor es +{{bestLevel}}. Correr {{dungeon}} más subirá tu score significativamente.",
-    "mplus_untimed_runs": "Tienes {{count}} key(s) sin cronometrar en tus mejores runs ({{dungeons}}). Recronometrar al mismo nivel da puntos fáciles.",
-    "mplus_timing_tight": "Tu {{dungeon}} (+{{level}}) fue ajustado ({{pct}}% del tiempo par). Considera optimizar la ruta o hacer pulls más grandes.",
-    "mplus_all_timed": "¡Tus {{count}} mejores runs están cronometrados! Estás listo para subir al siguiente nivel de key.",
-    "mplus_push_target": "Según tu perfil, {{dungeon}} es tu mejor candidato para subir de +{{current}} a +{{target}}.",
-    "mplus_score_bracket": "Tu score ({{score}}) está en el rango {{bracket}}. Siguiente objetivo: {{nextBracket}} a {{nextScore}}.",
-    "mplus_role_score_gap": "Tu score de {{role}} ({{roleScore}}) es mucho menor que tu rol principal ({{mainScore}}). Keys de off-spec podrían subir tu score total.",
-    "mplus_low_score": "Tu score M+ es {{score}}. Enfócate en cronometrar keys a tu nivel actual antes de subir."
+    "gear_missing_enchants": "Te faltan encantamientos en {{count}} slots ({{slots}}). Cada encantamiento añade ~200+ stats — no dejes poder gratis en la mesa.",
+    "gear_missing_gems": "Tienes {{count}} engarce(s) de gema vacío(s) en {{slots}}. Las gemas son una de las formas más fáciles de mejorar tus stats.",
+    "gear_stat_vs_meta": "Los mejores {{spec}} apilan {{metaPct}}% de {{stat}}, pero tú solo tienes {{playerPct}}%. Eso es una brecha del {{gap}}% vs el meta.",
+    "gear_wrong_stat_priority": "Tu stat principal es {{topStat}} ({{topPct}}%), pero tu spec prioriza {{expectedStats}}. Considera reforjar o reemplazar equipo con stats incorrectos. Prioridad: {{specPriority}}.",
+    "gear_low_ilvl_slot": "Tu {{slot}} (ilvl {{itemLevel}}) está {{gap}} niveles por debajo de tu promedio ({{average}}). Mejorar este slot tendrá el mayor impacto.",
+    "gear_enchant_vs_meta": "En {{slot}}, el {{metaPct}}% de los top players usan \"{{metaEnchant}}\" pero tú tienes \"{{playerEnchant}}\". Considera cambiarlo para stats óptimos.",
+    "gear_stat_overcap": "Tu {{stat}} ({{value}}) excede el soft cap de {{cap}}. Considera redistribuir el exceso a otras stats secundarias.",
+    "gear_well_optimized": "¡Tu equipo está bien optimizado! Todos los encantamientos presentes, gemas engarzadas, y stats alineados con la prioridad de tu spec."
   },
   "raiderio": {
     "mplusScore": "Score M+",

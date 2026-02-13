@@ -236,14 +236,22 @@ export async function getBatchFightStats(reportCode, fightIds) {
 
 /**
  * Batch fetch extended fight stats for multiple fights in a single GraphQL request.
- * Returns Map<fightId, { casts, buffs, interrupts, dispels }>
+ *
+ * Data sources per field:
+ *   - casts: table(Casts)       → per-player total cast count for CPM
+ *   - summary: table(Summary)   → playerDetails with potionUse/healthstoneUse
+ *   - combatantInfo: events(CombatantInfo) → pre-fight auras (flask, food, augment)
+ *   - interrupts: table(Interrupts) → nested per-ability details with per-player totals
+ *   - dispels: table(Dispels)       → same nested structure as interrupts
+ *
+ * Returns Map<fightId, { casts, summary, combatantInfo, interrupts, dispels }>
  */
 export async function getBatchExtendedFightStats(reportCode, fightIds) {
   if (fightIds.length === 0) return new Map();
 
   const fightQueries = fightIds.map(id => `
     fight_${id}_casts: table(dataType: Casts, fightIDs: [${id}], hostilityType: Friendlies)
-    fight_${id}_buffs: table(dataType: Buffs, fightIDs: [${id}], hostilityType: Friendlies)
+    fight_${id}_summary: table(dataType: Summary, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_interrupts: table(dataType: Interrupts, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_dispels: table(dataType: Dispels, fightIDs: [${id}], hostilityType: Friendlies)
   `).join('\n');
@@ -253,6 +261,9 @@ export async function getBatchExtendedFightStats(reportCode, fightIds) {
       reportData {
         report(code: $reportCode) {
           ${fightQueries}
+          combatantInfo: events(dataType: CombatantInfo, fightIDs: [${fightIds.join(',')}], limit: 500) {
+            data
+          }
         }
       }
     }
@@ -264,11 +275,21 @@ export async function getBatchExtendedFightStats(reportCode, fightIds) {
 
   const parseTable = (table) => table?.data?.entries || [];
 
+  // Group CombatantInfo events by fight ID
+  const ciByFight = {};
+  for (const event of report.combatantInfo?.data || []) {
+    const fId = event.fight;
+    if (!ciByFight[fId]) ciByFight[fId] = [];
+    ciByFight[fId].push(event);
+  }
+
   const results = new Map();
   for (const id of fightIds) {
+    const summaryData = report[`fight_${id}_summary`]?.data;
     results.set(id, {
       casts: parseTable(report[`fight_${id}_casts`]),
-      buffs: parseTable(report[`fight_${id}_buffs`]),
+      summary: summaryData?.playerDetails || null,
+      combatantInfo: ciByFight[id] || [],
       interrupts: parseTable(report[`fight_${id}_interrupts`]),
       dispels: parseTable(report[`fight_${id}_dispels`]),
     });

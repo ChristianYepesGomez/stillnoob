@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { scanForNewReports } from './scanReports.js';
+import { refreshAllSpecMeta } from './refreshMeta.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Scheduler');
@@ -27,5 +28,18 @@ export function initScheduler() {
     }
   });
 
-  log.info('Background jobs initialized (report scan every 30min)');
+  // Refresh meta data every Sunday at 4:00 AM UTC
+  cron.schedule('0 4 * * 0', async () => {
+    log.info('Weekly meta refresh started');
+    try {
+      const result = await refreshAllSpecMeta();
+      if (result.failed > 0) {
+        log.warn(`Meta refresh finished with ${result.failed} failures — check logs for details`);
+      }
+    } catch (err) {
+      log.error('Weekly meta refresh failed', err);
+    }
+  });
+
+  log.info('Background jobs initialized (report scan every 30min, meta refresh weekly Sun 4AM UTC)');
 }

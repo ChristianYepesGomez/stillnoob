@@ -123,7 +123,7 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
       const txFightMappings = [];
       for (const fight of encounterFights) {
         const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
-        const difficulty = difficultyMap[fight.difficulty] || 'Normal';
+        const difficulty = fight.difficulty >= 10 ? 'Mythic+' : (difficultyMap[fight.difficulty] || 'Normal');
         const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
 
         const [storedFight] = await tx.insert(fights).values({

@@ -513,9 +513,9 @@ describe('generateRecommendations', () => {
     expect(tip.data.gap).toBe(35);
   });
 
-  it('does NOT generate boss tips for bosses with < 3 fights (except boss_weakest_dps with ≥2)', () => {
+  it('generates boss tips even with only 1 fight (season-start scenario)', () => {
     const bosses = [
-      makeBoss({ bossName: 'Boss A', avgActiveTime: 60, avgDtps: 8000, deathRate: 0.8, fights: 2 }),
+      makeBoss({ bossName: 'Boss A', avgActiveTime: 60, avgDtps: 8000, deathRate: 0.8, fights: 1 }),
     ];
     const result = generateRecommendations({
       summary: makeSummary({ avgActiveTime: 88, avgDtps: 2000, deathRate: 0.1 }),
@@ -524,9 +524,9 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'boss_uptime_drop')).toBe(false);
-    expect(allTips.some(t => t.key === 'boss_excess_damage')).toBe(false);
-    expect(allTips.some(t => t.key === 'boss_death_spike')).toBe(false);
+    expect(allTips.some(t => t.key === 'boss_uptime_drop')).toBe(true);
+    expect(allTips.some(t => t.key === 'boss_excess_damage')).toBe(true);
+    expect(allTips.some(t => t.key === 'boss_death_spike')).toBe(true);
   });
 
   // ── Tier 2: Cross-Pattern Tips ──

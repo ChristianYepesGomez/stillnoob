@@ -14,6 +14,8 @@ export default function GuildPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', realm: '', region: 'eu' });
+  const [joinForm, setJoinForm] = useState({ guildId: '', inviteCode: '' });
+  const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -50,6 +52,36 @@ export default function GuildPage() {
       setError(err.response?.data?.error || 'Failed to create guild');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setJoining(true);
+    try {
+      const id = parseInt(joinForm.guildId);
+      if (isNaN(id)) throw new Error('Invalid guild ID');
+      await guildsAPI.join(id, joinForm.inviteCode);
+      setJoinForm({ guildId: '', inviteCode: '' });
+      const { data } = await guildsAPI.list();
+      setGuilds(data);
+      navigate(`/guild/${id}`);
+      loadGuild(id);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to join guild');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!selectedGuild) return;
+    try {
+      const { data } = await guildsAPI.regenerateInviteCode(selectedGuild.id);
+      setSelectedGuild(prev => ({ ...prev, inviteCode: data.inviteCode }));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to regenerate invite code');
     }
   };
 
@@ -119,6 +151,36 @@ export default function GuildPage() {
 
         {error && (
           <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">{error}</div>
+        )}
+
+        {/* Invite Code (leader/officer only) */}
+        {isOfficer && selectedGuild.inviteCode && (
+          <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5">
+            <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-3">
+              <i className="fas fa-key mr-2 text-sunwell-gold" />
+              Invite Code
+            </h2>
+            <div className="flex items-center gap-3">
+              <code className="flex-1 px-4 py-2 bg-void-deep rounded-lg text-sunwell-gold font-orbitron text-lg tracking-widest border border-void-bright/10">
+                {selectedGuild.inviteCode}
+              </code>
+              <button
+                onClick={() => navigator.clipboard.writeText(selectedGuild.inviteCode)}
+                className="px-3 py-2 bg-void-surface text-void-accent rounded-lg text-sm hover:bg-void-bright/20 transition-colors"
+                title="Copy"
+              >
+                <i className="fas fa-copy" />
+              </button>
+              <button
+                onClick={handleRegenerateCode}
+                className="px-3 py-2 bg-void-surface text-sunwell-amber rounded-lg text-sm hover:bg-sunwell-amber/20 transition-colors"
+                title="Regenerate code"
+              >
+                <i className="fas fa-sync-alt" />
+              </button>
+            </div>
+            <p className="text-xs text-void-muted mt-2">Share this code with players you want to invite. Guild ID: {selectedGuild.id}</p>
+          </div>
         )}
 
         {/* Members */}

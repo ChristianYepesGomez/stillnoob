@@ -511,3 +511,118 @@ export async function getCharacterEncounterRankings(name, serverSlug, serverRegi
   }
   return results;
 }
+
+// ============================================
+// Top Performers for Meta Aggregation
+// ============================================
+
+/**
+ * Map our SPEC_DATA keys (e.g. 'Frost DK') to WCL specName (e.g. 'Frost').
+ * Unambiguous specs like 'Arms', 'Fury', 'Brewmaster' pass through as-is.
+ */
+const WCL_SPEC_NAME_MAP = {
+  'Protection Warrior': 'Protection',
+  'Protection Paladin': 'Protection',
+  'Holy Paladin': 'Holy',
+  'Holy Priest': 'Holy',
+  'Frost DK': 'Frost',
+  'Frost Mage': 'Frost',
+  'Restoration Shaman': 'Restoration',
+  'Restoration Druid': 'Restoration',
+};
+
+function getWclSpecName(spec) {
+  return WCL_SPEC_NAME_MAP[spec] || spec;
+}
+
+/**
+ * Map class display names to WCL slug format for characterRankings.
+ * WCL uses slugs (no spaces) in this specific query, not display names.
+ */
+const WCL_CLASS_SLUG_MAP = {
+  'Death Knight': 'DeathKnight',
+  'Demon Hunter': 'DemonHunter',
+};
+
+function getWclClassName(className) {
+  return WCL_CLASS_SLUG_MAP[className] || className;
+}
+
+/** Slugify realm name → Blizzard realm slug (e.g. "Twisting Nether" → "twisting-nether") */
+function slugifyRealm(name) {
+  return name.toLowerCase().replace(/'/g, '').replace(/\s+/g, '-');
+}
+
+// Cached encounter ID for current raid's first boss
+let cachedEncounterId = null;
+let encounterIdExpiry = null;
+
+/**
+ * Discover the first boss encounter ID of the current raid tier.
+ * Queries WCL for TWW zones, finds the latest raid (7+ bosses), returns first boss ID.
+ * Cached for 24 hours.
+ */
+async function getCurrentRaidEncounterId() {
+  if (cachedEncounterId && encounterIdExpiry && Date.now() < encounterIdExpiry) {
+    return cachedEncounterId;
+  }
+
+  const data = await executeGraphQL(
+    `{ worldData { zones(expansion_id: 6) { id name encounters { id name } } } }`
+  );
+  const zones = data.worldData?.zones || [];
+
+  // Find the latest raid zone (7+ bosses, highest ID)
+  const raids = zones.filter(z => z.encounters?.length >= 7);
+  const latestRaid = raids[raids.length - 1];
+
+  if (!latestRaid?.encounters?.length) {
+    throw new Error('No raid zone found in WCL');
+  }
+
+  cachedEncounterId = latestRaid.encounters[0].id;
+  encounterIdExpiry = Date.now() + 24 * 60 * 60 * 1000;
+  return cachedEncounterId;
+}
+
+/**
+ * Get top-performing players for a class/spec from WarcraftLogs raid rankings.
+ * Uses the current raid tier's first boss (Mythic difficulty).
+ *
+ * Returns the same shape as the old getSpecRankings() from raiderio.js:
+ * [{ name, realm, region, score }]
+ *
+ * @param {string} className - e.g. 'Warrior', 'Death Knight'
+ * @param {string} spec - e.g. 'Arms', 'Frost DK', 'Brewmaster'
+ * @param {number} limit - max players to return (default 30)
+ * @returns {Promise<Array<{ name, realm, region, score }>>}
+ */
+export async function getTopPerformersForSpec(className, spec, limit = 30) {
+  const encounterId = await getCurrentRaidEncounterId();
+  const wclClass = getWclClassName(className);
+  const wclSpec = getWclSpecName(spec);
+
+  const query = `{
+    worldData {
+      encounter(id: ${encounterId}) {
+        characterRankings(
+          className: "${wclClass}"
+          specName: "${wclSpec}"
+          difficulty: 5
+          metric: dps
+          page: 1
+        )
+      }
+    }
+  }`;
+
+  const data = await executeGraphQL(query);
+  const rankings = data.worldData?.encounter?.characterRankings?.rankings || [];
+
+  return rankings.slice(0, limit).map(p => ({
+    name: p.name,
+    realm: slugifyRealm(p.server?.name || ''),
+    region: (p.server?.region || 'eu').toLowerCase(),
+    score: p.amount,
+  }));
+}

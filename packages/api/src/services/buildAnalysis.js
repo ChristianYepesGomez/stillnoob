@@ -11,6 +11,9 @@
 
 import { getSpecData, SECONDARY_STATS } from '@stillnoob/shared';
 
+/** Cosmetic slots excluded from ilvl tips */
+const COSMETIC_SLOTS = new Set(['shirt', 'tabard']);
+
 // ── Helpers ────────────────────────────────────────────────────
 
 /**
@@ -179,6 +182,7 @@ export function analyzeCharacterBuild(equipment, className, spec, specMeta = nul
   if (equipment.items.length > 0 && avgIlvl > 0) {
     let worstSlot = null;
     for (const item of equipment.items) {
+      if (COSMETIC_SLOTS.has(item.slot)) continue;
       const gap = avgIlvl - item.itemLevel;
       if (gap >= 15 && (!worstSlot || gap > worstSlot.gap)) {
         worstSlot = {

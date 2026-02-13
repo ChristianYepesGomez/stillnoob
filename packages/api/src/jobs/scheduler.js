@@ -28,18 +28,18 @@ export function initScheduler() {
     }
   });
 
-  // Refresh meta data every Sunday at 4:00 AM UTC
-  cron.schedule('0 4 * * 0', async () => {
-    log.info('Weekly meta refresh started');
+  // Refresh meta data daily at 4:00 AM UTC
+  cron.schedule('0 4 * * *', async () => {
+    log.info('Daily meta refresh started');
     try {
       const result = await refreshAllSpecMeta();
       if (result.failed > 0) {
         log.warn(`Meta refresh finished with ${result.failed} failures — check logs for details`);
       }
     } catch (err) {
-      log.error('Weekly meta refresh failed', err);
+      log.error('Daily meta refresh failed', err);
     }
   });
 
-  log.info('Background jobs initialized (report scan every 30min, meta refresh weekly Sun 4AM UTC)');
+  log.info('Background jobs initialized (report scan every 30min, meta refresh daily 4AM UTC)');
 }

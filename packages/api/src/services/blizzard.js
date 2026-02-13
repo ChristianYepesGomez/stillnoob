@@ -362,6 +362,9 @@ const ENCHANTABLE_SLOTS = new Set([
   'finger1', 'finger2', 'mainHand',
 ]);
 
+/** Cosmetic slots excluded from ilvl calculations */
+const COSMETIC_SLOTS = new Set(['shirt', 'tabard']);
+
 /**
  * Fetch character equipment from Blizzard API.
  * Uses app-level token (no user auth needed).
@@ -410,9 +413,10 @@ export function transformEquipment(rawEquipment) {
       if (key) stats[key] = stat.value;
     }
 
-    // Parse enchant (take first enchantment display string)
-    const enchant = item.enchantments?.[0]?.display_string
-      ? item.enchantments[0].display_string.replace(/^Enchanted:\s*/i, '')
+    // Parse enchant (take first enchantment display string, strip WoW markup tags)
+    const rawEnchant = item.enchantments?.[0]?.display_string;
+    const enchant = rawEnchant
+      ? rawEnchant.replace(/^Enchanted:\s*/i, '').replace(/\s*\|[aAcC][^|]*\|[ra]/g, '').trim()
       : null;
 
     // Parse gems and empty sockets
@@ -437,20 +441,24 @@ export function transformEquipment(rawEquipment) {
     };
   });
 
-  // --- Aggregated stats ---
+  // --- Aggregated stats (exclude cosmetic slots from ilvl) ---
   let totalItemLevel = 0;
+  let ilvlCount = 0;
   const totalStats = { crit: 0, haste: 0, mastery: 0, versatility: 0 };
 
   for (const item of items) {
-    totalItemLevel += item.itemLevel;
+    if (!COSMETIC_SLOTS.has(item.slot)) {
+      totalItemLevel += item.itemLevel;
+      ilvlCount++;
+    }
     totalStats.crit += item.stats.crit;
     totalStats.haste += item.stats.haste;
     totalStats.mastery += item.stats.mastery;
     totalStats.versatility += item.stats.versatility;
   }
 
-  const averageItemLevel = items.length > 0
-    ? Math.round((totalItemLevel / items.length) * 10) / 10
+  const averageItemLevel = ilvlCount > 0
+    ? Math.round((totalItemLevel / ilvlCount) * 10) / 10
     : 0;
 
   const totalSecondary = totalStats.crit + totalStats.haste + totalStats.mastery + totalStats.versatility;

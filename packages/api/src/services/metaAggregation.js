@@ -7,7 +7,7 @@
 import { db } from '../db/client.js';
 import { specMetaCache } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { getSpecRankings } from './raiderio.js';
+import { getTopPerformersForSpec } from './wcl.js';
 import { getCharacterEquipment, transformEquipment } from './blizzard.js';
 import { SECONDARY_STATS } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
@@ -17,13 +17,13 @@ const log = createLogger('MetaAggregation');
 /** Current season identifier (hardcoded for TWW Season 2). */
 const CURRENT_SEASON = 'tww-2';
 
-/** How long a cached meta entry is considered fresh (7 days). */
-const META_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000;
+/** How long a cached meta entry is considered fresh (2 days). */
+const META_FRESHNESS_MS = 2 * 24 * 60 * 60 * 1000;
 
 /**
  * Refresh the spec meta cache by fetching gear data from top-ranked players.
  *
- * 1. Gets the top 30 players from Raider.IO rankings
+ * 1. Gets the top 30 players from WarcraftLogs raid rankings
  * 2. Fetches each player's equipment from the Blizzard API (with rate-limit delays)
  * 3. Aggregates stats, enchants, and gems across all successful fetches
  * 4. Upserts the result into the specMetaCache table
@@ -37,8 +37,8 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
   const season = CURRENT_SEASON;
 
   try {
-    // Step 1: Get top ranked players
-    const topPlayers = await getSpecRankings(className, spec, region);
+    // Step 1: Get top ranked players from WCL
+    const topPlayers = await getTopPerformersForSpec(className, spec, 30);
     if (!topPlayers.length) {
       log.warn('No ranked players found', { className, spec, region });
       return null;

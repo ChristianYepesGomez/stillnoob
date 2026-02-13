@@ -81,6 +81,7 @@ export const guilds = sqliteTable('guilds', {
   ownerId: text('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   wclGuildId: integer('wcl_guild_id'),
   avatarUrl: text('avatar_url'),
+  inviteCode: text('invite_code').notNull().$defaultFn(() => crypto.randomUUID().slice(0, 8)),
   settings: text('settings').default('{}'), // JSON: { defaultVisibility, autoImport, ... }
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [

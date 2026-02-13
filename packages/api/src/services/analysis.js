@@ -130,8 +130,11 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
   // Insert per-player records (only for registered characters)
   let inserted = 0;
   for (const [playerName, data] of Object.entries(playerData)) {
-    const characterId = charMap[playerName.toLowerCase()];
-    if (!characterId) continue;
+    const characterId = charMap[playerName.normalize('NFC').toLowerCase()];
+    if (!characterId) {
+      console.debug(`[Analysis] Player "${playerName}" not found in charMap, skipping`);
+      continue;
+    }
 
     const dps = fightDurationSec > 0 ? data.damageDone / fightDurationSec : 0;
     const hps = fightDurationSec > 0 ? data.healingDone / fightDurationSec : 0;

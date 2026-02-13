@@ -10,7 +10,7 @@ const cache = new Map();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 function getCacheKey(region, realm, name) {
-  return `${region}:${realm}:${name}`.toLowerCase();
+  return `${region}:${realm}:${name}`.normalize('NFC').toLowerCase();
 }
 
 function getCached(key) {

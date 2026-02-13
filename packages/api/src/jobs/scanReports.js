@@ -5,33 +5,84 @@ import { getCharacterReports, getReportData, getBatchFightStats, getBatchExtende
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { acquireToken } from '../services/rateLimiter.js';
 
+// ── Retry / Circuit Breaker config ──
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000; // 2s → 4s → 8s
+const CIRCUIT_BREAKER_THRESHOLD = 5; // consecutive WCL failures to abort scan
+
+/**
+ * Returns true if the error is transient and worth retrying.
+ */
+function isTransientError(err) {
+  if (err.response) {
+    const status = err.response.status;
+    return status === 429 || status >= 500;
+  }
+  // Network errors, timeouts
+  return err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' ||
+    err.code === 'ECONNRESET' || err.code === 'ENOTFOUND' ||
+    err.message?.includes('timeout');
+}
+
+/**
+ * Retry an async function with exponential backoff.
+ * Only retries on transient errors (429, 5xx, network).
+ */
+async function retryWithBackoff(fn, label) {
+  let lastError;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_RETRIES && isTransientError(err)) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        const status = err.response?.status || err.code || 'unknown';
+        console.warn(`[Scanner] ${label} failed (${status}), retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        break;
+      }
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Scan WCL for new reports for all registered characters.
- * Called periodically by the scheduler.
+ * Includes retry with exponential backoff and circuit breaker.
  */
 export async function scanForNewReports() {
   console.log('[Scanner] Starting WCL report scan...');
 
-  // Get all characters grouped by user
   const allChars = await db.select().from(characters).all();
 
   if (allChars.length === 0) {
     console.log('[Scanner] No characters registered, skipping scan');
-    return;
+    return { scanned: 0, imported: 0, failed: 0 };
   }
 
   let totalNew = 0;
+  let totalFailed = 0;
+  let consecutiveWclFailures = 0;
 
   for (const char of allChars) {
+    // Circuit breaker: if WCL is consistently failing, abort early
+    if (consecutiveWclFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+      console.error(`[Scanner] Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} consecutive WCL failures — aborting scan`);
+      break;
+    }
+
     try {
       await acquireToken();
 
-      const wclReports = await getCharacterReports(
-        char.name,
-        char.realmSlug,
-        char.region,
-        5 // Last 5 reports
+      const wclReports = await retryWithBackoff(
+        () => getCharacterReports(char.name, char.realmSlug, char.region, 5),
+        `getCharacterReports(${char.name})`
       );
+
+      // WCL responded — reset circuit breaker
+      consecutiveWclFailures = 0;
 
       for (const wclReport of wclReports) {
         // Check if already imported
@@ -45,7 +96,10 @@ export async function scanForNewReports() {
         // Import new report
         try {
           await acquireToken();
-          const reportData = await getReportData(wclReport.code);
+          const reportData = await retryWithBackoff(
+            () => getReportData(wclReport.code),
+            `getReportData(${wclReport.code})`
+          );
           if (!reportData) continue;
 
           const [report] = await db.insert(reports).values({
@@ -68,7 +122,7 @@ export async function scanForNewReports() {
             .all();
           const charMap = {};
           for (const c of userChars) {
-            charMap[c.name.toLowerCase()] = c.id;
+            charMap[c.name.normalize('NFC').toLowerCase()] = c.id;
           }
 
           // Step 1: Insert all fights into DB and build mappings
@@ -95,7 +149,7 @@ export async function scanForNewReports() {
               fightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
             } catch (fightErr) {
               if (!fightErr.message?.includes('UNIQUE')) {
-                console.warn(`[Scanner] Fight error:`, fightErr.message);
+                console.warn(`[Scanner] Fight insert error:`, fightErr.message);
               }
             }
           }
@@ -105,8 +159,14 @@ export async function scanForNewReports() {
             await acquireToken();
             const allFightIds = fightMappings.map(f => f.wclFightId);
             const [batchBasicStats, batchExtStats] = await Promise.all([
-              getBatchFightStats(wclReport.code, allFightIds),
-              getBatchExtendedFightStats(wclReport.code, allFightIds),
+              retryWithBackoff(
+                () => getBatchFightStats(wclReport.code, allFightIds),
+                `getBatchFightStats(${wclReport.code})`
+              ),
+              retryWithBackoff(
+                () => getBatchExtendedFightStats(wclReport.code, allFightIds),
+                `getBatchExtendedFightStats(${wclReport.code})`
+              ),
             ]);
 
             // Step 3: Process each fight with its pre-fetched data
@@ -119,7 +179,7 @@ export async function scanForNewReports() {
                     mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
                   );
                 } catch (statsErr) {
-                  console.warn(`[Scanner] Stats failed for fight ${mapping.wclFightId}:`, statsErr.message);
+                  console.warn(`[Scanner] Stats processing failed for fight ${mapping.wclFightId}:`, statsErr.message);
                 }
               }
             }
@@ -133,13 +193,26 @@ export async function scanForNewReports() {
           totalNew++;
           console.log(`[Scanner] Imported report ${wclReport.code} for ${char.name}`);
         } catch (importErr) {
-          console.warn(`[Scanner] Failed to import ${wclReport.code}:`, importErr.message);
+          totalFailed++;
+          if (isTransientError(importErr)) consecutiveWclFailures++;
+          console.error(`[Scanner] Failed to import ${wclReport.code} after retries:`, importErr.message);
         }
       }
     } catch (err) {
-      console.warn(`[Scanner] Error scanning ${char.name}-${char.realmSlug}:`, err.message);
+      totalFailed++;
+      if (isTransientError(err)) {
+        consecutiveWclFailures++;
+      }
+      console.error(`[Scanner] Error scanning ${char.name}-${char.realmSlug}:`, err.message);
     }
   }
 
-  console.log(`[Scanner] Scan complete. ${totalNew} new reports imported.`);
+  const summary = { scanned: allChars.length, imported: totalNew, failed: totalFailed };
+  if (totalFailed > 0) {
+    console.warn(`[Scanner] Scan complete with errors — ${totalNew} imported, ${totalFailed} failed out of ${allChars.length} characters`);
+  } else {
+    console.log(`[Scanner] Scan complete — ${totalNew} new reports imported from ${allChars.length} characters`);
+  }
+
+  return summary;
 }

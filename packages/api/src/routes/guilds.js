@@ -112,7 +112,7 @@ router.get('/:id', async (req, res) => {
       .where(eq(guildMembers.guildId, guildId))
       .all();
 
-    res.json({
+    const response = {
       id: guild.id,
       name: guild.name,
       realm: guild.realm,
@@ -121,14 +121,21 @@ router.get('/:id', async (req, res) => {
       avatarUrl: guild.avatarUrl,
       members,
       myRole: membership.role,
-    });
+    };
+
+    // Only leader/officer can see the invite code
+    if (['leader', 'officer'].includes(membership.role)) {
+      response.inviteCode = guild.inviteCode;
+    }
+
+    res.json(response);
   } catch (err) {
     console.error('Get guild error:', err);
     res.status(500).json({ error: 'Failed to get guild' });
   }
 });
 
-// POST /api/v1/guilds/:id/join — join a guild via invite code (simplified: open join)
+// POST /api/v1/guilds/:id/join — join a guild via invite code
 router.post('/:id/join', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
@@ -136,9 +143,19 @@ router.post('/:id/join', async (req, res) => {
       return res.status(400).json({ error: 'Invalid guild ID' });
     }
 
-    const guild = await db.select({ id: guilds.id }).from(guilds).where(eq(guilds.id, guildId)).get();
+    const { inviteCode } = req.body;
+    if (!inviteCode) {
+      return res.status(400).json({ error: 'Invite code is required' });
+    }
+
+    const guild = await db.select({ id: guilds.id, inviteCode: guilds.inviteCode })
+      .from(guilds).where(eq(guilds.id, guildId)).get();
     if (!guild) {
       return res.status(404).json({ error: 'Guild not found' });
+    }
+
+    if (guild.inviteCode !== inviteCode) {
+      return res.status(403).json({ error: 'Invalid invite code' });
     }
 
     await db.insert(guildMembers).values({
@@ -284,6 +301,33 @@ router.patch('/:id/settings', async (req, res) => {
   } catch (err) {
     console.error('Update settings error:', err);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// POST /api/v1/guilds/:id/invite-code — regenerate invite code (leader/officer only)
+router.post('/:id/invite-code', async (req, res) => {
+  try {
+    const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
+
+    const membership = await db.select({ role: guildMembers.role })
+      .from(guildMembers)
+      .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
+      .get();
+
+    if (!membership || !['leader', 'officer'].includes(membership.role)) {
+      return res.status(403).json({ error: 'Only leader or officer can regenerate invite code' });
+    }
+
+    const newCode = crypto.randomUUID().slice(0, 8);
+    await db.update(guilds).set({ inviteCode: newCode }).where(eq(guilds.id, guildId));
+
+    res.json({ inviteCode: newCode });
+  } catch (err) {
+    console.error('Regenerate invite code error:', err);
+    res.status(500).json({ error: 'Failed to regenerate invite code' });
   }
 });
 

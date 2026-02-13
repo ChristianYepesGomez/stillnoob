@@ -15,9 +15,12 @@ export function initScheduler() {
   // Scan for new reports every 30 minutes
   cron.schedule('*/30 * * * *', async () => {
     try {
-      await scanForNewReports();
+      const result = await scanForNewReports();
+      if (result.failed > 0) {
+        console.warn(`[Scheduler] Scan finished with ${result.failed} failures — check logs for details`);
+      }
     } catch (err) {
-      console.error('[Scheduler] Report scan failed:', err.message);
+      console.error('[Scheduler] Report scan crashed:', err.message, err.stack);
     }
   });
 

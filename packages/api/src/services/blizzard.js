@@ -200,7 +200,7 @@ export async function getUserCharacters(userToken) {
 
     try {
       const profile = await axios.get(
-        `${getApiUrl(region)}/profile/wow/character/${char.realmSlug}/${char.name.toLowerCase()}`,
+        `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(char.realmSlug)}/${encodeURIComponent(char.name.normalize('NFC').toLowerCase())}`,
         {
           params: { namespace: `profile-${region}` },
           headers: { Authorization: `Bearer ${userToken}` },
@@ -248,7 +248,7 @@ export async function getCharacterProfile(name, realmSlug, region) {
 
   try {
     const response = await axios.get(
-      `${getApiUrl(region)}/profile/wow/character/${realmSlug}/${name.toLowerCase()}`,
+      `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(realmSlug)}/${encodeURIComponent(name.normalize('NFC').toLowerCase())}`,
       {
         params: { namespace: `profile-${region}`, locale: 'en_US' },
         headers: { Authorization: `Bearer ${token}` },
@@ -280,7 +280,7 @@ export async function getCharacterMedia(name, realmSlug, region) {
 
   try {
     const response = await axios.get(
-      `${getApiUrl(region)}/profile/wow/character/${realmSlug}/${name.toLowerCase()}/character-media`,
+      `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(realmSlug)}/${encodeURIComponent(name.normalize('NFC').toLowerCase())}/character-media`,
       {
         params: { namespace: `profile-${region}` },
         headers: { Authorization: `Bearer ${token}` },

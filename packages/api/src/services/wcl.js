@@ -29,6 +29,7 @@ async function getAccessToken() {
     {
       auth: { username: clientId, password: clientSecret },
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
     }
   );
 
@@ -138,26 +139,21 @@ export async function getFightStats(reportCode, fightIds) {
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { reportCode, fightIDs: fightIds });
-    const report = data.reportData?.report;
-    if (!report) return { damage: [], healing: [], damageTaken: [], deaths: [] };
+  const data = await executeGraphQL(query, { reportCode, fightIDs: fightIds });
+  const report = data.reportData?.report;
+  if (!report) return { damage: [], healing: [], damageTaken: [], deaths: [] };
 
-    const parseTable = (table) => {
-      if (!table?.data?.entries) return [];
-      return table.data.entries;
-    };
+  const parseTable = (table) => {
+    if (!table?.data?.entries) return [];
+    return table.data.entries;
+  };
 
-    return {
-      damage: parseTable(report.damage).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
-      healing: parseTable(report.healing).map(e => ({ name: e.name, total: e.total || 0 })),
-      damageTaken: parseTable(report.damageTaken).map(e => ({ name: e.name, total: e.total || 0 })),
-      deaths: parseTable(report.deaths).map(e => ({ name: e.name, total: e.total || 0 })),
-    };
-  } catch (error) {
-    console.error('Error fetching fight stats:', error.message);
-    return { damage: [], healing: [], damageTaken: [], deaths: [] };
-  }
+  return {
+    damage: parseTable(report.damage).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
+    healing: parseTable(report.healing).map(e => ({ name: e.name, total: e.total || 0 })),
+    damageTaken: parseTable(report.damageTaken).map(e => ({ name: e.name, total: e.total || 0 })),
+    deaths: parseTable(report.deaths).map(e => ({ name: e.name, total: e.total || 0 })),
+  };
 }
 
 /**
@@ -178,23 +174,18 @@ export async function getExtendedFightStats(reportCode, fightIds) {
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { reportCode, fightIDs: fightIds });
-    const report = data.reportData?.report;
-    if (!report) return { casts: [], buffs: [], interrupts: [], dispels: [] };
+  const data = await executeGraphQL(query, { reportCode, fightIDs: fightIds });
+  const report = data.reportData?.report;
+  if (!report) return { casts: [], buffs: [], interrupts: [], dispels: [] };
 
-    const parseTable = (table) => table?.data?.entries || [];
+  const parseTable = (table) => table?.data?.entries || [];
 
-    return {
-      casts: parseTable(report.casts),
-      buffs: parseTable(report.buffs),
-      interrupts: parseTable(report.interrupts),
-      dispels: parseTable(report.dispels),
-    };
-  } catch (error) {
-    console.error('Error fetching extended fight stats:', error.message);
-    return { casts: [], buffs: [], interrupts: [], dispels: [] };
-  }
+  return {
+    casts: parseTable(report.casts),
+    buffs: parseTable(report.buffs),
+    interrupts: parseTable(report.interrupts),
+    dispels: parseTable(report.dispels),
+  };
 }
 
 /**
@@ -222,30 +213,25 @@ export async function getBatchFightStats(reportCode, fightIds) {
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { reportCode });
-    const report = data.reportData?.report;
-    if (!report) return new Map();
+  const data = await executeGraphQL(query, { reportCode });
+  const report = data.reportData?.report;
+  if (!report) return new Map();
 
-    const parseTable = (table) => {
-      if (!table?.data?.entries) return [];
-      return table.data.entries;
-    };
+  const parseTable = (table) => {
+    if (!table?.data?.entries) return [];
+    return table.data.entries;
+  };
 
-    const results = new Map();
-    for (const id of fightIds) {
-      results.set(id, {
-        damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
-        healing: parseTable(report[`fight_${id}_healing`]).map(e => ({ name: e.name, total: e.total || 0 })),
-        damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map(e => ({ name: e.name, total: e.total || 0 })),
-        deaths: parseTable(report[`fight_${id}_deaths`]).map(e => ({ name: e.name, total: e.total || 0 })),
-      });
-    }
-    return results;
-  } catch (error) {
-    console.error('Error fetching batch fight stats:', error.message);
-    return new Map();
+  const results = new Map();
+  for (const id of fightIds) {
+    results.set(id, {
+      damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
+      healing: parseTable(report[`fight_${id}_healing`]).map(e => ({ name: e.name, total: e.total || 0 })),
+      damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map(e => ({ name: e.name, total: e.total || 0 })),
+      deaths: parseTable(report[`fight_${id}_deaths`]).map(e => ({ name: e.name, total: e.total || 0 })),
+    });
   }
+  return results;
 }
 
 /**
@@ -272,27 +258,22 @@ export async function getBatchExtendedFightStats(reportCode, fightIds) {
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { reportCode });
-    const report = data.reportData?.report;
-    if (!report) return new Map();
+  const data = await executeGraphQL(query, { reportCode });
+  const report = data.reportData?.report;
+  if (!report) return new Map();
 
-    const parseTable = (table) => table?.data?.entries || [];
+  const parseTable = (table) => table?.data?.entries || [];
 
-    const results = new Map();
-    for (const id of fightIds) {
-      results.set(id, {
-        casts: parseTable(report[`fight_${id}_casts`]),
-        buffs: parseTable(report[`fight_${id}_buffs`]),
-        interrupts: parseTable(report[`fight_${id}_interrupts`]),
-        dispels: parseTable(report[`fight_${id}_dispels`]),
-      });
-    }
-    return results;
-  } catch (error) {
-    console.error('Error fetching batch extended fight stats:', error.message);
-    return new Map();
+  const results = new Map();
+  for (const id of fightIds) {
+    results.set(id, {
+      casts: parseTable(report[`fight_${id}_casts`]),
+      buffs: parseTable(report[`fight_${id}_buffs`]),
+      interrupts: parseTable(report[`fight_${id}_interrupts`]),
+      dispels: parseTable(report[`fight_${id}_dispels`]),
+    });
   }
+  return results;
 }
 
 // ============================================
@@ -333,6 +314,7 @@ export async function exchangeWclCode(code) {
     {
       auth: { username: process.env.WCL_CLIENT_ID, password: process.env.WCL_CLIENT_SECRET },
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
     }
   );
 
@@ -461,13 +443,8 @@ export async function getCharacterReports(name, serverSlug, serverRegion, limit 
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { name, serverSlug, serverRegion });
-    return data.characterData?.character?.recentReports?.data || [];
-  } catch (error) {
-    console.error('Error fetching character reports:', error.message);
-    return [];
-  }
+  const data = await executeGraphQL(query, { name, serverSlug, serverRegion });
+  return data.characterData?.character?.recentReports?.data || [];
 }
 
 /**
@@ -495,26 +472,21 @@ export async function getCharacterEncounterRankings(name, serverSlug, serverRegi
     }
   `;
 
-  try {
-    const data = await executeGraphQL(query, { name, serverSlug, serverRegion });
-    const character = data.characterData?.character;
-    if (!character) return new Map();
+  const data = await executeGraphQL(query, { name, serverSlug, serverRegion });
+  const character = data.characterData?.character;
+  if (!character) return new Map();
 
-    const results = new Map();
-    for (const id of encounterIds) {
-      const ranking = character[`enc_${id}`];
-      if (ranking) {
-        results.set(id, {
-          bestPercent: ranking.rankPercent ?? ranking.bestPerformanceAverage ?? null,
-          medianPercent: ranking.medianPerformance ?? ranking.medianPercent ?? null,
-          kills: ranking.totalKills || 0,
-          bestAmount: ranking.bestAmount || 0,
-        });
-      }
+  const results = new Map();
+  for (const id of encounterIds) {
+    const ranking = character[`enc_${id}`];
+    if (ranking) {
+      results.set(id, {
+        bestPercent: ranking.rankPercent ?? ranking.bestPerformanceAverage ?? null,
+        medianPercent: ranking.medianPerformance ?? ranking.medianPercent ?? null,
+        kills: ranking.totalKills || 0,
+        bestAmount: ranking.bestAmount || 0,
+      });
     }
-    return results;
-  } catch (error) {
-    console.error('Error fetching character rankings:', error.message);
-    return new Map();
   }
+  return results;
 }

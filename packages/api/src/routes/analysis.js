@@ -15,6 +15,9 @@ router.use(analysisLimiter);
 router.get('/character/:id', async (req, res) => {
   try {
     const charId = parseInt(req.params.id);
+    if (isNaN(charId)) {
+      return res.status(400).json({ error: 'Invalid character ID' });
+    }
     const weeks = parseInt(req.query.weeks) || 8;
     const bossId = req.query.bossId ? parseInt(req.query.bossId) : undefined;
     const difficulty = req.query.difficulty || undefined;
@@ -31,7 +34,7 @@ router.get('/character/:id', async (req, res) => {
 
     // Fetch WCL analysis + Raider.io data in parallel
     const [data, raiderIO] = await Promise.all([
-      getCharacterPerformance(charId, { weeks, bossId, difficulty }),
+      getCharacterPerformance(charId, { weeks, bossId, difficulty, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } }),
       getCharacterRaiderIO(char.region, char.realmSlug, char.name),
     ]);
 
@@ -60,7 +63,7 @@ router.get('/overview', async (req, res) => {
     // Get analysis for each character
     const results = [];
     for (const char of userChars) {
-      const data = await getCharacterPerformance(char.id, { weeks });
+      const data = await getCharacterPerformance(char.id, { weeks, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } });
       results.push({
         character: {
           id: char.id,

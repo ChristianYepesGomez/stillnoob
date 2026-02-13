@@ -120,12 +120,18 @@
     "interrupts": "Interrupts / Fight",
     "dispels": "Dispels / Fight",
     "recentFights": "Recent Fights",
+    "showMore": "Show {{count}} more tips",
+    "showLess": "Show fewer tips",
     "date": "Date",
     "boss": "Boss",
     "difficulty": "Difficulty",
     "dps": "DPS",
     "deaths": "Deaths",
-    "dmgTaken": "Dmg Taken"
+    "dmgTaken": "Dmg Taken",
+    "activeTime": "Active Time",
+    "cpm": "Casts / Min",
+    "avgParse": "Avg Parse",
+    "parsePercentile": "Parse %"
   },
   "score": {
     "noob": "Noob",
@@ -173,8 +179,22 @@
     "below_raid_median": "Your DPS is at {{pct}}% of the raid median. Focus on your rotation and uptime.",
     "above_raid_median": "Great performance! Your DPS is {{pct}}% above the raid median.",
     "inconsistent_dps": "Your DPS varies by {{variance}}% across bosses. Some encounters may need specific optimization.",
+    "insufficient_data": "Only {{fights}} fight(s) analyzed so far. Results will be more accurate with more data.",
+    "moderate_death_rate": "Your death rate ({{rate}}/fight) is moderate. Small positioning improvements can help.",
+    "dps_stagnating": "Your DPS has been flat ({{change}}% change) over the last {{weeks}} weeks. Consider reviewing your rotation or trying new strategies.",
+    "weakest_boss": "Your weakest boss is {{weakBoss}} ({{weakDifficulty}}) at {{weakDpsVsMedian}}% vs median, while {{strongBoss}} is at {{strongDpsVsMedian}}%. Closing this {{gap}}% gap is your biggest opportunity.",
+    "deadliest_boss": "{{boss}} ({{difficulty}}) is your deadliest encounter with a {{deathRate}} death rate over {{fights}} fights. Focus on learning that fight's mechanics.",
+    "good_consistency": "Great consistency! Your DPS only varies {{variance}}% across bosses.",
+    "good_dispels": "Excellent dispel performance! You average {{avg}} dispels per fight.",
     "low_interrupts": "You average only {{avg}} interrupts per fight. Try to interrupt more when possible.",
-    "good_interrupts": "Great utility! You average {{avg}} interrupts per fight."
+    "good_interrupts": "Great utility! You average {{avg}} interrupts per fight.",
+    "low_active_time": "Your active time is only {{pct}}%. Aim for >85% — every second not casting is lost DPS.",
+    "good_active_time": "Excellent uptime! {{pct}}% active time means you're always casting.",
+    "low_cpm": "Your CPM ({{cpm}}) is low. Try to minimize downtime between casts and reduce unnecessary movement.",
+    "good_cpm": "Great rotation flow! {{cpm}} casts per minute shows solid execution.",
+    "low_parse": "Your average parse is {{pct}}% — you're in the bottom quartile globally. Focus on rotation fundamentals and uptime.",
+    "below_avg_parse": "Your average parse ({{pct}}%) is below the global median. Small rotation and uptime improvements can push you higher.",
+    "high_parse": "Impressive! Your average parse of {{pct}}% puts you well above most players globally."
   },
   "raiderio": {
     "mplusScore": "M+ Score",

@@ -63,6 +63,9 @@ export const CATEGORY_STYLES = {
   utility: { icon: 'fa-wrench', color: 'text-purple-400' },
 };
 
+/** Abilities to exclude from CPM count (auto-attacks) */
+export const AUTO_ATTACK_PATTERNS = /^(Melee|Auto Shot|Shoot)$/i;
+
 /** Consumable detection regex patterns */
 export const CONSUMABLE_PATTERNS = {
   healthPotion: /healing potion|potion of .*(heal|life)|algari healing/i,
@@ -106,3 +109,42 @@ export const SCORE_TIERS = [
   { min: 86, max: 95, key: 'elite', label: 'Elite', color: '#ff3b5c', emoji: '❤️‍🔥' },
   { min: 96, max: 100, key: 'legendary', label: 'Legendary', color: '#f6c843', emoji: '👑' },
 ];
+
+/** WarcraftLogs parse percentile color tiers (official) */
+export const WCL_PARSE_COLORS = {
+  grey:   { min: 0,  max: 24,  color: '#666666', label: 'Grey' },
+  green:  { min: 25, max: 49,  color: '#1eff00', label: 'Green' },
+  blue:   { min: 50, max: 74,  color: '#0070dd', label: 'Blue' },
+  purple: { min: 75, max: 94,  color: '#a335ee', label: 'Purple' },
+  orange: { min: 95, max: 98,  color: '#ff8000', label: 'Orange' },
+  pink:   { min: 99, max: 99,  color: '#e268a8', label: 'Pink' },
+  gold:   { min: 100, max: 100, color: '#e5cc80', label: 'Gold' },
+};
+
+/** Player skill levels for adaptive coaching */
+export const PLAYER_LEVELS = {
+  beginner: 'beginner',
+  intermediate: 'intermediate',
+  advanced: 'advanced',
+};
+
+/** How many primary tips to show per player level (rest go to "show more") */
+export const TIP_LIMITS = {
+  beginner: 3,
+  intermediate: 5,
+  advanced: 3,
+};
+
+/** Player level detection weights */
+export const LEVEL_DETECTION = {
+  dpsVsMedian: { weight: 25, thresholds: [85, 100, 115] },
+  deathRate: { weight: 18, thresholds: [0.3, 0.15, 0.05] },
+  consumables: { weight: 12, thresholds: [50, 80] },
+  mythicPlus: { weight: 10, thresholds: [1200, 2000, 2800] },
+  difficulty: { weight: 8 },
+  consistency: { weight: 7, threshold: 30 },
+  activeTime: { weight: 10, thresholds: [75, 85, 92] },
+  parsePercentile: { weight: 10, thresholds: [25, 50, 75] },
+  advancedThreshold: 70,
+  intermediateThreshold: 35,
+};

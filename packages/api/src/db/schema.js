@@ -137,6 +137,7 @@ export const fights = sqliteTable('fights', {
   index('fight_encounter_idx').on(table.encounterId),
   index('fight_difficulty_idx').on(table.difficulty),
   index('fight_time_idx').on(table.startTime),
+  index('fight_encounter_difficulty_idx').on(table.encounterId, table.difficulty),
 ]);
 
 // ============================================
@@ -156,6 +157,8 @@ export const fightPerformance = sqliteTable('fight_performance', {
   dps: real('dps').default(0),
   hps: real('hps').default(0),
   dtps: real('dtps').default(0),
+  activeTimePct: real('active_time_pct').default(0),
+  cpm: real('cpm').default(0),
   // Consumables
   healthPotions: integer('health_potions').default(0),
   healthstones: integer('healthstones').default(0),
@@ -174,6 +177,7 @@ export const fightPerformance = sqliteTable('fight_performance', {
 }, (table) => [
   uniqueIndex('perf_unique').on(table.fightId, table.characterId),
   index('perf_char_idx').on(table.characterId),
+  index('perf_char_fight_idx').on(table.characterId, table.fightId),
 ]);
 
 // ============================================

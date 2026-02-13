@@ -120,12 +120,18 @@
     "interrupts": "Interrupciones / Pelea",
     "dispels": "Disipaciones / Pelea",
     "recentFights": "Peleas Recientes",
+    "showMore": "Mostrar {{count}} consejos más",
+    "showLess": "Mostrar menos consejos",
     "date": "Fecha",
     "boss": "Boss",
     "difficulty": "Dificultad",
     "dps": "DPS",
     "deaths": "Muertes",
-    "dmgTaken": "Daño Recibido"
+    "dmgTaken": "Daño Recibido",
+    "activeTime": "Tiempo Activo",
+    "cpm": "Casts / Min",
+    "avgParse": "Parse Prom",
+    "parsePercentile": "Parse %"
   },
   "score": {
     "noob": "Noob",
@@ -173,8 +179,22 @@
     "below_raid_median": "Tu DPS está al {{pct}}% de la mediana del raid. Enfócate en tu rotación y uptime.",
     "above_raid_median": "¡Gran rendimiento! Tu DPS está {{pct}}% por encima de la mediana del raid.",
     "inconsistent_dps": "Tu DPS varía un {{variance}}% entre bosses. Algunos encuentros pueden necesitar optimización específica.",
+    "insufficient_data": "Solo {{fights}} pelea(s) analizadas hasta ahora. Los resultados serán más precisos con más datos.",
+    "moderate_death_rate": "Tu tasa de muertes ({{rate}}/pelea) es moderada. Pequeñas mejoras en posicionamiento pueden ayudar.",
+    "dps_stagnating": "Tu DPS se ha mantenido plano ({{change}}% de cambio) durante las últimas {{weeks}} semanas. Considera revisar tu rotación o probar nuevas estrategias.",
+    "weakest_boss": "Tu boss más débil es {{weakBoss}} ({{weakDifficulty}}) con {{weakDpsVsMedian}}% vs mediana, mientras que {{strongBoss}} está al {{strongDpsVsMedian}}%. Cerrar esta brecha del {{gap}}% es tu mayor oportunidad.",
+    "deadliest_boss": "{{boss}} ({{difficulty}}) es tu encuentro más letal con una tasa de muertes de {{deathRate}} en {{fights}} peleas. Enfócate en aprender las mecánicas de ese boss.",
+    "good_consistency": "¡Gran consistencia! Tu DPS solo varía un {{variance}}% entre bosses.",
+    "good_dispels": "¡Excelente rendimiento en disipaciones! Promedias {{avg}} disipaciones por pelea.",
     "low_interrupts": "Promedias solo {{avg}} interrupciones por pelea. Intenta interrumpir más cuando sea posible.",
-    "good_interrupts": "¡Gran utilidad! Promedias {{avg}} interrupciones por pelea."
+    "good_interrupts": "¡Gran utilidad! Promedias {{avg}} interrupciones por pelea.",
+    "low_active_time": "Tu tiempo activo es solo {{pct}}%. Apunta a >85% — cada segundo sin castear es DPS perdido.",
+    "good_active_time": "¡Excelente uptime! {{pct}}% de tiempo activo significa que siempre estás casteando.",
+    "low_cpm": "Tu CPM ({{cpm}}) es bajo. Intenta minimizar el downtime entre casts y reduce movimiento innecesario.",
+    "good_cpm": "¡Gran fluidez de rotación! {{cpm}} casts por minuto muestra una ejecución sólida.",
+    "low_parse": "Tu parse promedio es {{pct}}% — estás en el cuartil más bajo globalmente. Enfócate en los fundamentos de rotación y uptime.",
+    "below_avg_parse": "Tu parse promedio ({{pct}}%) está por debajo de la mediana global. Pequeñas mejoras en rotación y uptime pueden subirte.",
+    "high_parse": "¡Impresionante! Tu parse promedio de {{pct}}% te pone muy por encima de la mayoría de jugadores globalmente."
   },
   "raiderio": {
     "mplusScore": "Score M+",

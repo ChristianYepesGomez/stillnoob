@@ -51,6 +51,7 @@ async function executeGraphQL(query, variables = {}) {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
+      timeout: 15000,
     }
   );
 
@@ -148,7 +149,7 @@ export async function getFightStats(reportCode, fightIds) {
     };
 
     return {
-      damage: parseTable(report.damage).map(e => ({ name: e.name, total: e.total || 0 })),
+      damage: parseTable(report.damage).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
       healing: parseTable(report.healing).map(e => ({ name: e.name, total: e.total || 0 })),
       damageTaken: parseTable(report.damageTaken).map(e => ({ name: e.name, total: e.total || 0 })),
       deaths: parseTable(report.deaths).map(e => ({ name: e.name, total: e.total || 0 })),
@@ -234,7 +235,7 @@ export async function getBatchFightStats(reportCode, fightIds) {
     const results = new Map();
     for (const id of fightIds) {
       results.set(id, {
-        damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0 })),
+        damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
         healing: parseTable(report[`fight_${id}_healing`]).map(e => ({ name: e.name, total: e.total || 0 })),
         damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map(e => ({ name: e.name, total: e.total || 0 })),
         deaths: parseTable(report[`fight_${id}_deaths`]).map(e => ({ name: e.name, total: e.total || 0 })),
@@ -357,6 +358,7 @@ async function executeUserGraphQL(userToken, query, variables = {}) {
         'Authorization': `Bearer ${userToken}`,
         'Content-Type': 'application/json',
       },
+      timeout: 15000,
     }
   );
 
@@ -465,5 +467,54 @@ export async function getCharacterReports(name, serverSlug, serverRegion, limit 
   } catch (error) {
     console.error('Error fetching character reports:', error.message);
     return [];
+  }
+}
+
+/**
+ * Batch fetch WCL parse percentiles for a character across multiple encounters.
+ * Uses GraphQL aliases to fetch all encounters in a single API call.
+ * Returns Map<encounterID, { bestPercent, medianPercent, kills, bestAmount }>
+ */
+export async function getCharacterEncounterRankings(name, serverSlug, serverRegion, encounterIds, difficulty) {
+  if (!encounterIds || encounterIds.length === 0) return new Map();
+
+  const difficultyMap = { 'LFR': 1, 'Normal': 2, 'Heroic': 3, 'Mythic': 5 };
+  const diffNum = typeof difficulty === 'string' ? (difficultyMap[difficulty] || 5) : (difficulty || 5);
+
+  const encounterQueries = encounterIds.map(id =>
+    `enc_${id}: encounterRankings(encounterID: ${id}, difficulty: ${diffNum})`
+  ).join('\n');
+
+  const query = `
+    query GetCharacterRankings($name: String!, $serverSlug: String!, $serverRegion: String!) {
+      characterData {
+        character(name: $name, serverSlug: $serverSlug, serverRegion: $serverRegion) {
+          ${encounterQueries}
+        }
+      }
+    }
+  `;
+
+  try {
+    const data = await executeGraphQL(query, { name, serverSlug, serverRegion });
+    const character = data.characterData?.character;
+    if (!character) return new Map();
+
+    const results = new Map();
+    for (const id of encounterIds) {
+      const ranking = character[`enc_${id}`];
+      if (ranking) {
+        results.set(id, {
+          bestPercent: ranking.rankPercent ?? ranking.bestPerformanceAverage ?? null,
+          medianPercent: ranking.medianPerformance ?? ranking.medianPercent ?? null,
+          kills: ranking.totalKills || 0,
+          bestAmount: ranking.bestAmount || 0,
+        });
+      }
+    }
+    return results;
+  } catch (error) {
+    console.error('Error fetching character rankings:', error.message);
+    return new Map();
   }
 }

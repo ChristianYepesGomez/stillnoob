@@ -81,6 +81,9 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
 
     // Check membership
     const membership = await db.select({ role: guildMembers.role })
@@ -109,7 +112,16 @@ router.get('/:id', async (req, res) => {
       .where(eq(guildMembers.guildId, guildId))
       .all();
 
-    res.json({ ...guild, members, myRole: membership.role });
+    res.json({
+      id: guild.id,
+      name: guild.name,
+      realm: guild.realm,
+      realmSlug: guild.realmSlug,
+      region: guild.region,
+      avatarUrl: guild.avatarUrl,
+      members,
+      myRole: membership.role,
+    });
   } catch (err) {
     console.error('Get guild error:', err);
     res.status(500).json({ error: 'Failed to get guild' });
@@ -120,6 +132,9 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/join', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
 
     const guild = await db.select({ id: guilds.id }).from(guilds).where(eq(guilds.id, guildId)).get();
     if (!guild) {
@@ -143,6 +158,9 @@ router.post('/:id/join', async (req, res) => {
 router.post('/:id/leave', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
 
     // Can't leave if you're the owner
     const guild = await db.select({ ownerId: guilds.ownerId }).from(guilds).where(eq(guilds.id, guildId)).get();
@@ -164,6 +182,9 @@ router.post('/:id/leave', async (req, res) => {
 router.put('/:id/members/:userId', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
     const targetUserId = req.params.userId;
     const { role } = req.body;
 
@@ -201,6 +222,9 @@ router.put('/:id/members/:userId', async (req, res) => {
 router.delete('/:id/members/:userId', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
     const targetUserId = req.params.userId;
 
     // Can't kick yourself (use leave)
@@ -232,6 +256,9 @@ router.delete('/:id/members/:userId', async (req, res) => {
 router.patch('/:id/settings', async (req, res) => {
   try {
     const guildId = parseInt(req.params.id);
+    if (isNaN(guildId)) {
+      return res.status(400).json({ error: 'Invalid guild ID' });
+    }
     const { defaultVisibility } = req.body;
 
     // Check caller is leader

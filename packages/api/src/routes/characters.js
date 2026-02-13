@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
 
     const result = await db.insert(characters).values({
       userId: req.user.id,
-      name,
+      name: name.trim().normalize('NFC'),
       realm,
       realmSlug: slug,
       region: region || 'eu',
@@ -60,6 +60,9 @@ router.post('/', async (req, res) => {
 router.put('/:id/primary', async (req, res) => {
   try {
     const charId = parseInt(req.params.id);
+    if (isNaN(charId)) {
+      return res.status(400).json({ error: 'Invalid character ID' });
+    }
 
     // Verify ownership
     const char = await db.select()
@@ -92,6 +95,9 @@ router.put('/:id/primary', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const charId = parseInt(req.params.id);
+    if (isNaN(charId)) {
+      return res.status(400).json({ error: 'Invalid character ID' });
+    }
 
     const result = await db.delete(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)));

@@ -30,8 +30,9 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
       )
       .all();
 
-    // Filter by name case-insensitively (SQLite collation may vary)
-    const match = char.find(c => c.name.toLowerCase() === name.toLowerCase());
+    // Filter by name case-insensitively with Unicode normalization
+    const normalizedName = name.normalize('NFC').toLowerCase();
+    const match = char.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
 
     if (!match) {
       return res.status(404).json({ error: 'Character not found' });
@@ -39,7 +40,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
 
     // Fetch WCL analysis + Raider.io data in parallel
     const [data, raiderIO] = await Promise.all([
-      getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public' }),
+      getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public', characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region } }),
       getCharacterRaiderIO(match.region, match.realmSlug, match.name),
     ]);
 
@@ -62,6 +63,9 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
         deathRate: data.summary.deathRate,
         consumableScore: data.summary.consumableScore,
         dpsVsMedianPct: data.summary.dpsVsMedianPct,
+        avgActiveTime: data.summary.avgActiveTime,
+        avgCpm: data.summary.avgCpm,
+        avgParsePercentile: data.summary.avgParsePercentile,
       },
       bossBreakdown: data.bossBreakdown.map(b => ({
         bossName: b.bossName,
@@ -71,6 +75,9 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
         bestDps: b.bestDps,
         deathRate: b.deathRate,
         dpsVsMedian: b.dpsVsMedian,
+        parsePercentile: b.parsePercentile,
+        avgActiveTime: b.avgActiveTime,
+        avgCpm: b.avgCpm,
       })),
       raiderIO,
       lastUpdated: new Date().toISOString(),

@@ -9,6 +9,16 @@ function formatDps(val) {
   return val >= 1000 ? `${(val / 1000).toFixed(1)}K` : Math.round(val);
 }
 
+function getParseColor(pct) {
+  if (pct == null) return 'text-void-text/50';
+  if (pct >= 99) return 'text-pink-400';    // gold/artifact
+  if (pct >= 95) return 'text-orange-400';   // legendary
+  if (pct >= 75) return 'text-purple-400';   // epic
+  if (pct >= 50) return 'text-blue-400';     // rare
+  if (pct >= 25) return 'text-green-400';    // uncommon
+  return 'text-gray-400';                     // common
+}
+
 export default function OverviewSection({ data }) {
   const { t } = useTranslation();
   const { summary, score, recommendations } = data;
@@ -25,7 +35,7 @@ export default function OverviewSection({ data }) {
     ];
   }, [summary, score, t]);
 
-  const topTips = (recommendations || []).filter(r => r.severity !== 'positive').slice(0, 3);
+  const topTips = (recommendations?.primaryTips || []).filter(r => r.severity !== 'positive').slice(0, 3);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -33,7 +43,7 @@ export default function OverviewSection({ data }) {
       {score && <ScoreBadge score={score} />}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         <StatCard
           label={t('analysis.avgDps')}
           value={formatDps(summary.avgDps || 0)}
@@ -54,6 +64,21 @@ export default function OverviewSection({ data }) {
           label={t('analysis.vsMedian')}
           value={`${Math.round(summary.dpsVsMedianPct || 100)}%`}
           color={summary.dpsVsMedianPct >= 100 ? 'text-green-400' : 'text-red-400'}
+        />
+        <StatCard
+          label={t('analysis.activeTime')}
+          value={`${Math.round(summary.avgActiveTime || 0)}%`}
+          color={summary.avgActiveTime >= 85 ? 'text-green-400' : summary.avgActiveTime >= 70 ? 'text-yellow-400' : 'text-red-400'}
+        />
+        <StatCard
+          label={t('analysis.cpm')}
+          value={(summary.avgCpm || 0).toFixed(1)}
+          color={summary.avgCpm >= 35 ? 'text-green-400' : summary.avgCpm >= 25 ? 'text-yellow-400' : 'text-red-400'}
+        />
+        <StatCard
+          label={t('analysis.avgParse')}
+          value={summary.avgParsePercentile != null ? `${Math.round(summary.avgParsePercentile)}%` : '—'}
+          color={getParseColor(summary.avgParsePercentile)}
         />
       </div>
 

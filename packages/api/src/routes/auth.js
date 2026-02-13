@@ -316,14 +316,15 @@ router.get('/blizzard/link', authenticateToken, (req, res) => {
 router.get('/blizzard/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
     if (!code || !state) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=blizzard_denied`);
+      return res.redirect(`${frontendUrl}/dashboard?error=blizzard_denied`);
     }
 
     const stateData = verifyState(state);
     if (!stateData?.userId) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=invalid_state`);
+      return res.redirect(`${frontendUrl}/dashboard?error=invalid_state`);
     }
     const userId = stateData.userId;
 
@@ -366,10 +367,11 @@ router.get('/blizzard/callback', async (req, res) => {
     }
 
     // Redirect to frontend with success
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?blizzard=linked&imported=${imported}`);
+    res.redirect(`${frontendUrl}/dashboard?blizzard=linked&imported=${imported}`);
   } catch (err) {
     console.error('Blizzard callback error:', err);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard?error=blizzard_failed`);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/dashboard?error=blizzard_failed`);
   }
 });
 

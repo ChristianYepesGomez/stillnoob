@@ -32,14 +32,16 @@ const mockPerformanceData = {
   summary: {
     totalFights: 10, avgDps: 5000, avgHps: 0, deathRate: 0.1,
     consumableScore: 80, dpsVsMedianPct: 105,
+    avgActiveTime: 87.5, avgCpm: 35.2, avgParsePercentile: 62,
   },
   bossBreakdown: [{
     bossName: 'Test Boss', difficulty: 'Heroic', fights: 5,
     avgDps: 5000, bestDps: 6000, deathRate: 0.1, dpsVsMedian: 105,
+    parsePercentile: 62, avgActiveTime: 87.5, avgCpm: 35.2,
   }],
   weeklyTrends: [],
   recentFights: [],
-  recommendations: [],
+  recommendations: { primaryTips: [], secondaryTips: [], playerLevel: 'beginner' },
 };
 
 const mockRaiderIO = { score: 1500, bestRun: null };

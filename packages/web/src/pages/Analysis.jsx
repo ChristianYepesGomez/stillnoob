@@ -143,7 +143,7 @@ export default function Analysis() {
           {/* Tab content */}
           <div>
             {activeTab === 'overview' && <OverviewSection data={data} />}
-            {activeTab === 'mythicPlus' && <MythicPlusSection raiderIO={data.raiderIO} />}
+            {activeTab === 'mythicPlus' && <MythicPlusSection raiderIO={data.raiderIO} mplusAnalysis={data.mplusAnalysis} characterId={selectedCharId} />}
             {activeTab === 'bosses' && <BossesSection data={data} />}
             {activeTab === 'trends' && <TrendsSection data={data} />}
             {activeTab === 'recentFights' && <RecentFightsSection data={data} />}

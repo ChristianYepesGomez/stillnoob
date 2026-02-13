@@ -92,11 +92,14 @@ export const reportsAPI = {
 export const analysisAPI = {
   overview: (weeks = 8) => api.get(`/analysis/overview?weeks=${weeks}`),
   character: (id, weeks = 8) => api.get(`/analysis/character/${id}?weeks=${weeks}`),
+  mplusHistory: (id, weeks = 12) => api.get(`/analysis/character/${id}/mplus-history?weeks=${weeks}`),
 };
 
 export const publicAPI = {
   character: (region, realm, name, weeks = 8) =>
     api.get(`/public/character/${region}/${realm}/${name}?weeks=${weeks}`),
+  mplusHistory: (region, realm, name, weeks = 12) =>
+    api.get(`/public/character/${region}/${realm}/${name}/mplus-history?weeks=${weeks}`),
 };
 
 export const guildsAPI = {

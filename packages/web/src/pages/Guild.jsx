@@ -316,6 +316,39 @@ export default function GuildPage() {
             </button>
           </form>
         </div>
+
+        {/* Join guild */}
+        <div className="bg-void-mid/50 rounded-2xl border border-void-bright/15 p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-sign-in-alt mr-2 text-void-accent" />
+            Join Guild
+          </h2>
+          <form onSubmit={handleJoin} className="space-y-3">
+            <input
+              type="text"
+              value={joinForm.guildId}
+              onChange={(e) => setJoinForm(p => ({ ...p, guildId: e.target.value }))}
+              placeholder="Guild ID"
+              className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
+              required
+            />
+            <input
+              type="text"
+              value={joinForm.inviteCode}
+              onChange={(e) => setJoinForm(p => ({ ...p, inviteCode: e.target.value }))}
+              placeholder="Invite code"
+              className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
+              required
+            />
+            <button
+              type="submit"
+              disabled={joining}
+              className="w-full py-2 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+            >
+              {joining ? 'Joining...' : 'Join Guild'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

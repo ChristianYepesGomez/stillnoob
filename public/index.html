@@ -1,1043 +1,1198 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>StillNoob — Are you still a noob?</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --void-deep: #0a0612;
-    --void-mid: #12091f;
-    --void-surface: #1a0f2e;
-    --void-glow: #7b2ff2;
-    --void-bright: #9d5cff;
-    --void-accent: #c084fc;
-    --sunwell-gold: #f6c843;
-    --sunwell-amber: #ff9f1c;
-    --fel-green: #00ff88;
-    --blood-red: #ff3b5c;
-    --text-primary: #e8e0f0;
-    --text-secondary: #9a8bb5;
-    --text-muted: #5c4f73;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--void-deep);
-    color: var(--text-primary);
-    font-family: 'Rajdhani', sans-serif;
-    overflow-x: hidden;
-    min-height: 100vh;
-  }
-
-  /* === ANIMATED VOID BACKGROUND === */
-  .void-bg {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    overflow: hidden;
-  }
-
-  .void-bg::before {
-    content: '';
-    position: absolute;
-    width: 200%;
-    height: 200%;
-    top: -50%;
-    left: -50%;
-    background: 
-      radial-gradient(ellipse 600px 600px at 20% 30%, rgba(123,47,242,0.15) 0%, transparent 70%),
-      radial-gradient(ellipse 800px 400px at 80% 20%, rgba(157,92,255,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse 500px 500px at 60% 80%, rgba(123,47,242,0.1) 0%, transparent 70%),
-      radial-gradient(ellipse 300px 300px at 40% 60%, rgba(192,132,252,0.06) 0%, transparent 60%);
-    animation: voidDrift 20s ease-in-out infinite alternate;
-  }
-
-  .void-bg::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
-  @keyframes voidDrift {
-    0% { transform: translate(0, 0) rotate(0deg); }
-    100% { transform: translate(-5%, 3%) rotate(2deg); }
-  }
-
-  /* === FLOATING PARTICLES === */
-  .particles {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  .particle {
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: var(--void-bright);
-    border-radius: 50%;
-    box-shadow: 0 0 6px var(--void-glow), 0 0 12px rgba(123,47,242,0.3);
-    animation: float linear infinite;
-    opacity: 0;
-  }
-
-  @keyframes float {
-    0% { transform: translateY(100vh) scale(0); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
-  }
-
-  /* === NAV === */
-  nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    padding: 1.2rem 3rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(180deg, rgba(10,6,18,0.95) 0%, transparent 100%);
-    backdrop-filter: blur(10px);
-  }
-
-  .logo {
-    font-family: 'Cinzel', serif;
-    font-size: 1.4rem;
-    font-weight: 900;
-    letter-spacing: 2px;
-    background: linear-gradient(135deg, var(--void-accent), var(--sunwell-gold));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-transform: uppercase;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 2rem;
-    list-style: none;
-  }
-
-  .nav-links a {
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: color 0.3s;
-    position: relative;
-  }
-
-  .nav-links a::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 0;
-    height: 1px;
-    background: var(--void-accent);
-    transition: width 0.3s;
-  }
-
-  .nav-links a:hover { color: var(--text-primary); }
-  .nav-links a:hover::after { width: 100%; }
-
-  /* === HERO === */
-  .hero {
-    position: relative;
-    z-index: 10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 6rem 2rem 4rem;
-    text-align: center;
-  }
-
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 1.2rem;
-    border: 1px solid rgba(123,47,242,0.3);
-    border-radius: 100px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--void-accent);
-    background: rgba(123,47,242,0.08);
-    margin-bottom: 2rem;
-    animation: fadeInUp 0.8s ease-out 0.2s both;
-  }
-
-  .hero-badge .dot {
-    width: 6px;
-    height: 6px;
-    background: var(--fel-green);
-    border-radius: 50%;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--fel-green); }
-    50% { opacity: 0.5; box-shadow: 0 0 8px var(--fel-green); }
-  }
-
-  .hero h1 {
-    font-family: 'Cinzel', serif;
-    font-size: clamp(3rem, 8vw, 6.5rem);
-    font-weight: 900;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-    animation: fadeInUp 0.8s ease-out 0.4s both;
-  }
-
-  .hero h1 .line1 {
-    display: block;
-    color: var(--text-primary);
-    text-shadow: 0 0 60px rgba(123,47,242,0.3);
-  }
-
-  .hero h1 .line2 {
-    display: block;
-    background: linear-gradient(135deg, var(--void-bright), var(--sunwell-gold), var(--void-accent));
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmer 4s ease-in-out infinite;
-  }
-
-  @keyframes shimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-
-  .hero-subtitle {
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-    color: var(--text-secondary);
-    font-weight: 300;
-    max-width: 600px;
-    margin: 1.5rem auto 3rem;
-    line-height: 1.6;
-    animation: fadeInUp 0.8s ease-out 0.6s both;
-  }
-
-  .hero-subtitle strong {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-
-  /* === SEARCH BOX === */
-  .search-container {
-    width: 100%;
-    max-width: 700px;
-    animation: fadeInUp 0.8s ease-out 0.8s both;
-  }
-
-  .search-box {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    background: var(--void-surface);
-    border: 1px solid rgba(123,47,242,0.25);
-    border-radius: 16px;
-    overflow: hidden;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .search-box:focus-within {
-    border-color: var(--void-glow);
-    box-shadow: 0 0 30px rgba(123,47,242,0.2), 0 0 60px rgba(123,47,242,0.1);
-  }
-
-  .search-fields {
-    flex: 1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0;
-  }
-
-  .search-field {
-    flex: 1;
-    min-width: 120px;
-    position: relative;
-  }
-
-  .search-field:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 20%;
-    height: 60%;
-    width: 1px;
-    background: rgba(123,47,242,0.2);
-  }
-
-  .search-field label {
-    position: absolute;
-    top: 0.6rem;
-    left: 1.2rem;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    pointer-events: none;
-  }
-
-  .search-field input,
-  .search-field select {
-    width: 100%;
-    padding: 2rem 1.2rem 0.8rem;
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 1.05rem;
-    font-weight: 500;
-    outline: none;
-  }
-
-  .search-field select {
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-  }
-
-  .search-field select option {
-    background: var(--void-mid);
-    color: var(--text-primary);
-  }
-
-  .analyze-btn {
-    padding: 0 2.5rem;
-    background: linear-gradient(135deg, var(--void-glow), var(--void-bright));
-    border: none;
-    color: white;
-    font-family: 'Cinzel', serif;
-    font-size: 0.9rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.3s;
-    white-space: nowrap;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .analyze-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent, rgba(255,255,255,0.15), transparent);
-    transform: translateX(-100%);
-    transition: transform 0.5s;
-  }
-
-  .analyze-btn:hover::before {
-    transform: translateX(100%);
-  }
-
-  .analyze-btn:hover {
-    box-shadow: 0 0 30px rgba(123,47,242,0.4);
-  }
-
-  .search-hint {
-    margin-top: 1rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  .search-hint span {
-    color: var(--void-accent);
-  }
-
-  /* === SCORE PREVIEW === */
-  .score-preview {
-    margin-top: 4rem;
-    animation: fadeInUp 0.8s ease-out 1s both;
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .score-badge {
-    padding: 0.6rem 1.4rem;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    opacity: 0.7;
-    transition: opacity 0.3s, transform 0.3s;
-  }
-
-  .score-badge:hover {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
-
-  .score-badge.gray {
-    background: rgba(128,128,128,0.15);
-    border: 1px solid rgba(128,128,128,0.3);
-    color: #888;
-  }
-
-  .score-badge.green {
-    background: rgba(0,255,136,0.08);
-    border: 1px solid rgba(0,255,136,0.3);
-    color: var(--fel-green);
-  }
-
-  .score-badge.blue {
-    background: rgba(0,150,255,0.08);
-    border: 1px solid rgba(0,150,255,0.3);
-    color: #0096ff;
-  }
-
-  .score-badge.purple {
-    background: rgba(157,92,255,0.08);
-    border: 1px solid rgba(157,92,255,0.3);
-    color: var(--void-bright);
-  }
-
-  .score-badge.orange {
-    background: rgba(255,159,28,0.08);
-    border: 1px solid rgba(255,159,28,0.3);
-    color: var(--sunwell-amber);
-  }
-
-  .score-badge.pink {
-    background: rgba(255,59,92,0.08);
-    border: 1px solid rgba(255,59,92,0.3);
-    color: var(--blood-red);
-  }
-
-  .score-badge.gold {
-    background: rgba(246,200,67,0.08);
-    border: 1px solid rgba(246,200,67,0.3);
-    color: var(--sunwell-gold);
-  }
-
-  /* === FEATURES === */
-  .features {
-    position: relative;
-    z-index: 10;
-    padding: 6rem 2rem 8rem;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .features-header {
-    text-align: center;
-    margin-bottom: 4rem;
-  }
-
-  .features-header h2 {
-    font-family: 'Cinzel', serif;
-    font-size: clamp(1.8rem, 4vw, 2.8rem);
-    font-weight: 700;
-    margin-bottom: 1rem;
-  }
-
-  .features-header p {
-    color: var(--text-secondary);
-    font-size: 1.15rem;
-    max-width: 500px;
-    margin: 0 auto;
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .feature-card {
-    position: relative;
-    padding: 2.5rem;
-    background: linear-gradient(135deg, rgba(26,15,46,0.8), rgba(18,9,31,0.9));
-    border: 1px solid rgba(123,47,242,0.12);
-    border-radius: 20px;
-    transition: all 0.4s ease;
-    overflow: hidden;
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--void-glow), transparent);
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-
-  .feature-card:hover {
-    border-color: rgba(123,47,242,0.3);
-    transform: translateY(-4px);
-    box-shadow: 0 20px 60px rgba(123,47,242,0.1);
-  }
-
-  .feature-card:hover::before { opacity: 1; }
-
-  .feature-icon {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .feature-icon.stats {
-    background: linear-gradient(135deg, rgba(0,150,255,0.15), rgba(0,150,255,0.05));
-    border: 1px solid rgba(0,150,255,0.2);
-  }
-
-  .feature-icon.gear {
-    background: linear-gradient(135deg, rgba(246,200,67,0.15), rgba(246,200,67,0.05));
-    border: 1px solid rgba(246,200,67,0.2);
-  }
-
-  .feature-icon.coach {
-    background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,255,136,0.05));
-    border: 1px solid rgba(0,255,136,0.2);
-  }
-
-  .feature-card h3 {
-    font-family: 'Cinzel', serif;
-    font-size: 1.2rem;
-    font-weight: 700;
-    margin-bottom: 0.8rem;
-  }
-
-  .feature-card p {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    line-height: 1.7;
-  }
-
-  .feature-examples {
-    margin-top: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .feature-example {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    font-size: 0.88rem;
-    color: var(--text-secondary);
-    padding: 0.5rem 0.8rem;
-    background: rgba(123,47,242,0.05);
-    border-radius: 8px;
-    border-left: 2px solid var(--void-glow);
-  }
-
-  .feature-example .arrow {
-    color: var(--void-accent);
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  /* === COACHING PREVIEW === */
-  .coaching-section {
-    position: relative;
-    z-index: 10;
-    padding: 4rem 2rem 8rem;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .coaching-header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-
-  .coaching-header h2 {
-    font-family: 'Cinzel', serif;
-    font-size: clamp(1.8rem, 4vw, 2.8rem);
-    font-weight: 700;
-    margin-bottom: 1rem;
-  }
-
-  .coaching-header p {
-    color: var(--text-secondary);
-    font-size: 1.1rem;
-  }
-
-  .coaching-messages {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .coach-msg {
-    padding: 1.2rem 1.5rem;
-    border-radius: 16px;
-    border: 1px solid;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    opacity: 0;
-    animation: slideIn 0.5s ease-out forwards;
-  }
-
-  .coach-msg:nth-child(1) { animation-delay: 0.2s; }
-  .coach-msg:nth-child(2) { animation-delay: 0.4s; }
-  .coach-msg:nth-child(3) { animation-delay: 0.6s; }
-  .coach-msg:nth-child(4) { animation-delay: 0.8s; }
-  .coach-msg:nth-child(5) { animation-delay: 1.0s; }
-
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .coach-msg.warning {
-    background: rgba(255,159,28,0.06);
-    border-color: rgba(255,159,28,0.2);
-  }
-
-  .coach-msg.danger {
-    background: rgba(255,59,92,0.06);
-    border-color: rgba(255,59,92,0.2);
-  }
-
-  .coach-msg.success {
-    background: rgba(0,255,136,0.06);
-    border-color: rgba(0,255,136,0.2);
-  }
-
-  .coach-msg.info {
-    background: rgba(0,150,255,0.06);
-    border-color: rgba(0,150,255,0.2);
-  }
-
-  .coach-msg .icon {
-    font-size: 1.4rem;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .coach-msg .content strong {
-    display: block;
-    font-size: 1rem;
-    margin-bottom: 0.3rem;
-  }
-
-  .coach-msg.warning .content strong { color: var(--sunwell-amber); }
-  .coach-msg.danger .content strong { color: var(--blood-red); }
-  .coach-msg.success .content strong { color: var(--fel-green); }
-  .coach-msg.info .content strong { color: #0096ff; }
-
-  .coach-msg .content span {
-    font-size: 0.88rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-
-  /* === CTA === */
-  .cta-section {
-    position: relative;
-    z-index: 10;
-    padding: 6rem 2rem;
-    text-align: center;
-  }
-
-  .cta-box {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 4rem 3rem;
-    background: linear-gradient(135deg, var(--void-surface), var(--void-mid));
-    border: 1px solid rgba(123,47,242,0.2);
-    border-radius: 24px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .cta-box::before {
-    content: '';
-    position: absolute;
-    top: -1px;
-    left: 20%;
-    right: 20%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--void-bright), transparent);
-  }
-
-  .cta-box h2 {
-    font-family: 'Cinzel', serif;
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-  }
-
-  .cta-box p {
-    color: var(--text-secondary);
-    margin-bottom: 2rem;
-    font-size: 1.05rem;
-  }
-
-  .cta-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 1rem 2.5rem;
-    background: linear-gradient(135deg, var(--void-glow), var(--void-bright));
-    border: none;
-    border-radius: 12px;
-    color: white;
-    font-family: 'Cinzel', serif;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.3s;
-    text-decoration: none;
-  }
-
-  .cta-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 40px rgba(123,47,242,0.35);
-  }
-
-  .cta-date {
-    margin-top: 1.5rem;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-  }
-
-  .cta-date strong {
-    color: var(--sunwell-gold);
-  }
-
-  /* === FOOTER === */
-  footer {
-    position: relative;
-    z-index: 10;
-    padding: 3rem 2rem;
-    text-align: center;
-    border-top: 1px solid rgba(123,47,242,0.1);
-  }
-
-  footer p {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
-
-  footer a {
-    color: var(--void-accent);
-    text-decoration: none;
-  }
-
-  /* === ANIMATIONS === */
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* === RESPONSIVE === */
-  @media (max-width: 768px) {
-    nav { padding: 1rem 1.5rem; }
-    .nav-links { display: none; }
-    .search-box { flex-direction: column; border-radius: 16px; }
-    .search-field::after { display: none; }
-    .analyze-btn { padding: 1.2rem 2rem; border-radius: 0 0 0 0; }
-    .score-preview { gap: 0.8rem; }
-    .score-badge { font-size: 0.75rem; padding: 0.5rem 1rem; }
-    .features-grid { grid-template-columns: 1fr; }
-    .cta-box { padding: 3rem 1.5rem; }
-  }
-
-  /* === SCROLL REVEAL === */
-  .reveal {
-    opacity: 0;
-    transform: translateY(40px);
-    transition: all 0.8s ease-out;
-  }
-
-  .reveal.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-</style>
-</head>
-<body>
-
-<!-- Void Background -->
-<div class="void-bg"></div>
-
-<!-- Particles -->
-<div class="particles" id="particles"></div>
-
-<!-- Navigation -->
-<nav>
-  <div class="logo">⚔ StillNoob</div>
-  <ul class="nav-links">
-    <li><a href="#features">Features</a></li>
-    <li><a href="#coaching">Coaching</a></li>
-    <li><a href="#launch">Launch</a></li>
-  </ul>
-</nav>
-
-<!-- Hero -->
-<section class="hero">
-  <div class="hero-badge">
-    <span class="dot"></span>
-    Ready for Midnight Season 1
-  </div>
-
-  <h1>
-    <span class="line1">Are You Still</span>
-    <span class="line2">A Noob?</span>
-  </h1>
-
-  <p class="hero-subtitle">
-    Drop your character name. We'll analyze your logs, gear, and gameplay — 
-    then tell you <strong>exactly</strong> how to improve.
-  </p>
-
-  <!-- Search Box -->
-  <div class="search-container">
-    <div class="search-box">
-      <div class="search-fields">
-        <div class="search-field" style="flex: 2;">
-          <label>Character Name</label>
-          <input type="text" placeholder="Thrall" />
-        </div>
-        <div class="search-field">
-          <label>Realm</label>
-          <input type="text" placeholder="Ragnaros" />
-        </div>
-        <div class="search-field">
-          <label>Region</label>
-          <select>
-            <option>EU</option>
-            <option>US</option>
-            <option>KR</option>
-            <option>TW</option>
-          </select>
-        </div>
-      </div>
-      <button class="analyze-btn">Analyze Me</button>
-    </div>
-    <p class="search-hint">We pull data from <span>WarcraftLogs</span>, <span>Raider.io</span>, and the <span>Armory</span></p>
-  </div>
-
-  <!-- Score badges preview -->
-  <div class="score-preview">
-    <div class="score-badge gray">🩶 Noob</div>
-    <div class="score-badge green">💚 Casual</div>
-    <div class="score-badge blue">💙 Decent</div>
-    <div class="score-badge purple">💜 Skilled</div>
-    <div class="score-badge orange">🧡 Pro</div>
-    <div class="score-badge pink">❤️‍🔥 Elite</div>
-    <div class="score-badge gold">👑 Legendary</div>
-  </div>
-</section>
-
-<!-- Features -->
-<section class="features" id="features">
-  <div class="features-header reveal">
-    <h2>What We Analyze</h2>
-    <p>Your full character breakdown in seconds — not just data, but answers.</p>
-  </div>
-
-  <div class="features-grid">
-    <div class="feature-card reveal">
-      <div class="feature-icon stats">📊</div>
-      <h3>Performance Stats</h3>
-      <p>Your real numbers compared to players of your class, spec, and item level. See where you stand — honestly.</p>
-      <div class="feature-examples">
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          DPS/HPS ranking vs your ilvl bracket
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Parse percentiles across all your kills
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Week-over-week progression tracking
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon gear">⚔️</div>
-      <h3>Gear Optimization</h3>
-      <p>Your current gear vs what you should have. We map out exact items, where they drop, and the priority order.</p>
-      <div class="feature-examples">
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          BiS list personalized to YOUR current gear
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          "Farm X boss for Y trinket" — clear next steps
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Gems, enchants & consumables check
-        </div>
-      </div>
-    </div>
-
-    <div class="feature-card reveal">
-      <div class="feature-icon coach">🎯</div>
-      <h3>Personal Coaching</h3>
-      <p>We read your logs like a coach watching your gameplay. You get direct, actionable feedback — not raw data.</p>
-      <div class="feature-examples">
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Rotation analysis with specific fixes
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Mechanics & movement evaluation
-        </div>
-        <div class="feature-example">
-          <span class="arrow">→</span>
-          Cooldown timing optimization
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Coaching Preview -->
-<section class="coaching-section" id="coaching">
-  <div class="coaching-header reveal">
-    <h2>Your Personal Coach Speaks</h2>
-    <p>This is what your dashboard will look like. Real feedback, not just numbers.</p>
-  </div>
-
-  <div class="coaching-messages reveal">
-    <div class="coach-msg danger">
-      <span class="icon">🔴</span>
-      <div class="content">
-        <strong>You're eating avoidable damage</strong>
-        <span>You took 340k avoidable damage on Voidspire Council — that's 3x the raid average. Focus on dodging Shadow Crash and Void Eruption. Your healers will thank you.</span>
-      </div>
-    </div>
-
-    <div class="coach-msg warning">
-      <span class="icon">🟡</span>
-      <div class="content">
-        <strong>Your rotation needs work</strong>
-        <span>You're casting Void Bolt after 3 GCDs instead of on cooldown. This alone is costing you ~8% DPS. Prioritize it immediately after each Void Eruption.</span>
-      </div>
-    </div>
-
-    <div class="coach-msg success">
-      <span class="icon">🟢</span>
-      <div class="content">
-        <strong>Great movement efficiency</strong>
-        <span>Your uptime during movement phases is 94% — top 15% for your spec. You're using instant casts effectively while repositioning. Keep it up.</span>
-      </div>
-    </div>
-
-    <div class="coach-msg info">
-      <span class="icon">🔵</span>
-      <div class="content">
-        <strong>Upgrade priority: Trinket slot</strong>
-        <span>Your Void-Touched Orb (ilvl 616) should be replaced with Sunwell Resonance from Xal'atath (Normal+). Expected DPS gain: +4.2%.</span>
-      </div>
-    </div>
-
-    <div class="coach-msg warning">
-      <span class="icon">🟡</span>
-      <div class="content">
-        <strong>Cooldown timing is off</strong>
-        <span>You used Power Infusion 23 seconds into the fight instead of aligning with Bloodlust. Sync your major CDs with raid buffs for maximum burst windows.</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="cta-section" id="launch">
-  <div class="cta-box reveal">
-    <h2>Ready to Git Gud?</h2>
-    <p>Midnight Season 1 starts March 17. Be ready from day one with the data-driven edge your raid needs.</p>
-    <a href="#" class="cta-button">
-      Analyze My Character
-      <span>→</span>
-    </a>
-    <p class="cta-date">Launching with <strong>Midnight Season 1 — March 17, 2026</strong></p>
-  </div>
-</section>
-
-<!-- Footer -->
-<footer>
-  <p>StillNoob is not affiliated with Blizzard Entertainment. World of Warcraft™ is a trademark of Blizzard Entertainment, Inc.</p>
-</footer>
-
-<script>
-  // Generate floating particles
-  const particlesContainer = document.getElementById('particles');
-  for (let i = 0; i < 30; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'particle';
-    particle.style.left = Math.random() * 100 + '%';
-    particle.style.animationDuration = (8 + Math.random() * 12) + 's';
-    particle.style.animationDelay = (Math.random() * 10) + 's';
-    particle.style.width = (1 + Math.random() * 2) + 'px';
-    particle.style.height = particle.style.width;
-    particlesContainer.appendChild(particle);
-  }
-
-  // Scroll reveal
-  const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StillNoob — Are you still a noob?</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --void-deep: #0a0612;
+        --void-mid: #12091f;
+        --void-surface: #1a0f2e;
+        --void-glow: #7b2ff2;
+        --void-bright: #9d5cff;
+        --void-accent: #c084fc;
+        --sunwell-gold: #f6c843;
+        --sunwell-amber: #ff9f1c;
+        --fel-green: #00ff88;
+        --blood-red: #ff3b5c;
+        --text-primary: #e8e0f0;
+        --text-secondary: #9a8bb5;
+        --text-muted: #5c4f73;
       }
-    });
-  }, { threshold: 0.1 });
 
-  reveals.forEach(el => observer.observe(el));
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-  // Analyze button click simulation
-  document.querySelector('.analyze-btn').addEventListener('click', () => {
-    const btn = document.querySelector('.analyze-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Analyzing...';
-    btn.style.opacity = '0.7';
-    setTimeout(() => {
-      btn.textContent = originalText;
-      btn.style.opacity = '1';
-      alert('🚧 Coming March 17, 2026 — Midnight Season 1!\n\nDrop your email to get notified at launch.');
-    }, 2000);
-  });
-</script>
+      body {
+        background: var(--void-deep);
+        color: var(--text-primary);
+        font-family: 'Rajdhani', sans-serif;
+        overflow-x: hidden;
+        min-height: 100vh;
+      }
 
-</body>
+      /* === ANIMATED VOID BACKGROUND === */
+      .void-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+      }
+
+      .void-bg::before {
+        content: '';
+        position: absolute;
+        width: 200%;
+        height: 200%;
+        top: -50%;
+        left: -50%;
+        background:
+          radial-gradient(
+            ellipse 600px 600px at 20% 30%,
+            rgba(123, 47, 242, 0.15) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 800px 400px at 80% 20%,
+            rgba(157, 92, 255, 0.08) 0%,
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse 500px 500px at 60% 80%,
+            rgba(123, 47, 242, 0.1) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 300px 300px at 40% 60%,
+            rgba(192, 132, 252, 0.06) 0%,
+            transparent 60%
+          );
+        animation: voidDrift 20s ease-in-out infinite alternate;
+      }
+
+      .void-bg::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      @keyframes voidDrift {
+        0% {
+          transform: translate(0, 0) rotate(0deg);
+        }
+        100% {
+          transform: translate(-5%, 3%) rotate(2deg);
+        }
+      }
+
+      /* === FLOATING PARTICLES === */
+      .particles {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .particle {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: var(--void-bright);
+        border-radius: 50%;
+        box-shadow:
+          0 0 6px var(--void-glow),
+          0 0 12px rgba(123, 47, 242, 0.3);
+        animation: float linear infinite;
+        opacity: 0;
+      }
+
+      @keyframes float {
+        0% {
+          transform: translateY(100vh) scale(0);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-10vh) scale(1);
+          opacity: 0;
+        }
+      }
+
+      /* === NAV === */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        padding: 1.2rem 3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(180deg, rgba(10, 6, 18, 0.95) 0%, transparent 100%);
+        backdrop-filter: blur(10px);
+      }
+
+      .logo {
+        font-family: 'Cinzel', serif;
+        font-size: 1.4rem;
+        font-weight: 900;
+        letter-spacing: 2px;
+        background: linear-gradient(135deg, var(--void-accent), var(--sunwell-gold));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-transform: uppercase;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+        list-style: none;
+      }
+
+      .nav-links a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 500;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        transition: color 0.3s;
+        position: relative;
+      }
+
+      .nav-links a::after {
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        width: 0;
+        height: 1px;
+        background: var(--void-accent);
+        transition: width 0.3s;
+      }
+
+      .nav-links a:hover {
+        color: var(--text-primary);
+      }
+      .nav-links a:hover::after {
+        width: 100%;
+      }
+
+      /* === HERO === */
+      .hero {
+        position: relative;
+        z-index: 10;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 6rem 2rem 4rem;
+        text-align: center;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 1.2rem;
+        border: 1px solid rgba(123, 47, 242, 0.3);
+        border-radius: 100px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--void-accent);
+        background: rgba(123, 47, 242, 0.08);
+        margin-bottom: 2rem;
+        animation: fadeInUp 0.8s ease-out 0.2s both;
+      }
+
+      .hero-badge .dot {
+        width: 6px;
+        height: 6px;
+        background: var(--fel-green);
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow: 0 0 4px var(--fel-green);
+        }
+        50% {
+          opacity: 0.5;
+          box-shadow: 0 0 8px var(--fel-green);
+        }
+      }
+
+      .hero h1 {
+        font-family: 'Cinzel', serif;
+        font-size: clamp(3rem, 8vw, 6.5rem);
+        font-weight: 900;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+        animation: fadeInUp 0.8s ease-out 0.4s both;
+      }
+
+      .hero h1 .line1 {
+        display: block;
+        color: var(--text-primary);
+        text-shadow: 0 0 60px rgba(123, 47, 242, 0.3);
+      }
+
+      .hero h1 .line2 {
+        display: block;
+        background: linear-gradient(
+          135deg,
+          var(--void-bright),
+          var(--sunwell-gold),
+          var(--void-accent)
+        );
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shimmer 4s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0%,
+        100% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+      }
+
+      .hero-subtitle {
+        font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+        color: var(--text-secondary);
+        font-weight: 300;
+        max-width: 600px;
+        margin: 1.5rem auto 3rem;
+        line-height: 1.6;
+        animation: fadeInUp 0.8s ease-out 0.6s both;
+      }
+
+      .hero-subtitle strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* === SEARCH BOX === */
+      .search-container {
+        width: 100%;
+        max-width: 700px;
+        animation: fadeInUp 0.8s ease-out 0.8s both;
+      }
+
+      .search-box {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        background: var(--void-surface);
+        border: 1px solid rgba(123, 47, 242, 0.25);
+        border-radius: 16px;
+        overflow: hidden;
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+      }
+
+      .search-box:focus-within {
+        border-color: var(--void-glow);
+        box-shadow:
+          0 0 30px rgba(123, 47, 242, 0.2),
+          0 0 60px rgba(123, 47, 242, 0.1);
+      }
+
+      .search-fields {
+        flex: 1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+      }
+
+      .search-field {
+        flex: 1;
+        min-width: 120px;
+        position: relative;
+      }
+
+      .search-field:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 20%;
+        height: 60%;
+        width: 1px;
+        background: rgba(123, 47, 242, 0.2);
+      }
+
+      .search-field label {
+        position: absolute;
+        top: 0.6rem;
+        left: 1.2rem;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+
+      .search-field input,
+      .search-field select {
+        width: 100%;
+        padding: 2rem 1.2rem 0.8rem;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 500;
+        outline: none;
+      }
+
+      .search-field select {
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .search-field select option {
+        background: var(--void-mid);
+        color: var(--text-primary);
+      }
+
+      .analyze-btn {
+        padding: 0 2.5rem;
+        background: linear-gradient(135deg, var(--void-glow), var(--void-bright));
+        border: none;
+        color: white;
+        font-family: 'Cinzel', serif;
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.3s;
+        white-space: nowrap;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .analyze-btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+        transform: translateX(-100%);
+        transition: transform 0.5s;
+      }
+
+      .analyze-btn:hover::before {
+        transform: translateX(100%);
+      }
+
+      .analyze-btn:hover {
+        box-shadow: 0 0 30px rgba(123, 47, 242, 0.4);
+      }
+
+      .search-hint {
+        margin-top: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+
+      .search-hint span {
+        color: var(--void-accent);
+      }
+
+      /* === SCORE PREVIEW === */
+      .score-preview {
+        margin-top: 4rem;
+        animation: fadeInUp 0.8s ease-out 1s both;
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .score-badge {
+        padding: 0.6rem 1.4rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        opacity: 0.7;
+        transition:
+          opacity 0.3s,
+          transform 0.3s;
+      }
+
+      .score-badge:hover {
+        opacity: 1;
+        transform: translateY(-2px);
+      }
+
+      .score-badge.gray {
+        background: rgba(128, 128, 128, 0.15);
+        border: 1px solid rgba(128, 128, 128, 0.3);
+        color: #888;
+      }
+
+      .score-badge.green {
+        background: rgba(0, 255, 136, 0.08);
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        color: var(--fel-green);
+      }
+
+      .score-badge.blue {
+        background: rgba(0, 150, 255, 0.08);
+        border: 1px solid rgba(0, 150, 255, 0.3);
+        color: #0096ff;
+      }
+
+      .score-badge.purple {
+        background: rgba(157, 92, 255, 0.08);
+        border: 1px solid rgba(157, 92, 255, 0.3);
+        color: var(--void-bright);
+      }
+
+      .score-badge.orange {
+        background: rgba(255, 159, 28, 0.08);
+        border: 1px solid rgba(255, 159, 28, 0.3);
+        color: var(--sunwell-amber);
+      }
+
+      .score-badge.pink {
+        background: rgba(255, 59, 92, 0.08);
+        border: 1px solid rgba(255, 59, 92, 0.3);
+        color: var(--blood-red);
+      }
+
+      .score-badge.gold {
+        background: rgba(246, 200, 67, 0.08);
+        border: 1px solid rgba(246, 200, 67, 0.3);
+        color: var(--sunwell-gold);
+      }
+
+      /* === FEATURES === */
+      .features {
+        position: relative;
+        z-index: 10;
+        padding: 6rem 2rem 8rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .features-header {
+        text-align: center;
+        margin-bottom: 4rem;
+      }
+
+      .features-header h2 {
+        font-family: 'Cinzel', serif;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+
+      .features-header p {
+        color: var(--text-secondary);
+        font-size: 1.15rem;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .feature-card {
+        position: relative;
+        padding: 2.5rem;
+        background: linear-gradient(135deg, rgba(26, 15, 46, 0.8), rgba(18, 9, 31, 0.9));
+        border: 1px solid rgba(123, 47, 242, 0.12);
+        border-radius: 20px;
+        transition: all 0.4s ease;
+        overflow: hidden;
+      }
+
+      .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--void-glow), transparent);
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+
+      .feature-card:hover {
+        border-color: rgba(123, 47, 242, 0.3);
+        transform: translateY(-4px);
+        box-shadow: 0 20px 60px rgba(123, 47, 242, 0.1);
+      }
+
+      .feature-card:hover::before {
+        opacity: 1;
+      }
+
+      .feature-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .feature-icon.stats {
+        background: linear-gradient(135deg, rgba(0, 150, 255, 0.15), rgba(0, 150, 255, 0.05));
+        border: 1px solid rgba(0, 150, 255, 0.2);
+      }
+
+      .feature-icon.gear {
+        background: linear-gradient(135deg, rgba(246, 200, 67, 0.15), rgba(246, 200, 67, 0.05));
+        border: 1px solid rgba(246, 200, 67, 0.2);
+      }
+
+      .feature-icon.coach {
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 255, 136, 0.05));
+        border: 1px solid rgba(0, 255, 136, 0.2);
+      }
+
+      .feature-card h3 {
+        font-family: 'Cinzel', serif;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+      }
+
+      .feature-card p {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.7;
+      }
+
+      .feature-examples {
+        margin-top: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+
+      .feature-example {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        padding: 0.5rem 0.8rem;
+        background: rgba(123, 47, 242, 0.05);
+        border-radius: 8px;
+        border-left: 2px solid var(--void-glow);
+      }
+
+      .feature-example .arrow {
+        color: var(--void-accent);
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      /* === COACHING PREVIEW === */
+      .coaching-section {
+        position: relative;
+        z-index: 10;
+        padding: 4rem 2rem 8rem;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .coaching-header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .coaching-header h2 {
+        font-family: 'Cinzel', serif;
+        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+
+      .coaching-header p {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+      }
+
+      .coaching-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .coach-msg {
+        padding: 1.2rem 1.5rem;
+        border-radius: 16px;
+        border: 1px solid;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        opacity: 0;
+        animation: slideIn 0.5s ease-out forwards;
+      }
+
+      .coach-msg:nth-child(1) {
+        animation-delay: 0.2s;
+      }
+      .coach-msg:nth-child(2) {
+        animation-delay: 0.4s;
+      }
+      .coach-msg:nth-child(3) {
+        animation-delay: 0.6s;
+      }
+      .coach-msg:nth-child(4) {
+        animation-delay: 0.8s;
+      }
+      .coach-msg:nth-child(5) {
+        animation-delay: 1s;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .coach-msg.warning {
+        background: rgba(255, 159, 28, 0.06);
+        border-color: rgba(255, 159, 28, 0.2);
+      }
+
+      .coach-msg.danger {
+        background: rgba(255, 59, 92, 0.06);
+        border-color: rgba(255, 59, 92, 0.2);
+      }
+
+      .coach-msg.success {
+        background: rgba(0, 255, 136, 0.06);
+        border-color: rgba(0, 255, 136, 0.2);
+      }
+
+      .coach-msg.info {
+        background: rgba(0, 150, 255, 0.06);
+        border-color: rgba(0, 150, 255, 0.2);
+      }
+
+      .coach-msg .icon {
+        font-size: 1.4rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .coach-msg .content strong {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 0.3rem;
+      }
+
+      .coach-msg.warning .content strong {
+        color: var(--sunwell-amber);
+      }
+      .coach-msg.danger .content strong {
+        color: var(--blood-red);
+      }
+      .coach-msg.success .content strong {
+        color: var(--fel-green);
+      }
+      .coach-msg.info .content strong {
+        color: #0096ff;
+      }
+
+      .coach-msg .content span {
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+
+      /* === CTA === */
+      .cta-section {
+        position: relative;
+        z-index: 10;
+        padding: 6rem 2rem;
+        text-align: center;
+      }
+
+      .cta-box {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 4rem 3rem;
+        background: linear-gradient(135deg, var(--void-surface), var(--void-mid));
+        border: 1px solid rgba(123, 47, 242, 0.2);
+        border-radius: 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta-box::before {
+        content: '';
+        position: absolute;
+        top: -1px;
+        left: 20%;
+        right: 20%;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--void-bright), transparent);
+      }
+
+      .cta-box h2 {
+        font-family: 'Cinzel', serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+
+      .cta-box p {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        font-size: 1.05rem;
+      }
+
+      .cta-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1rem 2.5rem;
+        background: linear-gradient(135deg, var(--void-glow), var(--void-bright));
+        border: none;
+        border-radius: 12px;
+        color: white;
+        font-family: 'Cinzel', serif;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+      }
+
+      .cta-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(123, 47, 242, 0.35);
+      }
+
+      .cta-date {
+        margin-top: 1.5rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+
+      .cta-date strong {
+        color: var(--sunwell-gold);
+      }
+
+      /* === FOOTER === */
+      footer {
+        position: relative;
+        z-index: 10;
+        padding: 3rem 2rem;
+        text-align: center;
+        border-top: 1px solid rgba(123, 47, 242, 0.1);
+      }
+
+      footer p {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+
+      footer a {
+        color: var(--void-accent);
+        text-decoration: none;
+      }
+
+      /* === ANIMATIONS === */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* === RESPONSIVE === */
+      @media (max-width: 768px) {
+        nav {
+          padding: 1rem 1.5rem;
+        }
+        .nav-links {
+          display: none;
+        }
+        .search-box {
+          flex-direction: column;
+          border-radius: 16px;
+        }
+        .search-field::after {
+          display: none;
+        }
+        .analyze-btn {
+          padding: 1.2rem 2rem;
+          border-radius: 0 0 0 0;
+        }
+        .score-preview {
+          gap: 0.8rem;
+        }
+        .score-badge {
+          font-size: 0.75rem;
+          padding: 0.5rem 1rem;
+        }
+        .features-grid {
+          grid-template-columns: 1fr;
+        }
+        .cta-box {
+          padding: 3rem 1.5rem;
+        }
+      }
+
+      /* === SCROLL REVEAL === */
+      .reveal {
+        opacity: 0;
+        transform: translateY(40px);
+        transition: all 0.8s ease-out;
+      }
+
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Void Background -->
+    <div class="void-bg"></div>
+
+    <!-- Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Navigation -->
+    <nav>
+      <div class="logo">⚔ StillNoob</div>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#coaching">Coaching</a></li>
+        <li><a href="#launch">Launch</a></li>
+      </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Ready for Midnight Season 1
+      </div>
+
+      <h1>
+        <span class="line1">Are You Still</span>
+        <span class="line2">A Noob?</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Drop your character name. We'll analyze your logs, gear, and gameplay — then tell you
+        <strong>exactly</strong> how to improve.
+      </p>
+
+      <!-- Search Box -->
+      <div class="search-container">
+        <div class="search-box">
+          <div class="search-fields">
+            <div class="search-field" style="flex: 2">
+              <label>Character Name</label>
+              <input type="text" placeholder="Thrall" />
+            </div>
+            <div class="search-field">
+              <label>Realm</label>
+              <input type="text" placeholder="Ragnaros" />
+            </div>
+            <div class="search-field">
+              <label>Region</label>
+              <select>
+                <option>EU</option>
+                <option>US</option>
+                <option>KR</option>
+                <option>TW</option>
+              </select>
+            </div>
+          </div>
+          <button class="analyze-btn">Analyze Me</button>
+        </div>
+        <p class="search-hint">
+          We pull data from <span>WarcraftLogs</span>, <span>Raider.io</span>, and the
+          <span>Armory</span>
+        </p>
+      </div>
+
+      <!-- Score badges preview -->
+      <div class="score-preview">
+        <div class="score-badge gray">🩶 Noob</div>
+        <div class="score-badge green">💚 Casual</div>
+        <div class="score-badge blue">💙 Decent</div>
+        <div class="score-badge purple">💜 Skilled</div>
+        <div class="score-badge orange">🧡 Pro</div>
+        <div class="score-badge pink">❤️‍🔥 Elite</div>
+        <div class="score-badge gold">👑 Legendary</div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+      <div class="features-header reveal">
+        <h2>What We Analyze</h2>
+        <p>Your full character breakdown in seconds — not just data, but answers.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon stats">📊</div>
+          <h3>Performance Stats</h3>
+          <p>
+            Your real numbers compared to players of your class, spec, and item level. See where you
+            stand — honestly.
+          </p>
+          <div class="feature-examples">
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              DPS/HPS ranking vs your ilvl bracket
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Parse percentiles across all your kills
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Week-over-week progression tracking
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon gear">⚔️</div>
+          <h3>Gear Optimization</h3>
+          <p>
+            Your current gear vs what you should have. We map out exact items, where they drop, and
+            the priority order.
+          </p>
+          <div class="feature-examples">
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              BiS list personalized to YOUR current gear
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              "Farm X boss for Y trinket" — clear next steps
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Gems, enchants & consumables check
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon coach">🎯</div>
+          <h3>Personal Coaching</h3>
+          <p>
+            We read your logs like a coach watching your gameplay. You get direct, actionable
+            feedback — not raw data.
+          </p>
+          <div class="feature-examples">
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Rotation analysis with specific fixes
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Mechanics & movement evaluation
+            </div>
+            <div class="feature-example">
+              <span class="arrow">→</span>
+              Cooldown timing optimization
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coaching Preview -->
+    <section class="coaching-section" id="coaching">
+      <div class="coaching-header reveal">
+        <h2>Your Personal Coach Speaks</h2>
+        <p>This is what your dashboard will look like. Real feedback, not just numbers.</p>
+      </div>
+
+      <div class="coaching-messages reveal">
+        <div class="coach-msg danger">
+          <span class="icon">🔴</span>
+          <div class="content">
+            <strong>You're eating avoidable damage</strong>
+            <span
+              >You took 340k avoidable damage on Voidspire Council — that's 3x the raid average.
+              Focus on dodging Shadow Crash and Void Eruption. Your healers will thank you.</span
+            >
+          </div>
+        </div>
+
+        <div class="coach-msg warning">
+          <span class="icon">🟡</span>
+          <div class="content">
+            <strong>Your rotation needs work</strong>
+            <span
+              >You're casting Void Bolt after 3 GCDs instead of on cooldown. This alone is costing
+              you ~8% DPS. Prioritize it immediately after each Void Eruption.</span
+            >
+          </div>
+        </div>
+
+        <div class="coach-msg success">
+          <span class="icon">🟢</span>
+          <div class="content">
+            <strong>Great movement efficiency</strong>
+            <span
+              >Your uptime during movement phases is 94% — top 15% for your spec. You're using
+              instant casts effectively while repositioning. Keep it up.</span
+            >
+          </div>
+        </div>
+
+        <div class="coach-msg info">
+          <span class="icon">🔵</span>
+          <div class="content">
+            <strong>Upgrade priority: Trinket slot</strong>
+            <span
+              >Your Void-Touched Orb (ilvl 616) should be replaced with Sunwell Resonance from
+              Xal'atath (Normal+). Expected DPS gain: +4.2%.</span
+            >
+          </div>
+        </div>
+
+        <div class="coach-msg warning">
+          <span class="icon">🟡</span>
+          <div class="content">
+            <strong>Cooldown timing is off</strong>
+            <span
+              >You used Power Infusion 23 seconds into the fight instead of aligning with Bloodlust.
+              Sync your major CDs with raid buffs for maximum burst windows.</span
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section" id="launch">
+      <div class="cta-box reveal">
+        <h2>Ready to Git Gud?</h2>
+        <p>
+          Midnight Season 1 starts March 17. Be ready from day one with the data-driven edge your
+          raid needs.
+        </p>
+        <a href="#" class="cta-button">
+          Analyze My Character
+          <span>→</span>
+        </a>
+        <p class="cta-date">Launching with <strong>Midnight Season 1 — March 17, 2026</strong></p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>
+        StillNoob is not affiliated with Blizzard Entertainment. World of Warcraft™ is a trademark
+        of Blizzard Entertainment, Inc.
+      </p>
+    </footer>
+
+    <script>
+      // Generate floating particles
+      const particlesContainer = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.animationDuration = 8 + Math.random() * 12 + 's';
+        particle.style.animationDelay = Math.random() * 10 + 's';
+        particle.style.width = 1 + Math.random() * 2 + 'px';
+        particle.style.height = particle.style.width;
+        particlesContainer.appendChild(particle);
+      }
+
+      // Scroll reveal
+      const reveals = document.querySelectorAll('.reveal');
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+
+      reveals.forEach((el) => observer.observe(el));
+
+      // Analyze button click simulation
+      document.querySelector('.analyze-btn').addEventListener('click', () => {
+        const btn = document.querySelector('.analyze-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Analyzing...';
+        btn.style.opacity = '0.7';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.opacity = '1';
+          alert(
+            '🚧 Coming March 17, 2026 — Midnight Season 1!\n\nDrop your email to get notified at launch.',
+          );
+        }, 2000);
+      });
+    </script>
+  </body>
 </html>

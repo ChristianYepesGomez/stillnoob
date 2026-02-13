@@ -64,7 +64,7 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
       }
 
       // Rate limiting: 200ms between each player
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     if (!equipmentResults.length) {
@@ -82,15 +82,18 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
     for (const stat of SECONDARY_STATS) {
       const sum = equipmentResults.reduce(
         (acc, eq) => acc + (eq.aggregated?.statDistribution?.[stat] || 0),
-        0
+        0,
       );
       avgStats[stat] = Math.round((sum / sampleSize) * 10) / 10;
     }
 
     // --- Average item level ---
-    const avgItemLevel = Math.round(
-      (equipmentResults.reduce((acc, eq) => acc + (eq.aggregated?.averageItemLevel || 0), 0) / sampleSize) * 10
-    ) / 10;
+    const avgItemLevel =
+      Math.round(
+        (equipmentResults.reduce((acc, eq) => acc + (eq.aggregated?.averageItemLevel || 0), 0) /
+          sampleSize) *
+          10,
+      ) / 10;
 
     // --- Common enchants (per enchantable slot) ---
     const enchantCounts = {}; // slot → { enchantName → count }
@@ -98,7 +101,8 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
       for (const item of eq.items || []) {
         if (item.enchant) {
           if (!enchantCounts[item.slot]) enchantCounts[item.slot] = {};
-          enchantCounts[item.slot][item.enchant] = (enchantCounts[item.slot][item.enchant] || 0) + 1;
+          enchantCounts[item.slot][item.enchant] =
+            (enchantCounts[item.slot][item.enchant] || 0) + 1;
         }
       }
     }
@@ -143,16 +147,22 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
       sampleSize,
     };
 
-    const existing = await db.select().from(specMetaCache)
-      .where(and(
-        eq(specMetaCache.className, className),
-        eq(specMetaCache.spec, spec),
-        eq(specMetaCache.region, region),
-        eq(specMetaCache.season, season),
-      )).get();
+    const existing = await db
+      .select()
+      .from(specMetaCache)
+      .where(
+        and(
+          eq(specMetaCache.className, className),
+          eq(specMetaCache.spec, spec),
+          eq(specMetaCache.region, region),
+          eq(specMetaCache.season, season),
+        ),
+      )
+      .get();
 
     if (existing) {
-      await db.update(specMetaCache)
+      await db
+        .update(specMetaCache)
         .set({ ...data, lastUpdated: new Date().toISOString() })
         .where(eq(specMetaCache.id, existing.id));
     } else {
@@ -166,7 +176,9 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
       });
     }
 
-    log.info(`Meta cache updated: ${className} ${spec} (${region}) — ${sampleSize} samples, avgIlvl ${avgItemLevel}`);
+    log.info(
+      `Meta cache updated: ${className} ${spec} (${region}) — ${sampleSize} samples, avgIlvl ${avgItemLevel}`,
+    );
 
     return { avgStats, avgItemLevel, commonEnchants, commonGems, sampleSize };
   } catch (err) {
@@ -186,12 +198,17 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
  */
 export async function getSpecMeta(className, spec, region = 'world') {
   try {
-    const row = await db.select().from(specMetaCache)
-      .where(and(
-        eq(specMetaCache.className, className),
-        eq(specMetaCache.spec, spec),
-        eq(specMetaCache.region, region),
-      )).get();
+    const row = await db
+      .select()
+      .from(specMetaCache)
+      .where(
+        and(
+          eq(specMetaCache.className, className),
+          eq(specMetaCache.spec, spec),
+          eq(specMetaCache.region, region),
+        ),
+      )
+      .get();
 
     if (!row) return null;
 

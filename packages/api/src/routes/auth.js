@@ -42,7 +42,10 @@ function signState(data) {
 function verifyState(state) {
   try {
     const { payload, hmac } = JSON.parse(Buffer.from(state, 'base64url').toString());
-    const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(payload).digest('base64url');
+    const expected = crypto
+      .createHmac('sha256', OAUTH_STATE_SECRET)
+      .update(payload)
+      .digest('base64url');
     if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expected))) return null;
     return JSON.parse(payload);
   } catch {
@@ -65,7 +68,8 @@ router.post('/register', authLimiter, async (req, res) => {
     }
 
     // Check if email already exists
-    const existing = await db.select({ id: users.id })
+    const existing = await db
+      .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
       .get();
@@ -108,7 +112,12 @@ router.post('/register', authLimiter, async (req, res) => {
     });
 
     res.status(201).json({
-      user: { id: userId, email: user.email, displayName: displayName || email.split('@')[0], tier: 'free' },
+      user: {
+        id: userId,
+        email: user.email,
+        displayName: displayName || email.split('@')[0],
+        tier: 'free',
+      },
       accessToken,
     });
   } catch (err) {
@@ -126,10 +135,7 @@ router.post('/login', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = await db.select()
-      .from(users)
-      .where(eq(users.email, email.toLowerCase()))
-      .get();
+    const user = await db.select().from(users).where(eq(users.email, email.toLowerCase())).get();
 
     if (!user || !user.passwordHash) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -193,7 +199,8 @@ router.post('/refresh', async (req, res) => {
     }
 
     // Check token exists in DB
-    const stored = await db.select()
+    const stored = await db
+      .select()
       .from(refreshTokens)
       .where(eq(refreshTokens.token, token))
       .get();
@@ -206,17 +213,16 @@ router.post('/refresh', async (req, res) => {
     if (stored.used) {
       await db.delete(refreshTokens).where(eq(refreshTokens.tokenFamily, stored.tokenFamily));
       res.clearCookie('refreshToken', { path: '/api/v1/auth' });
-      return res.status(401).json({ error: 'Refresh token reuse detected — all sessions in this family revoked' });
+      return res
+        .status(401)
+        .json({ error: 'Refresh token reuse detected — all sessions in this family revoked' });
     }
 
     // Mark current token as used (not deleted, kept for reuse detection)
     await db.update(refreshTokens).set({ used: true }).where(eq(refreshTokens.id, stored.id));
 
     // Get fresh user data
-    const user = await db.select()
-      .from(users)
-      .where(eq(users.id, decoded.id))
-      .get();
+    const user = await db.select().from(users).where(eq(users.id, decoded.id)).get();
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -256,7 +262,8 @@ router.post('/logout', authenticateToken, async (req, res) => {
     const token = req.cookies?.refreshToken;
     if (token) {
       // Find the token to get its family, then delete the entire family
-      const stored = await db.select({ tokenFamily: refreshTokens.tokenFamily })
+      const stored = await db
+        .select({ tokenFamily: refreshTokens.tokenFamily })
         .from(refreshTokens)
         .where(eq(refreshTokens.token, token))
         .get();
@@ -275,14 +282,15 @@ router.post('/logout', authenticateToken, async (req, res) => {
 // GET /api/v1/auth/me — get current user
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await db.select({
-      id: users.id,
-      email: users.email,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-      locale: users.locale,
-      tier: users.tier,
-    })
+    const user = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        locale: users.locale,
+        tier: users.tier,
+      })
       .from(users)
       .where(eq(users.id, req.user.id))
       .get();
@@ -334,14 +342,17 @@ router.get('/blizzard/callback', authLimiter, async (req, res) => {
     const tokens = await exchangeCode(code);
 
     // Store Blizzard OAuth provider (tokens encrypted at rest)
-    await db.insert(authProviders).values({
-      userId,
-      provider: 'blizzard',
-      providerUserId: userId, // Will be updated with Blizzard user ID
-      accessToken: encryptToken(tokens.accessToken),
-      refreshToken: encryptToken(tokens.refreshToken),
-      tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
-    }).onConflictDoNothing();
+    await db
+      .insert(authProviders)
+      .values({
+        userId,
+        provider: 'blizzard',
+        providerUserId: userId, // Will be updated with Blizzard user ID
+        accessToken: encryptToken(tokens.accessToken),
+        refreshToken: encryptToken(tokens.refreshToken),
+        tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+      })
+      .onConflictDoNothing();
 
     // Fetch and import characters
     const blizzChars = await getUserCharacters(tokens.accessToken);
@@ -349,19 +360,22 @@ router.get('/blizzard/callback', authLimiter, async (req, res) => {
 
     for (const char of blizzChars) {
       try {
-        await db.insert(characters).values({
-          userId,
-          name: char.name,
-          realm: char.realm,
-          realmSlug: char.realmSlug,
-          region: char.region,
-          className: char.className,
-          classId: char.classId,
-          spec: char.spec,
-          raidRole: char.raidRole,
-          level: char.level,
-          lastSyncedAt: new Date().toISOString(),
-        }).onConflictDoNothing();
+        await db
+          .insert(characters)
+          .values({
+            userId,
+            name: char.name,
+            realm: char.realm,
+            realmSlug: char.realmSlug,
+            region: char.region,
+            className: char.className,
+            classId: char.classId,
+            spec: char.spec,
+            raidRole: char.raidRole,
+            level: char.level,
+            lastSyncedAt: new Date().toISOString(),
+          })
+          .onConflictDoNothing();
         imported++;
       } catch {
         // Character already exists — skip
@@ -421,14 +435,17 @@ router.get('/wcl/callback', authLimiter, async (req, res) => {
     const wclUserId = wclUser?.id?.toString() || userId;
 
     // Store WCL OAuth provider (tokens encrypted at rest)
-    await db.insert(authProviders).values({
-      userId,
-      provider: 'warcraftlogs',
-      providerUserId: wclUserId,
-      accessToken: encryptToken(tokens.accessToken),
-      refreshToken: encryptToken(tokens.refreshToken),
-      tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
-    }).onConflictDoNothing();
+    await db
+      .insert(authProviders)
+      .values({
+        userId,
+        provider: 'warcraftlogs',
+        providerUserId: wclUserId,
+        accessToken: encryptToken(tokens.accessToken),
+        refreshToken: encryptToken(tokens.refreshToken),
+        tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+      })
+      .onConflictDoNothing();
 
     res.redirect(`${frontendUrl}/dashboard?wcl=linked`);
   } catch (err) {

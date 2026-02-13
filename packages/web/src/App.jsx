@@ -26,12 +26,21 @@ export default function App() {
     <Routes>
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
+      <Route
+        path="/register"
+        element={user ? <Navigate to="/dashboard" replace /> : <Register />}
+      />
       {/* Public character profile (no auth) */}
       <Route path="/character/:region/:realm/:name" element={<CharacterPublic />} />
 
       {/* Authenticated app */}
-      <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/analysis/:characterId?" element={<Analysis />} />
         <Route path="/guild/:guildId?" element={<GuildPage />} />

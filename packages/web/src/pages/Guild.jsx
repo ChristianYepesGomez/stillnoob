@@ -21,8 +21,9 @@ export default function GuildPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    guildsAPI.list()
-      .then(r => {
+    guildsAPI
+      .list()
+      .then((r) => {
         setGuilds(r.data);
         if (guildId) {
           loadGuild(parseInt(guildId));
@@ -47,7 +48,7 @@ export default function GuildPage() {
     try {
       const realmSlug = form.realmSlug || form.realm.toLowerCase().replace(/\s+/g, '-');
       const { data } = await guildsAPI.create({ ...form, realmSlug });
-      setGuilds(prev => [...prev, data.guild]);
+      setGuilds((prev) => [...prev, data.guild]);
       setForm({ name: '', realm: '', realmSlug: '', region: 'eu' });
       navigate(`/guild/${data.guild.id}`);
     } catch (err) {
@@ -81,7 +82,7 @@ export default function GuildPage() {
     if (!selectedGuild) return;
     try {
       const { data } = await guildsAPI.regenerateInviteCode(selectedGuild.id);
-      setSelectedGuild(prev => ({ ...prev, inviteCode: data.inviteCode }));
+      setSelectedGuild((prev) => ({ ...prev, inviteCode: data.inviteCode }));
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to regenerate invite code');
     }
@@ -90,7 +91,7 @@ export default function GuildPage() {
   const handleLeave = async (id) => {
     try {
       await guildsAPI.leave(id);
-      setGuilds(prev => prev.filter(g => g.id !== id));
+      setGuilds((prev) => prev.filter((g) => g.id !== id));
       if (selectedGuild?.id === id) setSelectedGuild(null);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to leave guild');
@@ -127,7 +128,7 @@ export default function GuildPage() {
 
   // Guild detail view
   if (selectedGuild) {
-    const myMembership = selectedGuild.members?.find(m => m.userId === user?.id);
+    const myMembership = selectedGuild.members?.find((m) => m.userId === user?.id);
     const isLeader = myMembership?.role === 'leader';
     const isOfficer = isLeader || myMembership?.role === 'officer';
 
@@ -135,11 +136,19 @@ export default function GuildPage() {
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <button onClick={() => { setSelectedGuild(null); navigate('/guild'); }} className="text-xs text-void-secondary hover:text-void-accent mb-2">
+            <button
+              onClick={() => {
+                setSelectedGuild(null);
+                navigate('/guild');
+              }}
+              className="text-xs text-void-secondary hover:text-void-accent mb-2"
+            >
               <i className="fas fa-arrow-left mr-1" /> Back to guilds
             </button>
             <h1 className="font-cinzel text-2xl font-bold text-white">{selectedGuild.name}</h1>
-            <p className="text-sm text-void-secondary">{selectedGuild.realm} — {selectedGuild.region.toUpperCase()}</p>
+            <p className="text-sm text-void-secondary">
+              {selectedGuild.realm} — {selectedGuild.region.toUpperCase()}
+            </p>
           </div>
           {!isLeader && (
             <button
@@ -152,7 +161,9 @@ export default function GuildPage() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">{error}</div>
+          <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">
+            {error}
+          </div>
         )}
 
         {/* Invite Code (leader/officer only) */}
@@ -181,7 +192,9 @@ export default function GuildPage() {
                 <i className="fas fa-sync-alt" />
               </button>
             </div>
-            <p className="text-xs text-void-muted mt-2">Share this code with players you want to invite. Guild ID: {selectedGuild.id}</p>
+            <p className="text-xs text-void-muted mt-2">
+              Share this code with players you want to invite. Guild ID: {selectedGuild.id}
+            </p>
           </div>
         )}
 
@@ -192,16 +205,23 @@ export default function GuildPage() {
             Members ({selectedGuild.members?.length || 0})
           </h2>
           <div className="space-y-2">
-            {(selectedGuild.members || []).map(member => (
-              <div key={member.userId} className="flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/5">
+            {(selectedGuild.members || []).map((member) => (
+              <div
+                key={member.userId}
+                className="flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/5"
+              >
                 <span className="text-sm text-white font-medium flex-1">
                   {member.displayName || member.userId}
                 </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase ${
-                  member.role === 'leader' ? 'bg-sunwell-gold/20 text-sunwell-gold' :
-                  member.role === 'officer' ? 'bg-void-bright/20 text-void-bright' :
-                  'bg-void-surface text-void-secondary'
-                }`}>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase ${
+                    member.role === 'leader'
+                      ? 'bg-sunwell-gold/20 text-sunwell-gold'
+                      : member.role === 'officer'
+                        ? 'bg-void-bright/20 text-void-bright'
+                        : 'bg-void-surface text-void-secondary'
+                  }`}
+                >
                   {member.role}
                 </span>
                 {isOfficer && member.userId !== user?.id && member.role !== 'leader' && (
@@ -247,7 +267,9 @@ export default function GuildPage() {
       <h1 className="font-cinzel text-2xl font-bold text-white">Guilds</h1>
 
       {error && (
-        <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">{error}</div>
+        <div className="p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">
+          {error}
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -261,10 +283,13 @@ export default function GuildPage() {
             <p className="text-sm text-void-secondary">You haven't joined any guilds yet.</p>
           ) : (
             <div className="space-y-2">
-              {guilds.map(g => (
+              {guilds.map((g) => (
                 <button
                   key={g.id}
-                  onClick={() => { navigate(`/guild/${g.id}`); loadGuild(g.id); }}
+                  onClick={() => {
+                    navigate(`/guild/${g.id}`);
+                    loadGuild(g.id);
+                  }}
                   className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 hover:bg-void-surface/30 border border-void-bright/10 transition-colors text-left"
                 >
                   <span className="text-sm font-semibold text-white">{g.name}</span>
@@ -286,20 +311,22 @@ export default function GuildPage() {
             <input
               type="text"
               value={form.name}
-              onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="Guild name"
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               required
             />
             <RegionSelect
               value={form.region.toUpperCase()}
-              onChange={(val) => setForm(p => ({ ...p, region: val.toLowerCase(), realm: '', realmSlug: '' }))}
+              onChange={(val) =>
+                setForm((p) => ({ ...p, region: val.toLowerCase(), realm: '', realmSlug: '' }))
+              }
               inputClassName="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none text-left cursor-pointer"
             />
             <RealmSelect
               region={form.region}
               value={form.realm}
-              onChange={(name, slug) => setForm(p => ({ ...p, realm: name, realmSlug: slug }))}
+              onChange={(name, slug) => setForm((p) => ({ ...p, realm: name, realmSlug: slug }))}
               inputClassName="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               placeholder="Realm (e.g. Tarren Mill)"
             />
@@ -323,7 +350,7 @@ export default function GuildPage() {
             <input
               type="text"
               value={joinForm.guildId}
-              onChange={(e) => setJoinForm(p => ({ ...p, guildId: e.target.value }))}
+              onChange={(e) => setJoinForm((p) => ({ ...p, guildId: e.target.value }))}
               placeholder="Guild ID"
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               required
@@ -331,7 +358,7 @@ export default function GuildPage() {
             <input
               type="text"
               value={joinForm.inviteCode}
-              onChange={(e) => setJoinForm(p => ({ ...p, inviteCode: e.target.value }))}
+              onChange={(e) => setJoinForm((p) => ({ ...p, inviteCode: e.target.value }))}
               placeholder="Invite code"
               className="w-full px-3 py-2 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white placeholder-void-muted focus:border-void-bright focus:outline-none"
               required

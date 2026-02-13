@@ -31,11 +31,17 @@ export default function RecentFightsSection({ data }) {
               <tr className="text-void-text/60 border-b border-void-bright/10">
                 <th className="text-left py-2 px-2">{t('analysis.date')}</th>
                 <th className="text-left py-2 px-2">{t('analysis.boss')}</th>
-                <th className="text-center py-2 px-2 hidden sm:table-cell">{t('analysis.difficulty')}</th>
+                <th className="text-center py-2 px-2 hidden sm:table-cell">
+                  {t('analysis.difficulty')}
+                </th>
                 <th className="text-center py-2 px-2">{t('analysis.dps')}</th>
                 <th className="text-center py-2 px-2">{t('analysis.deaths')}</th>
-                <th className="text-center py-2 px-2 hidden md:table-cell">{t('analysis.dmgTaken')}</th>
-                <th className="text-center py-2 px-2 hidden md:table-cell">{t('analysis.vsMedian')}</th>
+                <th className="text-center py-2 px-2 hidden md:table-cell">
+                  {t('analysis.dmgTaken')}
+                </th>
+                <th className="text-center py-2 px-2 hidden md:table-cell">
+                  {t('analysis.vsMedian')}
+                </th>
                 <th className="text-center py-2 px-2 hidden lg:table-cell">
                   <i className="fas fa-flask" title={t('categories.consumables')} />
                 </th>
@@ -45,12 +51,23 @@ export default function RecentFightsSection({ data }) {
               {recentFights.map((fight, i) => {
                 const diffColor = DIFFICULTY_COLORS[fight.difficulty] || '#fff';
                 const medianPct = Math.round(fight.dpsVsMedian || 100);
-                const usedConsumables = (fight.potions ? 1 : 0) + (fight.healthstones ? 1 : 0) + (fight.combatPotions ? 1 : 0);
+                const usedConsumables =
+                  (fight.potions ? 1 : 0) +
+                  (fight.healthstones ? 1 : 0) +
+                  (fight.combatPotions ? 1 : 0);
 
                 return (
-                  <tr key={i} className="border-b border-void-bright/5 hover:bg-void-surface/10 transition-colors">
+                  <tr
+                    key={i}
+                    className="border-b border-void-bright/5 hover:bg-void-surface/10 transition-colors"
+                  >
                     <td className="py-2 px-2 text-void-secondary whitespace-nowrap">
-                      {fight.date ? new Date(fight.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—'}
+                      {fight.date
+                        ? new Date(fight.date).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : '—'}
                     </td>
                     <td className="py-2 px-2 text-white font-medium">
                       {fight.boss}
@@ -81,17 +98,35 @@ export default function RecentFightsSection({ data }) {
                       {formatDmg(fight.damageTaken || 0)}
                     </td>
                     <td className="py-2 px-2 text-center hidden md:table-cell">
-                      <span className={`font-bold ${
-                        medianPct >= 100 ? 'text-green-400' : medianPct >= 80 ? 'text-yellow-400' : 'text-red-400'
-                      }`}>
+                      <span
+                        className={`font-bold ${
+                          medianPct >= 100
+                            ? 'text-green-400'
+                            : medianPct >= 80
+                              ? 'text-yellow-400'
+                              : 'text-red-400'
+                        }`}
+                      >
                         {medianPct}%
                       </span>
                     </td>
                     <td className="py-2 px-2 text-center hidden lg:table-cell">
                       <div className="flex items-center justify-center gap-1">
-                        {fight.potions > 0 && <i className="fas fa-heart text-red-400 text-[9px]" title="Health Potion" />}
-                        {fight.healthstones > 0 && <i className="fas fa-gem text-green-400 text-[9px]" title="Healthstone" />}
-                        {fight.combatPotions > 0 && <i className="fas fa-bolt text-blue-400 text-[9px]" title="Combat Potion" />}
+                        {fight.potions > 0 && (
+                          <i
+                            className="fas fa-heart text-red-400 text-[9px]"
+                            title="Health Potion"
+                          />
+                        )}
+                        {fight.healthstones > 0 && (
+                          <i className="fas fa-gem text-green-400 text-[9px]" title="Healthstone" />
+                        )}
+                        {fight.combatPotions > 0 && (
+                          <i
+                            className="fas fa-bolt text-blue-400 text-[9px]"
+                            title="Combat Potion"
+                          />
+                        )}
                         {usedConsumables === 0 && <span className="text-void-muted">—</span>}
                       </div>
                     </td>

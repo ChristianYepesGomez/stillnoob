@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { publicAPI } from '../services/api';
 
-export default function RealmSelect({ region, value, onChange, inputClassName = '', placeholder = 'Ragnaros' }) {
+export default function RealmSelect({
+  region,
+  value,
+  onChange,
+  inputClassName = '',
+  placeholder = 'Ragnaros',
+}) {
   const [realms, setRealms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(value || '');
@@ -14,8 +20,9 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
   useEffect(() => {
     if (!region) return;
     setLoading(true);
-    publicAPI.realms(region)
-      .then(r => setRealms(r.data.realms || []))
+    publicAPI
+      .realms(region)
+      .then((r) => setRealms(r.data.realms || []))
       .catch(() => setRealms([]))
       .finally(() => setLoading(false));
   }, [region]);
@@ -28,7 +35,7 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
   const filtered = useMemo(() => {
     if (!query.trim()) return realms;
     const q = query.toLowerCase();
-    return realms.filter(r => r.name.toLowerCase().includes(q));
+    return realms.filter((r) => r.name.toLowerCase().includes(q));
   }, [realms, query]);
 
   useEffect(() => {
@@ -58,11 +65,11 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setHighlightIndex(i => Math.min(i + 1, filtered.length - 1));
+        setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1));
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setHighlightIndex(i => Math.max(i - 1, 0));
+        setHighlightIndex((i) => Math.max(i - 1, 0));
         break;
       case 'Enter':
         e.preventDefault();
@@ -105,7 +112,10 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
         onFocus={() => setIsOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={loading ? 'Loading realms...' : placeholder}
-        className={inputClassName || 'w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50'}
+        className={
+          inputClassName ||
+          'w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50'
+        }
         autoComplete="off"
         role="combobox"
         aria-expanded={isOpen}
@@ -115,7 +125,8 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
       {isOpen && filtered.length > 0 && (
         <ul
           ref={listRef}
-          className="absolute z-50 top-full left-0 right-0 max-h-60 overflow-y-auto bg-void-mid border border-void-glow/30 rounded-b-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]"
+          className="absolute z-[100] top-full left-0 right-0 max-h-60 overflow-y-auto rounded-b-xl border border-void-bright/25"
+          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
           role="listbox"
         >
           {filtered.slice(0, 50).map((realm, i) => (
@@ -123,13 +134,14 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
               key={realm.id}
               role="option"
               aria-selected={i === highlightIndex}
-              className={`px-4 py-2 text-sm font-rajdhani cursor-pointer transition-colors
-                ${i === highlightIndex
-                  ? 'bg-void-glow/20 text-white'
-                  : 'text-void-secondary hover:bg-void-surface hover:text-white'
-                }`}
+              className={`px-4 py-2.5 text-sm font-rajdhani cursor-pointer transition-colors border-b border-void-bright/5 last:border-b-0
+                ${i === highlightIndex ? 'text-white' : 'text-void-text/80 hover:text-white'}`}
+              style={{ backgroundColor: i === highlightIndex ? '#251a3d' : '#1a0f2e' }}
               onMouseEnter={() => setHighlightIndex(i)}
-              onMouseDown={(e) => { e.preventDefault(); selectRealm(realm); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectRealm(realm);
+              }}
             >
               {realm.name}
             </li>
@@ -138,7 +150,10 @@ export default function RealmSelect({ region, value, onChange, inputClassName = 
       )}
 
       {isOpen && filtered.length === 0 && query.trim() && !loading && (
-        <div className="absolute z-50 top-full left-0 right-0 px-4 py-3 bg-void-mid border border-void-glow/30 rounded-b-xl text-sm text-void-muted font-rajdhani">
+        <div
+          className="absolute z-[100] top-full left-0 right-0 px-4 py-3 border border-void-bright/25 rounded-b-xl text-sm text-void-muted font-rajdhani"
+          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
+        >
           No realms found
         </div>
       )}

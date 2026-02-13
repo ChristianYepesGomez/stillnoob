@@ -13,19 +13,21 @@ if (process.env.NODE_ENV === 'production') {
 // Middleware
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
-  .map(o => o.trim());
+  .map((o) => o.trim());
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
-      cb(null, true);
-    } else {
-      cb(new Error('CORS not allowed'));
-    }
-  },
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error('CORS not allowed'));
+      }
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use('/api', apiLimiter);

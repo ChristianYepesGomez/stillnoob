@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler pages deploy dist --project-name stillnoob"
+    "deploy": "vite build && npx wrangler pages deploy dist --project-name stillnoob-web --commit-dirty=true"
   },
   "dependencies": {
     "@stillnoob/shared": "*",

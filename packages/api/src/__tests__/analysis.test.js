@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { calculateStillNoobScore, detectPlayerLevel, generateRecommendations } from '../services/analysis.js';
+import {
+  calculateStillNoobScore,
+  detectPlayerLevel,
+  generateRecommendations,
+} from '../services/analysis.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -178,10 +182,30 @@ describe('calculateStillNoobScore', () => {
   });
 
   it('total score is clamped between 0 and 100', () => {
-    const low = calculateStillNoobScore(makeSummary({ dpsVsMedianPct: 0, deathRate: 10, consumableScore: 0, avgInterrupts: 0, avgDispels: 0 }), []);
-    const high = calculateStillNoobScore(makeSummary({ dpsVsMedianPct: 200, deathRate: 0, consumableScore: 200, avgInterrupts: 10, avgDispels: 10 }), [
-      makeBoss({ avgDps: 5000 }), makeBoss({ bossName: 'B2', avgDps: 5000 }), makeBoss({ bossName: 'B3', avgDps: 5000 }),
-    ]);
+    const low = calculateStillNoobScore(
+      makeSummary({
+        dpsVsMedianPct: 0,
+        deathRate: 10,
+        consumableScore: 0,
+        avgInterrupts: 0,
+        avgDispels: 0,
+      }),
+      [],
+    );
+    const high = calculateStillNoobScore(
+      makeSummary({
+        dpsVsMedianPct: 200,
+        deathRate: 0,
+        consumableScore: 200,
+        avgInterrupts: 10,
+        avgDispels: 10,
+      }),
+      [
+        makeBoss({ avgDps: 5000 }),
+        makeBoss({ bossName: 'B2', avgDps: 5000 }),
+        makeBoss({ bossName: 'B3', avgDps: 5000 }),
+      ],
+    );
     expect(low.total).toBeGreaterThanOrEqual(0);
     expect(high.total).toBeLessThanOrEqual(100);
   });
@@ -316,7 +340,9 @@ describe('detectPlayerLevel', () => {
     const levelConsistent = detectPlayerLevel(summary, consistent);
     const levelInconsistent = detectPlayerLevel(summary, inconsistent);
     const levels = ['beginner', 'intermediate', 'advanced'];
-    expect(levels.indexOf(levelConsistent)).toBeGreaterThanOrEqual(levels.indexOf(levelInconsistent));
+    expect(levels.indexOf(levelConsistent)).toBeGreaterThanOrEqual(
+      levels.indexOf(levelInconsistent),
+    );
   });
 });
 
@@ -370,8 +396,12 @@ describe('generateRecommendations', () => {
   it('tips are sorted by priority (lowest number first)', () => {
     const result = generateRecommendations({
       summary: makeSummary({
-        deathRate: 0.5, avgFlaskUptime: 30, combatPotionRate: 20,
-        foodRate: 10, avgActiveTime: 60, avgCpm: 15,
+        deathRate: 0.5,
+        avgFlaskUptime: 30,
+        combatPotionRate: 20,
+        foodRate: 10,
+        avgActiveTime: 60,
+        avgCpm: 15,
       }),
       bossBreakdown: [],
       weeklyTrends: [],
@@ -386,8 +416,13 @@ describe('generateRecommendations', () => {
   it('respects TIP_LIMITS: beginner gets 3 primary tips', () => {
     const result = generateRecommendations({
       summary: makeSummary({
-        deathRate: 0.5, avgFlaskUptime: 30, combatPotionRate: 20,
-        foodRate: 10, avgActiveTime: 60, avgCpm: 15, avgParsePercentile: 10,
+        deathRate: 0.5,
+        avgFlaskUptime: 30,
+        combatPotionRate: 20,
+        foodRate: 10,
+        avgActiveTime: 60,
+        avgCpm: 15,
+        avgParsePercentile: 10,
       }),
       bossBreakdown: [],
       weeklyTrends: [],
@@ -400,8 +435,13 @@ describe('generateRecommendations', () => {
   it('respects TIP_LIMITS: intermediate gets 5 primary tips', () => {
     const result = generateRecommendations({
       summary: makeSummary({
-        deathRate: 0.5, avgFlaskUptime: 30, combatPotionRate: 20,
-        foodRate: 10, avgActiveTime: 60, avgCpm: 15, avgParsePercentile: 10,
+        deathRate: 0.5,
+        avgFlaskUptime: 30,
+        combatPotionRate: 20,
+        foodRate: 10,
+        avgActiveTime: 60,
+        avgCpm: 15,
+        avgParsePercentile: 10,
       }),
       bossBreakdown: [],
       weeklyTrends: [],
@@ -434,16 +474,14 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_uptime_drop');
+    const tip = allTips.find((t) => t.key === 'boss_uptime_drop');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Hard Boss');
     expect(tip.data.drop).toBe(16);
   });
 
   it('does NOT generate boss_uptime_drop when drop < 8pts', () => {
-    const bosses = [
-      makeBoss({ bossName: 'Boss A', avgActiveTime: 85, fights: 5 }),
-    ];
+    const bosses = [makeBoss({ bossName: 'Boss A', avgActiveTime: 85, fights: 5 })];
     const result = generateRecommendations({
       summary: makeSummary({ avgActiveTime: 88 }),
       bossBreakdown: bosses,
@@ -451,13 +489,11 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'boss_uptime_drop')).toBe(false);
+    expect(allTips.some((t) => t.key === 'boss_uptime_drop')).toBe(false);
   });
 
   it('generates boss_cpm_drop when boss CPM < 85% of average', () => {
-    const bosses = [
-      makeBoss({ bossName: 'Mechanic Boss', avgCpm: 25, fights: 5 }),
-    ];
+    const bosses = [makeBoss({ bossName: 'Mechanic Boss', avgCpm: 25, fights: 5 })];
     const result = generateRecommendations({
       summary: makeSummary({ avgCpm: 35 }),
       bossBreakdown: bosses,
@@ -465,7 +501,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_cpm_drop');
+    const tip = allTips.find((t) => t.key === 'boss_cpm_drop');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Mechanic Boss');
   });
@@ -482,7 +518,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_excess_damage');
+    const tip = allTips.find((t) => t.key === 'boss_excess_damage');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Painful Boss');
     expect(tip.data.excessPct).toBe(100);
@@ -500,15 +536,28 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_death_spike');
+    const tip = allTips.find((t) => t.key === 'boss_death_spike');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Deadly Boss');
   });
 
   it('generates boss_potion_neglect on weakest DPS boss with low pot rate', () => {
     const bosses = [
-      makeBoss({ bossName: 'Strong Boss', dpsVsMedian: 120, combatPotionRate: 80, fights: 5, avgDps: 6000 }),
-      makeBoss({ bossId: 1002, bossName: 'Weak Boss', dpsVsMedian: 90, combatPotionRate: 30, fights: 5, avgDps: 4000 }),
+      makeBoss({
+        bossName: 'Strong Boss',
+        dpsVsMedian: 120,
+        combatPotionRate: 80,
+        fights: 5,
+        avgDps: 6000,
+      }),
+      makeBoss({
+        bossId: 1002,
+        bossName: 'Weak Boss',
+        dpsVsMedian: 90,
+        combatPotionRate: 30,
+        fights: 5,
+        avgDps: 4000,
+      }),
     ];
     const result = generateRecommendations({
       summary: makeSummary(),
@@ -517,7 +566,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_potion_neglect');
+    const tip = allTips.find((t) => t.key === 'boss_potion_neglect');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Weak Boss');
     expect(tip.data.rate).toBe(30);
@@ -536,7 +585,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'advanced',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'boss_weakest_dps');
+    const tip = allTips.find((t) => t.key === 'boss_weakest_dps');
     expect(tip).toBeDefined();
     expect(tip.data.weakBoss).toBe('Weak Boss');
     expect(tip.data.strongBoss).toBe('Strong Boss');
@@ -554,9 +603,9 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'boss_uptime_drop')).toBe(true);
-    expect(allTips.some(t => t.key === 'boss_excess_damage')).toBe(true);
-    expect(allTips.some(t => t.key === 'boss_death_spike')).toBe(true);
+    expect(allTips.some((t) => t.key === 'boss_uptime_drop')).toBe(true);
+    expect(allTips.some((t) => t.key === 'boss_excess_damage')).toBe(true);
+    expect(allTips.some((t) => t.key === 'boss_death_spike')).toBe(true);
   });
 
   // ── Tier 2: Cross-Pattern Tips ──
@@ -573,15 +622,27 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'deaths_from_damage');
+    const tip = allTips.find((t) => t.key === 'deaths_from_damage');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Deadly Boss');
   });
 
   it('generates uptime_drives_dps when low-uptime boss has low DPS vs median', () => {
     const bosses = [
-      makeBoss({ bossId: 1001, bossName: 'Good Boss', avgActiveTime: 90, dpsVsMedian: 115, fights: 5 }),
-      makeBoss({ bossId: 1002, bossName: 'Bad Boss', avgActiveTime: 72, dpsVsMedian: 85, fights: 5 }),
+      makeBoss({
+        bossId: 1001,
+        bossName: 'Good Boss',
+        avgActiveTime: 90,
+        dpsVsMedian: 115,
+        fights: 5,
+      }),
+      makeBoss({
+        bossId: 1002,
+        bossName: 'Bad Boss',
+        avgActiveTime: 72,
+        dpsVsMedian: 85,
+        fights: 5,
+      }),
     ];
     const result = generateRecommendations({
       summary: makeSummary({ avgActiveTime: 88 }),
@@ -590,7 +651,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'uptime_drives_dps');
+    const tip = allTips.find((t) => t.key === 'uptime_drives_dps');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Bad Boss');
   });
@@ -603,7 +664,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'parse_vs_raid');
+    const tip = allTips.find((t) => t.key === 'parse_vs_raid');
     expect(tip).toBeDefined();
     expect(tip.data.context).toBe('raid_low');
   });
@@ -616,7 +677,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'advanced',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'parse_vs_raid');
+    const tip = allTips.find((t) => t.key === 'parse_vs_raid');
     expect(tip).toBeDefined();
     expect(tip.data.context).toBe('raid_strong');
   });
@@ -629,7 +690,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'defensive_gap');
+    const tip = allTips.find((t) => t.key === 'defensive_gap');
     expect(tip).toBeDefined();
     expect(tip.data.healthstoneRate).toBe(10);
   });
@@ -642,7 +703,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'defensive_gap')).toBe(false);
+    expect(allTips.some((t) => t.key === 'defensive_gap')).toBe(false);
   });
 
   // ── Tier 3: General Tips ──
@@ -655,7 +716,9 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'high_death_rate' && t.severity === 'critical')).toBe(true);
+    expect(allTips.some((t) => t.key === 'high_death_rate' && t.severity === 'critical')).toBe(
+      true,
+    );
   });
 
   it('does NOT generate high_death_rate for deathRate ≤ 0.4', () => {
@@ -666,7 +729,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'high_death_rate')).toBe(false);
+    expect(allTips.some((t) => t.key === 'high_death_rate')).toBe(false);
   });
 
   it('generates low_active_time when < 85%, critical when < 70%', () => {
@@ -677,7 +740,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'low_active_time');
+    const tip = allTips.find((t) => t.key === 'low_active_time');
     expect(tip).toBeDefined();
     expect(tip.severity).toBe('critical');
   });
@@ -690,7 +753,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_cpm')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_cpm')).toBe(true);
   });
 
   it('generates low_cpm based on spec baseline (high-CPM spec)', () => {
@@ -703,7 +766,7 @@ describe('generateRecommendations', () => {
       specCpmBaseline: 42,
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_cpm')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_cpm')).toBe(true);
   });
 
   it('does NOT generate low_cpm when above spec threshold', () => {
@@ -716,7 +779,7 @@ describe('generateRecommendations', () => {
       specCpmBaseline: 28,
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_cpm')).toBe(false);
+    expect(allTips.some((t) => t.key === 'low_cpm')).toBe(false);
   });
 
   it('generates low_flask when uptime < 90%', () => {
@@ -727,7 +790,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_flask')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_flask')).toBe(true);
   });
 
   it('generates low_combat_potion when < 60%', () => {
@@ -738,7 +801,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_combat_potion')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_combat_potion')).toBe(true);
   });
 
   it('generates low_parse for avgParsePercentile < 25 (critical)', () => {
@@ -749,7 +812,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_parse' && t.severity === 'critical')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_parse' && t.severity === 'critical')).toBe(true);
   });
 
   it('generates below_avg_parse for parse 25-49', () => {
@@ -760,7 +823,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'below_avg_parse' && t.severity === 'warning')).toBe(true);
+    expect(allTips.some((t) => t.key === 'below_avg_parse' && t.severity === 'warning')).toBe(true);
   });
 
   it('generates low_interrupts when avg < 1 with enough fights', () => {
@@ -771,7 +834,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_interrupts')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_interrupts')).toBe(true);
   });
 
   it('generates low_interrupts with only 2 fights', () => {
@@ -782,7 +845,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_interrupts')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_interrupts')).toBe(true);
   });
 
   it('does NOT generate low_interrupts with only 1 fight', () => {
@@ -793,7 +856,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'beginner',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'low_interrupts')).toBe(false);
+    expect(allTips.some((t) => t.key === 'low_interrupts')).toBe(false);
   });
 
   it('generates no_mplus_activity when raid data exists but M+ score is 0', () => {
@@ -805,7 +868,7 @@ describe('generateRecommendations', () => {
       raiderIO: { mythicPlus: { score: 0 } },
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'no_mplus_activity')).toBe(true);
+    expect(allTips.some((t) => t.key === 'no_mplus_activity')).toBe(true);
   });
 
   it('does NOT generate no_mplus_activity when M+ score > 0', () => {
@@ -817,21 +880,22 @@ describe('generateRecommendations', () => {
       raiderIO: { mythicPlus: { score: 1500 } },
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'no_mplus_activity')).toBe(false);
+    expect(allTips.some((t) => t.key === 'no_mplus_activity')).toBe(false);
   });
 
   it('generates good_preparation when all consumables are high', () => {
     const result = generateRecommendations({
       summary: makeSummary({
         combatPotionRate: 80,
-        avgFlaskUptime: 95, foodRate: 90,
+        avgFlaskUptime: 95,
+        foodRate: 90,
       }),
       bossBreakdown: [],
       weeklyTrends: [],
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'good_preparation');
+    const tip = allTips.find((t) => t.key === 'good_preparation');
     expect(tip).toBeDefined();
     expect(tip.severity).toBe('positive');
   });
@@ -848,7 +912,7 @@ describe('generateRecommendations', () => {
       playerLevel: 'advanced',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'strong_boss');
+    const tip = allTips.find((t) => t.key === 'strong_boss');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Best Boss');
     expect(tip.severity).toBe('positive');
@@ -866,7 +930,7 @@ describe('generateRecommendations', () => {
       spec: 'Protection Warrior',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(true);
+    expect(allTips.some((t) => t.key === 'tank_death_impact')).toBe(true);
   });
 
   it('does NOT generate tank_death_impact for DPS with high death rate', () => {
@@ -879,7 +943,7 @@ describe('generateRecommendations', () => {
       spec: 'Arms',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(false);
+    expect(allTips.some((t) => t.key === 'tank_death_impact')).toBe(false);
   });
 
   it('generates tank_low_cpm_mitigation for Tank with low CPM', () => {
@@ -893,7 +957,7 @@ describe('generateRecommendations', () => {
       specCpmBaseline: 25,
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'tank_low_cpm_mitigation');
+    const tip = allTips.find((t) => t.key === 'tank_low_cpm_mitigation');
     expect(tip).toBeDefined();
     expect(tip.data.spec).toBe('Blood');
   });
@@ -912,7 +976,7 @@ describe('generateRecommendations', () => {
       spec: 'Protection Paladin',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const tip = allTips.find(t => t.key === 'tank_dtps_outlier');
+    const tip = allTips.find((t) => t.key === 'tank_dtps_outlier');
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Spike Boss');
   });
@@ -927,7 +991,7 @@ describe('generateRecommendations', () => {
       spec: 'Vengeance',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'tank_low_interrupts')).toBe(true);
+    expect(allTips.some((t) => t.key === 'tank_low_interrupts')).toBe(true);
   });
 
   it('generates healer_low_dispels for Healer with low dispels', () => {
@@ -940,7 +1004,7 @@ describe('generateRecommendations', () => {
       spec: 'Restoration Druid',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(true);
+    expect(allTips.some((t) => t.key === 'healer_low_dispels')).toBe(true);
   });
 
   it('does NOT generate healer_low_dispels for DPS', () => {
@@ -953,7 +1017,7 @@ describe('generateRecommendations', () => {
       spec: 'Shadow',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(false);
+    expect(allTips.some((t) => t.key === 'healer_low_dispels')).toBe(false);
   });
 
   it('generates healer_death_impact for Healer with moderate death rate', () => {
@@ -966,7 +1030,7 @@ describe('generateRecommendations', () => {
       spec: 'Holy Priest',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'healer_death_impact')).toBe(true);
+    expect(allTips.some((t) => t.key === 'healer_death_impact')).toBe(true);
   });
 
   it('does NOT generate role-specific tips when role is undefined (defaults to DPS)', () => {
@@ -977,36 +1041,257 @@ describe('generateRecommendations', () => {
       playerLevel: 'intermediate',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(false);
-    expect(allTips.some(t => t.key === 'healer_death_impact')).toBe(false);
-    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(false);
+    expect(allTips.some((t) => t.key === 'tank_death_impact')).toBe(false);
+    expect(allTips.some((t) => t.key === 'healer_death_impact')).toBe(false);
+    expect(allTips.some((t) => t.key === 'healer_low_dispels')).toBe(false);
+  });
+
+  // ── Tier 3: Spec Coaching Context ──
+
+  it('generates spec_cpm_context instead of low_cpm when spec coaching is available', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgCpm: 18 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+      className: 'Warrior',
+      spec: 'Fury',
+      specCpmBaseline: 42,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'spec_cpm_context');
+    expect(tip).toBeDefined();
+    expect(tip.data.spec).toBe('Fury');
+    expect(tip.data.context).toContain('Rampage');
+    expect(allTips.some((t) => t.key === 'low_cpm')).toBe(false);
+  });
+
+  it('generates spec_uptime_context instead of low_active_time when spec coaching is available', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgActiveTime: 72 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      className: 'Rogue',
+      spec: 'Assassination',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'spec_uptime_context');
+    expect(tip).toBeDefined();
+    expect(tip.data.context).toContain('Garrote');
+    expect(allTips.some((t) => t.key === 'low_active_time')).toBe(false);
+  });
+
+  it('generates spec_deaths_context instead of high_death_rate when spec coaching is available', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.5 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+      className: 'Mage',
+      spec: 'Fire',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'spec_deaths_context');
+    expect(tip).toBeDefined();
+    expect(tip.data.defensiveCd).toContain('Ice Block');
+    expect(allTips.some((t) => t.key === 'high_death_rate')).toBe(false);
+  });
+
+  it('falls back to generic tips when className/spec are not provided', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.5, avgActiveTime: 65, avgCpm: 15 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some((t) => t.key === 'high_death_rate')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_active_time')).toBe(true);
+    expect(allTips.some((t) => t.key === 'low_cpm')).toBe(true);
+    expect(allTips.some((t) => t.key === 'spec_cpm_context')).toBe(false);
+  });
+
+  it('generates spec_parse_standing when spec is known and parse < 25', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgParsePercentile: 15 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+      className: 'Hunter',
+      spec: 'Beast Mastery',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'spec_parse_standing');
+    expect(tip).toBeDefined();
+    expect(tip.severity).toBe('critical');
+    expect(tip.data.spec).toBe('Beast Mastery');
+    expect(allTips.some((t) => t.key === 'low_parse')).toBe(false);
+  });
+
+  it('generates spec_parse_standing warning when spec is known and parse 25-49', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgParsePercentile: 35 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      className: 'Priest',
+      spec: 'Shadow',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'spec_parse_standing');
+    expect(tip).toBeDefined();
+    expect(tip.severity).toBe('warning');
+    expect(allTips.some((t) => t.key === 'below_avg_parse')).toBe(false);
+  });
+
+  // ── Tier 1.5: Talent Comparison Tips ──
+
+  it('generates talent_missing_key when player lacks a popular meta talent', () => {
+    const talentData = [
+      { id: 100, name: 'Talent A' },
+      { id: 101, name: 'Talent B' },
+    ];
+    const specMeta = {
+      commonTalents: [
+        { id: 100, name: 'Talent A', popularity: 95 },
+        { id: 200, name: 'Key Talent', popularity: 90 },
+        { id: 101, name: 'Talent B', popularity: 70 },
+      ],
+    };
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      spec: 'Fury',
+      talentData,
+      specMeta,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'talent_missing_key');
+    expect(tip).toBeDefined();
+    expect(tip.data.talentName).toBe('Key Talent');
+    expect(tip.data.metaPct).toBe(90);
+  });
+
+  it('generates talent_off_meta when player uses an unpopular talent', () => {
+    const talentData = [
+      { id: 100, name: 'Talent A' },
+      { id: 300, name: 'Niche Pick' },
+    ];
+    const specMeta = {
+      commonTalents: [
+        { id: 100, name: 'Talent A', popularity: 95 },
+        { id: 300, name: 'Niche Pick', popularity: 10 },
+        { id: 400, name: 'Popular Alternative', popularity: 85 },
+      ],
+    };
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'advanced',
+      spec: 'Arms',
+      talentData,
+      specMeta,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find((t) => t.key === 'talent_off_meta');
+    expect(tip).toBeDefined();
+    expect(tip.data.talentName).toBe('Niche Pick');
+    expect(tip.data.metaPct).toBe(10);
+    expect(tip.data.metaAlternative).toBe('Popular Alternative');
+  });
+
+  it('does NOT generate talent tips when talentData is null', () => {
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      talentData: null,
+      specMeta: { commonTalents: [{ id: 1, name: 'X', popularity: 90 }] },
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some((t) => t.key === 'talent_missing_key')).toBe(false);
+    expect(allTips.some((t) => t.key === 'talent_off_meta')).toBe(false);
+  });
+
+  it('does NOT generate talent tips when specMeta has no commonTalents', () => {
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      talentData: [{ id: 1, name: 'X' }],
+      specMeta: null,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some((t) => t.key === 'talent_missing_key')).toBe(false);
+    expect(allTips.some((t) => t.key === 'talent_off_meta')).toBe(false);
   });
 
   // ── Removed tips should NOT appear ──
 
   it('does NOT generate removed tip keys', () => {
     const removedKeys = [
-      'insufficient_data', 'moderate_death_rate', 'dps_stagnating',
-      'dps_improving', 'dps_declining', 'improving_survival', 'worsening_survival',
-      'good_survival', 'good_active_time', 'good_cpm', 'good_interrupts',
-      'good_dispels', 'good_consistency', 'good_consumables',
-      'above_raid_median', 'below_raid_median', 'inconsistent_dps',
-      'high_damage_boss', 'deadliest_boss', 'weakest_boss', 'high_parse',
+      'insufficient_data',
+      'moderate_death_rate',
+      'dps_stagnating',
+      'dps_improving',
+      'dps_declining',
+      'improving_survival',
+      'worsening_survival',
+      'good_survival',
+      'good_active_time',
+      'good_cpm',
+      'good_interrupts',
+      'good_dispels',
+      'good_consistency',
+      'good_consumables',
+      'above_raid_median',
+      'below_raid_median',
+      'inconsistent_dps',
+      'high_damage_boss',
+      'deadliest_boss',
+      'weakest_boss',
+      'high_parse',
     ];
     const result = generateRecommendations({
       summary: makeSummary({
-        deathRate: 0.05, dpsVsMedianPct: 120, avgActiveTime: 95,
-        avgCpm: 40, avgParsePercentile: 85, avgInterrupts: 5, avgDispels: 4,
+        deathRate: 0.05,
+        dpsVsMedianPct: 120,
+        avgActiveTime: 95,
+        avgCpm: 40,
+        avgParsePercentile: 85,
+        avgInterrupts: 5,
+        avgDispels: 4,
       }),
       bossBreakdown: [
-        makeBoss({ bossName: 'A', dpsVsMedian: 130, deathRate: 0.4, avgDtps: 5000, fights: 5, avgDps: 7000 }),
-        makeBoss({ bossId: 1002, bossName: 'B', dpsVsMedian: 80, deathRate: 0.01, avgDtps: 1000, fights: 5, avgDps: 4000 }),
+        makeBoss({
+          bossName: 'A',
+          dpsVsMedian: 130,
+          deathRate: 0.4,
+          avgDtps: 5000,
+          fights: 5,
+          avgDps: 7000,
+        }),
+        makeBoss({
+          bossId: 1002,
+          bossName: 'B',
+          dpsVsMedian: 80,
+          deathRate: 0.01,
+          avgDtps: 1000,
+          fights: 5,
+          avgDps: 4000,
+        }),
       ],
       weeklyTrends: [],
       playerLevel: 'advanced',
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
-    const generatedKeys = allTips.map(t => t.key);
+    const generatedKeys = allTips.map((t) => t.key);
     for (const removed of removedKeys) {
       expect(generatedKeys).not.toContain(removed);
     }

@@ -98,6 +98,7 @@ beforeAll(async () => {
     avg_item_level REAL DEFAULT 0,
     common_enchants TEXT DEFAULT '{}',
     common_gems TEXT DEFAULT '{}',
+    common_talents TEXT DEFAULT '{}',
     sample_size INTEGER DEFAULT 0,
     last_updated TEXT DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -229,7 +230,9 @@ describe('GET /api/v1/analysis/character/:id/build', () => {
     const mockBuildResult = {
       itemLevel: 620,
       statAlignment: 'good',
-      tips: [{ category: 'gear', key: 'enchant_missing', severity: 'warning', priority: 10, data: {} }],
+      tips: [
+        { category: 'gear', key: 'enchant_missing', severity: 'warning', priority: 10, data: {} },
+      ],
     };
 
     getCharacterEquipment.mockResolvedValue(mockEquipment);
@@ -268,7 +271,18 @@ describe('GET /api/v1/analysis/character/:id/build', () => {
     await client.execute({
       sql: `INSERT INTO spec_meta_cache (class_name, spec, region, season, avg_stats, avg_item_level, common_enchants, common_gems, sample_size, last_updated)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: ['Mage', 'Fire', 'world', 'midnight-1', '{"crit":30,"haste":25}', 625, '{"weapon":"enchant_a"}', '{"meta":"gem_a"}', 500, recentDate],
+      args: [
+        'Mage',
+        'Fire',
+        'world',
+        'midnight-1',
+        '{"crit":30,"haste":25}',
+        625,
+        '{"weapon":"enchant_a"}',
+        '{"meta":"gem_a"}',
+        500,
+        recentDate,
+      ],
     });
 
     const mockEquipment = { equipped_items: [] };

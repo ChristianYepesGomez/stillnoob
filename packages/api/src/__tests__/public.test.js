@@ -39,15 +39,30 @@ import { getCharacterProfile, getCharacterMedia, getRealmList } from '../service
 const mockPerformanceData = {
   score: { total: 75, tier: { name: 'Good', min: 60, max: 79 }, breakdown: {} },
   summary: {
-    totalFights: 10, avgDps: 5000, avgHps: 0, deathRate: 0.1,
-    consumableScore: 80, dpsVsMedianPct: 105,
-    avgActiveTime: 87.5, avgCpm: 35.2, avgParsePercentile: 62,
+    totalFights: 10,
+    avgDps: 5000,
+    avgHps: 0,
+    deathRate: 0.1,
+    consumableScore: 80,
+    dpsVsMedianPct: 105,
+    avgActiveTime: 87.5,
+    avgCpm: 35.2,
+    avgParsePercentile: 62,
   },
-  bossBreakdown: [{
-    bossName: 'Test Boss', difficulty: 'Heroic', fights: 5,
-    avgDps: 5000, bestDps: 6000, deathRate: 0.1, dpsVsMedian: 105,
-    parsePercentile: 62, avgActiveTime: 87.5, avgCpm: 35.2,
-  }],
+  bossBreakdown: [
+    {
+      bossName: 'Test Boss',
+      difficulty: 'Heroic',
+      fights: 5,
+      avgDps: 5000,
+      bestDps: 6000,
+      deathRate: 0.1,
+      dpsVsMedian: 105,
+      parsePercentile: 62,
+      avgActiveTime: 87.5,
+      avgCpm: 35.2,
+    },
+  ],
   weeklyTrends: [],
   recentFights: [],
   recommendations: { primaryTips: [], secondaryTips: [], playerLevel: 'beginner' },
@@ -131,11 +146,22 @@ describe('GET /api/v1/public/character/:region/:realm/:name', () => {
 
   it('falls back to live Blizzard API when character not in DB', async () => {
     getCharacterProfile.mockResolvedValue({
-      name: 'Newchar', realm: 'Stormrage', realmSlug: 'stormrage',
-      className: 'Warrior', spec: 'Arms', raidRole: 'DPS',
-      level: 80, averageItemLevel: 620, equippedItemLevel: 618,
+      name: 'Newchar',
+      realm: 'Stormrage',
+      realmSlug: 'stormrage',
+      className: 'Warrior',
+      spec: 'Arms',
+      raidRole: 'DPS',
+      level: 80,
+      averageItemLevel: 620,
+      equippedItemLevel: 618,
     });
-    getCharacterMedia.mockResolvedValue({ avatar: 'http://img/avatar.jpg', inset: null, main: null, mainRaw: null });
+    getCharacterMedia.mockResolvedValue({
+      avatar: 'http://img/avatar.jpg',
+      inset: null,
+      main: null,
+      mainRaw: null,
+    });
     getCharacterRaiderIO.mockResolvedValue(mockRaiderIO);
 
     const res = await request(app).get('/api/v1/public/character/eu/stormrage/Newchar');

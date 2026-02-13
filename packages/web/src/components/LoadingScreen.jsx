@@ -33,7 +33,10 @@ export default function LoadingScreen({ message }) {
           <div className="absolute inset-0 rounded-full border-4 border-void-surface" />
           <div className="absolute inset-0 rounded-full border-4 border-void-bright border-t-transparent animate-spin" />
           {phase !== 'loading' && (
-            <div className="absolute inset-1 rounded-full border-4 border-void-glow/30 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+            <div
+              className="absolute inset-1 rounded-full border-4 border-void-glow/30 border-b-transparent animate-spin"
+              style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+            />
           )}
         </div>
 
@@ -44,18 +47,12 @@ export default function LoadingScreen({ message }) {
 
         {/* Cold start messages */}
         {phase === 'slow' && (
-          <p className="text-void-secondary text-sm animate-fade-in">
-            {t('loading.wakingUp')}
-          </p>
+          <p className="text-void-secondary text-sm animate-fade-in">{t('loading.wakingUp')}</p>
         )}
         {phase === 'verySlow' && (
           <div className="animate-fade-in space-y-2">
-            <p className="text-void-secondary text-sm">
-              {t('loading.wakingUp')}
-            </p>
-            <p className="text-void-muted text-xs">
-              {t('loading.firstVisit')}
-            </p>
+            <p className="text-void-secondary text-sm">{t('loading.wakingUp')}</p>
+            <p className="text-void-muted text-xs">{t('loading.firstVisit')}</p>
           </div>
         )}
       </div>

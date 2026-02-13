@@ -200,7 +200,7 @@ describe('analyzeCharacterBuild', () => {
         ],
       });
       const result = analyzeCharacterBuild(equipment, 'Warrior', 'Arms');
-      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      const tip = result.gearTips.find((t) => t.key === 'gear_suboptimal_enchant');
       expect(tip).toBeDefined();
       expect(tip.data.slot).toBe('back');
       expect(tip.severity).toBe('warning');
@@ -213,29 +213,39 @@ describe('analyzeCharacterBuild', () => {
         ],
       });
       const result = analyzeCharacterBuild(equipment, 'Warrior', 'Protection Warrior');
-      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      const tip = result.gearTips.find((t) => t.key === 'gear_suboptimal_enchant');
       expect(tip).toBeUndefined();
     });
 
     it('does NOT generate tip when DPS has throughput enchant', () => {
       const equipment = makeEquipment({
         items: [
-          { slot: 'back', itemLevel: 620, enchant: 'Enchant Cloak - Chant of Winged Grace', gems: [] },
+          {
+            slot: 'back',
+            itemLevel: 620,
+            enchant: 'Enchant Cloak - Chant of Winged Grace',
+            gems: [],
+          },
         ],
       });
       const result = analyzeCharacterBuild(equipment, 'Warrior', 'Arms');
-      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      const tip = result.gearTips.find((t) => t.key === 'gear_suboptimal_enchant');
       expect(tip).toBeUndefined();
     });
 
     it('generates tip for speed enchant on DPS', () => {
       const equipment = makeEquipment({
         items: [
-          { slot: 'feet', itemLevel: 620, enchant: 'Enchant Boots - Defender\'s March (Speed)', gems: [] },
+          {
+            slot: 'feet',
+            itemLevel: 620,
+            enchant: "Enchant Boots - Defender's March (Speed)",
+            gems: [],
+          },
         ],
       });
       const result = analyzeCharacterBuild(equipment, 'Rogue', 'Assassination');
-      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      const tip = result.gearTips.find((t) => t.key === 'gear_suboptimal_enchant');
       expect(tip).toBeDefined();
     });
   });
@@ -432,9 +442,7 @@ describe('analyzeCharacterBuild', () => {
     });
 
     it('does NOT generate when enchant matches meta', () => {
-      const items = [
-        { slot: 'chest', itemLevel: 620, enchant: 'Popular Enchant', gems: [] },
-      ];
+      const items = [{ slot: 'chest', itemLevel: 620, enchant: 'Popular Enchant', gems: [] }];
       const equipment = makeEquipment({ items });
       const specMeta = makeSpecMeta({
         commonEnchants: { chest: { name: 'Popular Enchant', pct: 90 } },

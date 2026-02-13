@@ -1,6 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
+import {
+  ResponsiveContainer,
+  LineChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Line,
+} from 'recharts';
 import { DIFFICULTY_COLORS } from '@stillnoob/shared';
 import StatCard from './StatCard';
 import ConsumableBar from './ConsumableBar';
@@ -19,7 +27,7 @@ export default function BossesSection({ data }) {
   const bossFightData = useMemo(() => {
     if (!recentFights || !boss) return [];
     return recentFights
-      .filter(f => f.boss === boss.bossName && f.difficulty === boss.difficulty)
+      .filter((f) => f.boss === boss.bossName && f.difficulty === boss.difficulty)
       .reverse()
       .map((f, i) => ({
         attempt: i + 1,
@@ -49,7 +57,10 @@ export default function BossesSection({ data }) {
             {b.bossName}
             <span
               className="ml-1.5 text-[10px] px-1 py-0.5 rounded"
-              style={{ backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`, color: DIFFICULTY_COLORS[b.difficulty] }}
+              style={{
+                backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`,
+                color: DIFFICULTY_COLORS[b.difficulty],
+              }}
             >
               {b.difficulty}
             </span>
@@ -67,8 +78,16 @@ export default function BossesSection({ data }) {
               value={boss.deathRate.toFixed(2)}
               color={boss.deathRate > 0.3 ? 'text-red-400' : 'text-green-400'}
             />
-            <StatCard label={t('analysis.avgDps')} value={formatDps(boss.avgDps)} color="text-blue-400" />
-            <StatCard label={t('analysis.bestDps')} value={formatDps(boss.bestDps)} color="text-purple-400" />
+            <StatCard
+              label={t('analysis.avgDps')}
+              value={formatDps(boss.avgDps)}
+              color="text-blue-400"
+            />
+            <StatCard
+              label={t('analysis.bestDps')}
+              value={formatDps(boss.bestDps)}
+              color="text-purple-400"
+            />
             <StatCard
               label={t('analysis.interrupts')}
               value={(boss.interruptsPerFight || 0).toFixed(1)}
@@ -91,11 +110,25 @@ export default function BossesSection({ data }) {
                 <LineChart data={bossFightData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e33" />
                   <XAxis dataKey="attempt" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                  <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} tickFormatter={v => formatDps(v)} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#12091f', border: '1px solid #1a0f2e', borderRadius: 8, fontSize: 12 }}
+                  <YAxis
+                    tick={{ fill: '#9ca3af', fontSize: 10 }}
+                    tickFormatter={(v) => formatDps(v)}
                   />
-                  <Line type="monotone" dataKey="dps" stroke="#60a5fa" strokeWidth={2} dot={{ fill: '#60a5fa', r: 3 }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#12091f',
+                      border: '1px solid #1a0f2e',
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="dps"
+                    stroke="#60a5fa"
+                    strokeWidth={2}
+                    dot={{ fill: '#60a5fa', r: 3 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -126,13 +159,26 @@ export default function BossesSection({ data }) {
                   className="h-full rounded-full transition-all"
                   style={{
                     width: `${Math.min(boss.dpsVsMedian || 100, 150) / 1.5}%`,
-                    backgroundColor: boss.dpsVsMedian >= 100 ? '#22c55e' : boss.dpsVsMedian >= 80 ? '#eab308' : '#ef4444',
+                    backgroundColor:
+                      boss.dpsVsMedian >= 100
+                        ? '#22c55e'
+                        : boss.dpsVsMedian >= 80
+                          ? '#eab308'
+                          : '#ef4444',
                   }}
                 />
               </div>
-              <span className="text-sm font-bold" style={{
-                color: boss.dpsVsMedian >= 100 ? '#22c55e' : boss.dpsVsMedian >= 80 ? '#eab308' : '#ef4444',
-              }}>
+              <span
+                className="text-sm font-bold"
+                style={{
+                  color:
+                    boss.dpsVsMedian >= 100
+                      ? '#22c55e'
+                      : boss.dpsVsMedian >= 80
+                        ? '#eab308'
+                        : '#ef4444',
+                }}
+              >
                 {Math.round(boss.dpsVsMedian || 100)}%
               </span>
             </div>

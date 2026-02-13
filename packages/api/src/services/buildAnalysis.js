@@ -32,9 +32,9 @@ const TERTIARY_ENCHANT_PATTERNS = /avoidance|speed|leech|stamina|armor kit/i;
  */
 function calculateAlignment(statDistribution, specPriority) {
   // Sort secondary stats by player's percentage (descending)
-  const playerRanked = SECONDARY_STATS
-    .filter((s) => statDistribution[s] != null)
-    .sort((a, b) => (statDistribution[b] || 0) - (statDistribution[a] || 0));
+  const playerRanked = SECONDARY_STATS.filter((s) => statDistribution[s] != null).sort(
+    (a, b) => (statDistribution[b] || 0) - (statDistribution[a] || 0),
+  );
 
   if (playerRanked.length < 2 || specPriority.length < 2) return 'poor';
 
@@ -56,8 +56,7 @@ function calculateAlignment(statDistribution, specPriority) {
  * Build a ranked detail list comparing player stat distribution to spec priority.
  */
 function buildStatDetails(statDistribution, specPriority) {
-  return SECONDARY_STATS
-    .filter((s) => statDistribution[s] != null)
+  return SECONDARY_STATS.filter((s) => statDistribution[s] != null)
     .map((stat) => {
       const rank = specPriority.indexOf(stat);
       return {
@@ -170,9 +169,9 @@ export function analyzeCharacterBuild(equipment, className, spec, specMeta = nul
 
   // 4. gear_wrong_stat_priority
   //    Trigger: player's highest % stat is NOT in the spec's top 2 priority stats
-  const playerRanked = SECONDARY_STATS
-    .filter((s) => statDistribution[s] != null)
-    .sort((a, b) => (statDistribution[b] || 0) - (statDistribution[a] || 0));
+  const playerRanked = SECONDARY_STATS.filter((s) => statDistribution[s] != null).sort(
+    (a, b) => (statDistribution[b] || 0) - (statDistribution[a] || 0),
+  );
 
   if (playerRanked.length > 0 && specPriority.length >= 2) {
     const topStat = playerRanked[0];

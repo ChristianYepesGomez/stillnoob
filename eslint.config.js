@@ -19,12 +19,6 @@ export default [
     },
   },
   {
-    ignores: [
-      'node_modules/',
-      'dist/',
-      '.wrangler/',
-      'packages/web/dist/',
-      'workers/',
-    ],
+    ignores: ['node_modules/', 'dist/', '.wrangler/', 'packages/web/dist/', 'workers/'],
   },
 ];

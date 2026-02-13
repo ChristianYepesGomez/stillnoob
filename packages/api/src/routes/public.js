@@ -3,7 +3,13 @@ import { db } from '../db/client.js';
 import { characters, specMetaCache } from '../db/schema.js';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { getCharacterPerformance } from '../services/analysis.js';
-import { getCharacterEquipment, transformEquipment, getRealmList, getCharacterProfile, getCharacterMedia } from '../services/blizzard.js';
+import {
+  getCharacterEquipment,
+  transformEquipment,
+  getRealmList,
+  getCharacterProfile,
+  getCharacterMedia,
+} from '../services/blizzard.js';
 import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
 import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
 import { analyzeMythicPlus } from '../services/mythicPlusAnalysis.js';
@@ -48,31 +54,30 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
     const regionLower = region.toLowerCase();
 
     // --- Try local DB first ---
-    const char = await db.select()
+    const char = await db
+      .select()
       .from(characters)
-      .where(
-        and(
-          eq(characters.realmSlug, realmSlug),
-          eq(characters.region, regionLower),
-        )
-      )
+      .where(and(eq(characters.realmSlug, realmSlug), eq(characters.region, regionLower)))
       .all();
 
     const normalizedName = name.normalize('NFC').toLowerCase();
-    const match = char.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
+    const match = char.find((c) => c.name.normalize('NFC').toLowerCase() === normalizedName);
 
     // Helper: fetch specMeta from cache
     const fetchSpecMeta = async (className, spec) => {
       if (!className || !spec) return null;
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db.select()
+      const cached = await db
+        .select()
         .from(specMetaCache)
-        .where(and(
-          eq(specMetaCache.className, className),
-          eq(specMetaCache.spec, spec),
-          eq(specMetaCache.region, 'world'),
-          gte(specMetaCache.lastUpdated, sevenDaysAgo),
-        ))
+        .where(
+          and(
+            eq(specMetaCache.className, className),
+            eq(specMetaCache.spec, spec),
+            eq(specMetaCache.region, 'world'),
+            gte(specMetaCache.lastUpdated, sevenDaysAgo),
+          ),
+        )
         .get();
       if (!cached) return null;
       return {
@@ -101,7 +106,11 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
     // --- DB match: return full WCL-enriched profile ---
     if (match) {
       const [data, raiderIO, equipment] = await Promise.all([
-        getCharacterPerformance(match.id, { weeks, visibilityFilter: 'public', characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region } }),
+        getCharacterPerformance(match.id, {
+          weeks,
+          visibilityFilter: 'public',
+          characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region },
+        }),
         getCharacterRaiderIO(match.region, match.realmSlug, match.name),
         getCharacterEquipment(match.name, match.realmSlug, match.region).catch(() => null),
       ]);
@@ -136,7 +145,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           avgCpm: data.summary.avgCpm,
           avgParsePercentile: data.summary.avgParsePercentile,
         },
-        bossBreakdown: data.bossBreakdown.map(b => ({
+        bossBreakdown: data.bossBreakdown.map((b) => ({
           bossName: b.bossName,
           difficulty: b.difficulty,
           fights: b.fights,
@@ -215,20 +224,22 @@ router.get('/character/:region/:realm/:name/mplus-history', async (req, res) => 
     const weeks = parseInt(req.query.weeks) || 12;
 
     const realmSlug = realm.toLowerCase().replace(/\s+/g, '-');
-    const allChars = await db.select()
+    const allChars = await db
+      .select()
       .from(characters)
       .where(and(eq(characters.realmSlug, realmSlug), eq(characters.region, region.toLowerCase())))
       .all();
 
     const normalizedName = name.normalize('NFC').toLowerCase();
-    const match = allChars.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
+    const match = allChars.find((c) => c.name.normalize('NFC').toLowerCase() === normalizedName);
 
     if (!match) {
       return res.status(404).json({ error: 'Character not found' });
     }
 
     const cutoff = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-    const snapshots = await db.select()
+    const snapshots = await db
+      .select()
       .from(mplusSnapshots)
       .where(and(eq(mplusSnapshots.characterId, match.id), gte(mplusSnapshots.snapshotAt, cutoff)))
       .orderBy(desc(mplusSnapshots.snapshotAt))
@@ -239,7 +250,10 @@ router.get('/character/:region/:realm/:name/mplus-history', async (req, res) => 
       const newest = snapshots[0].score;
       const oldest = snapshots[snapshots.length - 1].score;
       const change = newest - oldest;
-      trend = { change: Math.round(change), direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat' };
+      trend = {
+        change: Math.round(change),
+        direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
+      };
     }
 
     res.json({ snapshots, trend });
@@ -257,18 +271,14 @@ router.get('/character/:region/:realm/:name/build', async (req, res) => {
     const realmSlug = realm.toLowerCase().replace(/\s+/g, '-');
 
     // Find the character (case-insensitive name match)
-    const allChars = await db.select()
+    const allChars = await db
+      .select()
       .from(characters)
-      .where(
-        and(
-          eq(characters.realmSlug, realmSlug),
-          eq(characters.region, region.toLowerCase()),
-        )
-      )
+      .where(and(eq(characters.realmSlug, realmSlug), eq(characters.region, region.toLowerCase())))
       .all();
 
     const normalizedName = name.normalize('NFC').toLowerCase();
-    const match = allChars.find(c => c.name.normalize('NFC').toLowerCase() === normalizedName);
+    const match = allChars.find((c) => c.name.normalize('NFC').toLowerCase() === normalizedName);
 
     if (!match) {
       return res.status(404).json({ error: 'Character not found' });
@@ -285,14 +295,17 @@ router.get('/character/:region/:realm/:name/build', async (req, res) => {
     let specMeta = null;
     if (match.className && match.spec) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db.select()
+      const cached = await db
+        .select()
         .from(specMetaCache)
-        .where(and(
-          eq(specMetaCache.className, match.className),
-          eq(specMetaCache.spec, match.spec),
-          eq(specMetaCache.region, 'world'),
-          gte(specMetaCache.lastUpdated, sevenDaysAgo),
-        ))
+        .where(
+          and(
+            eq(specMetaCache.className, match.className),
+            eq(specMetaCache.spec, match.spec),
+            eq(specMetaCache.region, 'world'),
+            gte(specMetaCache.lastUpdated, sevenDaysAgo),
+          ),
+        )
         .get();
       if (cached) {
         specMeta = {

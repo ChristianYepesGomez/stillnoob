@@ -25,10 +25,10 @@ export default function Analysis() {
 
   // Load characters
   useEffect(() => {
-    charactersAPI.list().then(r => {
+    charactersAPI.list().then((r) => {
       setCharacters(r.data);
       if (!selectedCharId && r.data.length > 0) {
-        const primary = r.data.find(c => c.isPrimary);
+        const primary = r.data.find((c) => c.isPrimary);
         setSelectedCharId((primary || r.data[0]).id);
       }
     });
@@ -38,21 +38,30 @@ export default function Analysis() {
   useEffect(() => {
     if (!selectedCharId) return;
     setLoading(true);
-    analysisAPI.character(selectedCharId, weeks)
-      .then(r => setData(r.data))
+    analysisAPI
+      .character(selectedCharId, weeks)
+      .then((r) => setData(r.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [selectedCharId, weeks]);
 
   const selectedChar = useMemo(
-    () => characters.find(c => c.id === selectedCharId),
-    [characters, selectedCharId]
+    () => characters.find((c) => c.id === selectedCharId),
+    [characters, selectedCharId],
   );
 
   // Show M+ tab only when raiderIO data exists
   const TABS = useMemo(() => {
     if (data?.raiderIO) {
-      return ['overview', 'mythicPlus', 'build', 'bosses', 'trends', 'recentFights', 'recommendations'];
+      return [
+        'overview',
+        'mythicPlus',
+        'build',
+        'bosses',
+        'trends',
+        'recentFights',
+        'recommendations',
+      ];
     }
     return BASE_TABS;
   }, [data?.raiderIO]);
@@ -73,22 +82,22 @@ export default function Analysis() {
               onChange={(e) => setSelectedCharId(parseInt(e.target.value))}
               className="px-3 py-1.5 bg-void-deep border border-void-bright/20 rounded-lg text-sm text-white focus:outline-none"
             >
-              {characters.map(c => (
-                <option key={c.id} value={c.id}>{c.name} - {c.realm}</option>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} - {c.realm}
+                </option>
               ))}
             </select>
           )}
 
           {/* Period selector */}
           <div className="flex bg-void-deep rounded-lg border border-void-bright/20 overflow-hidden">
-            {PERIODS.map(p => (
+            {PERIODS.map((p) => (
               <button
                 key={p}
                 onClick={() => setWeeks(p)}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  weeks === p
-                    ? 'bg-void-bright text-white'
-                    : 'text-void-text hover:text-white'
+                  weeks === p ? 'bg-void-bright text-white' : 'text-void-text hover:text-white'
                 }`}
               >
                 {p === 52 ? t('analysis.periodAll') : t('analysis.periodWeeks', { count: p })}
@@ -126,7 +135,7 @@ export default function Analysis() {
         <>
           {/* Tabs */}
           <div className="flex gap-1 bg-void-mid/50 rounded-xl p-1 border border-void-bright/10">
-            {TABS.map(tab => (
+            {TABS.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -144,7 +153,13 @@ export default function Analysis() {
           {/* Tab content */}
           <div>
             {activeTab === 'overview' && <OverviewSection data={data} />}
-            {activeTab === 'mythicPlus' && <MythicPlusSection raiderIO={data.raiderIO} mplusAnalysis={data.mplusAnalysis} characterId={selectedCharId} />}
+            {activeTab === 'mythicPlus' && (
+              <MythicPlusSection
+                raiderIO={data.raiderIO}
+                mplusAnalysis={data.mplusAnalysis}
+                characterId={selectedCharId}
+              />
+            )}
             {activeTab === 'build' && <BuildSection characterId={selectedCharId} />}
             {activeTab === 'bosses' && <BossesSection data={data} />}
             {activeTab === 'trends' && <TrendsSection data={data} />}

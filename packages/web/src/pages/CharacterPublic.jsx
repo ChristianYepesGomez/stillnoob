@@ -24,9 +24,10 @@ export default function CharacterPublic() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    publicAPI.character(region, realm, name)
-      .then(r => setData(r.data))
-      .catch(err => {
+    publicAPI
+      .character(region, realm, name)
+      .then((r) => setData(r.data))
+      .catch((err) => {
         if (err.response?.status === 404) {
           setError('not_found');
         } else {
@@ -70,7 +71,16 @@ export default function CharacterPublic() {
     );
   }
 
-  const { character, score, summary, bossBreakdown, raiderIO, mplusAnalysis, buildAnalysis, source } = data;
+  const {
+    character,
+    score,
+    summary,
+    bossBreakdown,
+    raiderIO,
+    mplusAnalysis,
+    buildAnalysis,
+    source,
+  } = data;
   const isLive = source === 'live';
   const classColor = CLASS_COLORS[character.className] || '#fff';
 
@@ -79,7 +89,9 @@ export default function CharacterPublic() {
       {/* Navbar */}
       <nav className="bg-void-mid/80 backdrop-blur-sm border-b border-void-bright/15 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="font-cinzel text-xl font-bold text-void-accent">StillNoob</Link>
+          <Link to="/" className="font-cinzel text-xl font-bold text-void-accent">
+            StillNoob
+          </Link>
           {user ? (
             <Link
               to="/dashboard"
@@ -141,8 +153,9 @@ export default function CharacterPublic() {
               <h2 className="font-cinzel text-lg font-bold text-white">Live Character Data</h2>
             </div>
             <p className="text-sm text-void-secondary mb-4">
-              Showing real-time data from Blizzard API and Raider.io.
-              Import your WarcraftLogs reports to unlock full coaching analysis with performance scores, boss breakdowns, and personalized improvement tips.
+              Showing real-time data from Blizzard API and Raider.io. Import your WarcraftLogs
+              reports to unlock full coaching analysis with performance scores, boss breakdowns, and
+              personalized improvement tips.
             </p>
             <Link
               to={user ? '/dashboard' : '/register'}
@@ -158,7 +171,9 @@ export default function CharacterPublic() {
         {summary && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className="font-orbitron text-xl font-bold text-blue-400">{formatDps(summary.avgDps)}</p>
+              <p className="font-orbitron text-xl font-bold text-blue-400">
+                {formatDps(summary.avgDps)}
+              </p>
               <p className="text-[10px] text-void-secondary mt-1">{t('analysis.avgDps')}</p>
             </div>
             <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
@@ -166,19 +181,27 @@ export default function CharacterPublic() {
               <p className="text-[10px] text-void-secondary mt-1">{t('analysis.totalFights')}</p>
             </div>
             <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}>
+              <p
+                className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}
+              >
                 {(summary.deathRate || 0).toFixed(2)}
               </p>
               <p className="text-[10px] text-void-secondary mt-1">{t('analysis.deathsPerFight')}</p>
             </div>
             <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}>
+              <p
+                className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}
+              >
                 {summary.consumableScore || 0}
               </p>
-              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.consumableScore')}</p>
+              <p className="text-[10px] text-void-secondary mt-1">
+                {t('analysis.consumableScore')}
+              </p>
             </div>
             <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}>
+              <p
+                className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}
+              >
                 {Math.round(summary.dpsVsMedianPct || 100)}%
               </p>
               <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
@@ -198,8 +221,13 @@ export default function CharacterPublic() {
             </h2>
             <div className="space-y-2">
               {raiderIO.raidProgression.map((raid) => (
-                <div key={raid.slug} className="flex items-center justify-between p-3 rounded-xl bg-void-deep/50 border border-void-bright/5">
-                  <span className="text-sm text-white font-medium">{raid.slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+                <div
+                  key={raid.slug}
+                  className="flex items-center justify-between p-3 rounded-xl bg-void-deep/50 border border-void-bright/5"
+                >
+                  <span className="text-sm text-white font-medium">
+                    {raid.slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </span>
                   <span className="text-sm font-orbitron text-void-accent">{raid.raid}</span>
                 </div>
               ))}
@@ -224,7 +252,9 @@ export default function CharacterPublic() {
                     <th className="text-center py-2 px-3">{t('analysis.avgDps')}</th>
                     <th className="text-center py-2 px-3">{t('analysis.bestDps')}</th>
                     <th className="text-center py-2 px-3">{t('analysis.deathsPerFight')}</th>
-                    <th className="text-center py-2 px-3 hidden sm:table-cell">{t('analysis.vsMedian')}</th>
+                    <th className="text-center py-2 px-3 hidden sm:table-cell">
+                      {t('analysis.vsMedian')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -234,21 +264,36 @@ export default function CharacterPublic() {
                       <td className="py-2.5 px-3 text-center">
                         <span
                           className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                          style={{ backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`, color: DIFFICULTY_COLORS[b.difficulty] }}
+                          style={{
+                            backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`,
+                            color: DIFFICULTY_COLORS[b.difficulty],
+                          }}
                         >
                           {b.difficulty}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center text-void-text">{b.fights}</td>
-                      <td className="py-2.5 px-3 text-center font-orbitron text-blue-400">{formatDps(b.avgDps)}</td>
-                      <td className="py-2.5 px-3 text-center font-orbitron text-void-accent">{formatDps(b.bestDps)}</td>
+                      <td className="py-2.5 px-3 text-center font-orbitron text-blue-400">
+                        {formatDps(b.avgDps)}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-orbitron text-void-accent">
+                        {formatDps(b.bestDps)}
+                      </td>
                       <td className="py-2.5 px-3 text-center">
                         <span className={b.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}>
                           {b.deathRate.toFixed(2)}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center hidden sm:table-cell">
-                        <span className={b.dpsVsMedian >= 100 ? 'text-fel-green' : b.dpsVsMedian >= 80 ? 'text-sunwell-amber' : 'text-blood-red'}>
+                        <span
+                          className={
+                            b.dpsVsMedian >= 100
+                              ? 'text-fel-green'
+                              : b.dpsVsMedian >= 80
+                                ? 'text-sunwell-amber'
+                                : 'text-blood-red'
+                          }
+                        >
                           {Math.round(b.dpsVsMedian || 100)}%
                         </span>
                       </td>
@@ -262,7 +307,9 @@ export default function CharacterPublic() {
 
         {/* CTA */}
         <div className="text-center py-8">
-          <p className="text-void-secondary mb-4">Want detailed fight-by-fight analysis and coaching tips?</p>
+          <p className="text-void-secondary mb-4">
+            Want detailed fight-by-fight analysis and coaching tips?
+          </p>
           <Link
             to={user ? '/dashboard' : '/register'}
             className="inline-block px-8 py-3 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
@@ -276,10 +323,11 @@ export default function CharacterPublic() {
           <p>
             {isLive
               ? 'Data from Blizzard API and Raider.io. Shown in real-time.'
-              : `Data from public Warcraft Logs reports. Last updated: ${data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : 'N/A'}`
-            }
+              : `Data from public Warcraft Logs reports. Last updated: ${data.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString() : 'N/A'}`}
           </p>
-          <p className="mt-1">StillNoob is not affiliated with Blizzard Entertainment or Warcraft Logs.</p>
+          <p className="mt-1">
+            StillNoob is not affiliated with Blizzard Entertainment or Warcraft Logs.
+          </p>
         </footer>
       </main>
     </div>

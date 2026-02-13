@@ -40,7 +40,10 @@ export default function Landing() {
           StillNoob
         </span>
         <div className="flex items-center gap-4">
-          <Link to="/login" className="text-sm text-void-secondary hover:text-white transition-colors">
+          <Link
+            to="/login"
+            className="text-sm text-void-secondary hover:text-white transition-colors"
+          >
             {t('auth.login')}
           </Link>
           <Link
@@ -59,8 +62,14 @@ export default function Landing() {
           Ready for Midnight Season 1
         </div>
 
-        <h1 className="font-cinzel font-black leading-none mb-4 animate-fade-in" style={{ fontSize: 'clamp(3rem, 8vw, 6.5rem)' }}>
-          <span className="block text-white" style={{ textShadow: '0 0 60px rgba(123,47,242,0.3)' }}>
+        <h1
+          className="font-cinzel font-black leading-none mb-4 animate-fade-in"
+          style={{ fontSize: 'clamp(3rem, 8vw, 6.5rem)' }}
+        >
+          <span
+            className="block text-white"
+            style={{ textShadow: '0 0 60px rgba(123,47,242,0.3)' }}
+          >
             Are You Still
           </span>
           <span className="block bg-gradient-to-r from-void-bright via-sunwell-gold to-void-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_200%]">
@@ -68,13 +77,20 @@ export default function Landing() {
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl text-void-secondary font-light max-w-xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <p
+          className="text-lg md:text-xl text-void-secondary font-light max-w-xl mx-auto mb-10 animate-fade-in"
+          style={{ animationDelay: '0.2s' }}
+        >
           Drop your character name. We'll analyze your logs, gear, and gameplay — then tell you{' '}
           <strong className="text-white font-semibold">exactly</strong> how to improve.
         </p>
 
         {/* Search Box */}
-        <form onSubmit={handleAnalyze} className="w-full max-w-2xl animate-fade-in" style={{ animationDelay: '0.4s' }}>
+        <form
+          onSubmit={handleAnalyze}
+          className="w-full max-w-2xl animate-fade-in"
+          style={{ animationDelay: '0.4s' }}
+        >
           <div className="flex flex-col sm:flex-row bg-void-surface border border-void-glow/25 rounded-2xl focus-within:border-void-glow focus-within:shadow-[0_0_30px_rgba(123,47,242,0.2)] transition-all">
             <div className="flex-[2] relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
               <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted">
@@ -84,18 +100,8 @@ export default function Landing() {
                 type="text"
                 placeholder="Thrall"
                 value={charName}
-                onChange={e => setCharName(e.target.value)}
+                onChange={(e) => setCharName(e.target.value)}
                 className="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50"
-              />
-            </div>
-            <div className="flex-1 relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
-              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
-                Region
-              </label>
-              <RegionSelect
-                value={region}
-                onChange={(val) => { setRegion(val); setRealm(''); setRealmSlug(''); }}
-                inputClassName="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none text-left cursor-pointer"
               />
             </div>
             <div className="flex-[1.5] relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
@@ -105,9 +111,26 @@ export default function Landing() {
               <RealmSelect
                 region={region.toLowerCase()}
                 value={realm}
-                onChange={(name, slug) => { setRealm(name); setRealmSlug(slug); }}
+                onChange={(name, slug) => {
+                  setRealm(name);
+                  setRealmSlug(slug);
+                }}
                 inputClassName="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none placeholder:text-void-muted/50"
                 placeholder="Ragnaros"
+              />
+            </div>
+            <div className="flex-1 relative border-b sm:border-b-0 sm:border-r border-void-glow/20">
+              <label className="absolute top-2 left-4 text-[10px] font-bold tracking-widest uppercase text-void-muted z-10">
+                Region
+              </label>
+              <RegionSelect
+                value={region}
+                onChange={(val) => {
+                  setRegion(val);
+                  setRealm('');
+                  setRealmSlug('');
+                }}
+                inputClassName="w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none text-left cursor-pointer"
               />
             </div>
             <button
@@ -126,7 +149,10 @@ export default function Landing() {
         </form>
 
         {/* Score tier badges */}
-        <div className="flex flex-wrap justify-center gap-3 mt-10 animate-fade-in" style={{ animationDelay: '0.6s' }}>
+        <div
+          className="flex flex-wrap justify-center gap-3 mt-10 animate-fade-in"
+          style={{ animationDelay: '0.6s' }}
+        >
           {SCORE_TIERS.map((tier) => (
             <div
               key={tier.key}
@@ -147,7 +173,9 @@ export default function Landing() {
       <section className="relative z-10 max-w-5xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h2 className="font-cinzel text-3xl font-bold text-white mb-3">What We Analyze</h2>
-          <p className="text-void-secondary text-lg">Your full character breakdown in seconds — not just data, but answers.</p>
+          <p className="text-void-secondary text-lg">
+            Your full character breakdown in seconds — not just data, but answers.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -157,21 +185,33 @@ export default function Landing() {
               color: '#0096ff',
               title: 'Performance Stats',
               desc: 'Your real numbers compared to players of your class, spec, and item level.',
-              items: ['DPS/HPS ranking vs your ilvl bracket', 'Parse percentiles across all your kills', 'Week-over-week progression tracking'],
+              items: [
+                'DPS/HPS ranking vs your ilvl bracket',
+                'Parse percentiles across all your kills',
+                'Week-over-week progression tracking',
+              ],
             },
             {
               icon: 'fa-crosshairs',
               color: '#f6c843',
               title: 'Gear & Consumables',
               desc: 'Flask uptime, potion usage, food buffs, and consumable optimization.',
-              items: ['Combat potion & flask tracking', 'Healthstone and health potion usage', 'Consumable score per fight'],
+              items: [
+                'Combat potion & flask tracking',
+                'Healthstone and health potion usage',
+                'Consumable score per fight',
+              ],
             },
             {
               icon: 'fa-lightbulb',
               color: '#00ff88',
               title: 'Personal Coaching',
               desc: 'We read your logs like a coach watching your gameplay. Actionable tips, not raw data.',
-              items: ['Survivability analysis with specific fixes', 'Interrupt & dispel benchmarks', 'Cooldown timing optimization'],
+              items: [
+                'Survivability analysis with specific fixes',
+                'Interrupt & dispel benchmarks',
+                'Cooldown timing optimization',
+              ],
             },
           ].map((f) => (
             <div
@@ -191,7 +231,10 @@ export default function Landing() {
               <p className="text-sm text-void-secondary mb-4">{f.desc}</p>
               <div className="space-y-2">
                 {f.items.map((item) => (
-                  <div key={item} className="flex items-start gap-2 text-xs text-void-secondary py-1.5 px-3 bg-void-glow/5 rounded-lg border-l-2 border-void-glow">
+                  <div
+                    key={item}
+                    className="flex items-start gap-2 text-xs text-void-secondary py-1.5 px-3 bg-void-glow/5 rounded-lg border-l-2 border-void-glow"
+                  >
                     <span className="text-void-accent">→</span>
                     {item}
                   </div>
@@ -205,32 +248,74 @@ export default function Landing() {
       {/* Coaching Preview */}
       <section className="relative z-10 max-w-3xl mx-auto px-4 py-16">
         <div className="text-center mb-10">
-          <h2 className="font-cinzel text-3xl font-bold text-white mb-3">Your Personal Coach Speaks</h2>
-          <p className="text-void-secondary text-lg">This is what your dashboard looks like. Real feedback, not just numbers.</p>
+          <h2 className="font-cinzel text-3xl font-bold text-white mb-3">
+            Your Personal Coach Speaks
+          </h2>
+          <p className="text-void-secondary text-lg">
+            This is what your dashboard looks like. Real feedback, not just numbers.
+          </p>
         </div>
 
         <div className="space-y-3">
           {[
-            { type: 'danger', icon: '🔴', title: "You're eating avoidable damage", msg: 'You took 340k avoidable damage on Voidspire Council — that\'s 3x the raid average. Focus on dodging Shadow Crash and Void Eruption.' },
-            { type: 'warning', icon: '🟡', title: 'Your rotation needs work', msg: "You're casting Void Bolt after 3 GCDs instead of on cooldown. This alone is costing you ~8% DPS." },
-            { type: 'success', icon: '🟢', title: 'Great movement efficiency', msg: 'Your uptime during movement phases is 94% — top 15% for your spec. Keep it up.' },
-            { type: 'info', icon: '🔵', title: 'Upgrade priority: Trinket slot', msg: "Your Void-Touched Orb (ilvl 616) should be replaced with Sunwell Resonance from Xal'atath. Expected DPS gain: +4.2%." },
+            {
+              type: 'danger',
+              icon: '🔴',
+              title: "You're eating avoidable damage",
+              msg: "You took 340k avoidable damage on Voidspire Council — that's 3x the raid average. Focus on dodging Shadow Crash and Void Eruption.",
+            },
+            {
+              type: 'warning',
+              icon: '🟡',
+              title: 'Your rotation needs work',
+              msg: "You're casting Void Bolt after 3 GCDs instead of on cooldown. This alone is costing you ~8% DPS.",
+            },
+            {
+              type: 'success',
+              icon: '🟢',
+              title: 'Great movement efficiency',
+              msg: 'Your uptime during movement phases is 94% — top 15% for your spec. Keep it up.',
+            },
+            {
+              type: 'info',
+              icon: '🔵',
+              title: 'Upgrade priority: Trinket slot',
+              msg: "Your Void-Touched Orb (ilvl 616) should be replaced with Sunwell Resonance from Xal'atath. Expected DPS gain: +4.2%.",
+            },
           ].map((msg, i) => {
             const colors = {
-              danger: { bg: 'rgba(255,59,92,0.06)', border: 'rgba(255,59,92,0.2)', title: '#ff3b5c' },
-              warning: { bg: 'rgba(255,159,28,0.06)', border: 'rgba(255,159,28,0.2)', title: '#ff9f1c' },
-              success: { bg: 'rgba(0,255,136,0.06)', border: 'rgba(0,255,136,0.2)', title: '#00ff88' },
+              danger: {
+                bg: 'rgba(255,59,92,0.06)',
+                border: 'rgba(255,59,92,0.2)',
+                title: '#ff3b5c',
+              },
+              warning: {
+                bg: 'rgba(255,159,28,0.06)',
+                border: 'rgba(255,159,28,0.2)',
+                title: '#ff9f1c',
+              },
+              success: {
+                bg: 'rgba(0,255,136,0.06)',
+                border: 'rgba(0,255,136,0.2)',
+                title: '#00ff88',
+              },
               info: { bg: 'rgba(0,150,255,0.06)', border: 'rgba(0,150,255,0.2)', title: '#0096ff' },
             }[msg.type];
             return (
               <div
                 key={i}
                 className="flex items-start gap-4 p-4 rounded-2xl border animate-fade-in"
-                style={{ background: colors.bg, borderColor: colors.border, animationDelay: `${i * 0.15}s` }}
+                style={{
+                  background: colors.bg,
+                  borderColor: colors.border,
+                  animationDelay: `${i * 0.15}s`,
+                }}
               >
                 <span className="text-xl flex-shrink-0 mt-0.5">{msg.icon}</span>
                 <div>
-                  <p className="font-semibold mb-1" style={{ color: colors.title }}>{msg.title}</p>
+                  <p className="font-semibold mb-1" style={{ color: colors.title }}>
+                    {msg.title}
+                  </p>
                   <p className="text-sm text-void-secondary leading-relaxed">{msg.msg}</p>
                 </div>
               </div>
@@ -254,14 +339,18 @@ export default function Landing() {
             Analyze My Character <span>→</span>
           </Link>
           <p className="mt-4 text-xs text-void-muted">
-            Launching with <span className="text-sunwell-gold font-semibold">Midnight Season 1 — March 17, 2026</span>
+            Launching with{' '}
+            <span className="text-sunwell-gold font-semibold">
+              Midnight Season 1 — March 17, 2026
+            </span>
           </p>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="relative z-10 text-center py-6 text-xs text-void-muted border-t border-void-bright/10">
-        StillNoob is not affiliated with Blizzard Entertainment. World of Warcraft™ is a trademark of Blizzard Entertainment, Inc.
+        StillNoob is not affiliated with Blizzard Entertainment. World of Warcraft™ is a trademark
+        of Blizzard Entertainment, Inc.
       </footer>
     </div>
   );

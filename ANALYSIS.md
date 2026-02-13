@@ -19,19 +19,20 @@
 
 ### Direct Competitors
 
-| Product | Strength | Weakness | Revenue Model |
-|---------|----------|----------|---------------|
-| **WarcraftLogs** | Gold standard for raw combat data. Multi-report analysis (All Stars, character rankings) | No coaching. Data dumps, not advice. Multi-report requires 9€/mo premium | Ads (free) + Premium 9€/mo |
-| **WoWAnalyzer** | Per-spec rotation analysis, open source | Massive maintenance burden (per-spec modules break each patch). Limited spec coverage. Dead/stale specs. No cross-fight trends | Free (donations) |
-| **Archon** | Meta builds, tier lists, BiS guides | Generic — not personalized. "Best for the average player" not "best for YOU" | Ads |
-| **Wipefest** | Was great for raid wipe analysis | **Dead** (shut down). Lesson: single-developer maintenance risk | N/A |
-| **Raider.io** | M+ rankings, dungeon scores, recruitment tool | M+ focused only. No raid coaching. No improvement advice | Ads + Premium |
+| Product          | Strength                                                                                 | Weakness                                                                                                                       | Revenue Model              |
+| ---------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| **WarcraftLogs** | Gold standard for raw combat data. Multi-report analysis (All Stars, character rankings) | No coaching. Data dumps, not advice. Multi-report requires 9€/mo premium                                                       | Ads (free) + Premium 9€/mo |
+| **WoWAnalyzer**  | Per-spec rotation analysis, open source                                                  | Massive maintenance burden (per-spec modules break each patch). Limited spec coverage. Dead/stale specs. No cross-fight trends | Free (donations)           |
+| **Archon**       | Meta builds, tier lists, BiS guides                                                      | Generic — not personalized. "Best for the average player" not "best for YOU"                                                   | Ads                        |
+| **Wipefest**     | Was great for raid wipe analysis                                                         | **Dead** (shut down). Lesson: single-developer maintenance risk                                                                | N/A                        |
+| **Raider.io**    | M+ rankings, dungeon scores, recruitment tool                                            | M+ focused only. No raid coaching. No improvement advice                                                                       | Ads + Premium              |
 
 ### StillNoob's Unique Position
 
 **Nobody does automated personalized coaching from real player data.**
 
 Key differentiators:
+
 1. **"Spotify Wrapped" for WoW** — seasonal summaries, shareable score badges, progress over time
 2. **Skill-adapted advice** — different tips for a 30-score player vs an 80-score player (not one-size-fits-all)
 3. **Multi-report trend analysis** — "you're dying 40% less this month" vs WCL's single-report view
@@ -40,11 +41,11 @@ Key differentiators:
 
 ### Pricing Strategy (Recommended)
 
-| Tier | Price | Includes |
-|------|-------|----------|
-| **Free** | $0 | Score + 2-week history + basic tips + shareable badge |
-| **Premium** | 4€/mo | Full history + boss-by-boss breakdown + weekly trends + all recommendations |
-| **Pro/Team** | 7€/mo | Guild dashboard + team comparison + priority background scanning |
+| Tier         | Price | Includes                                                                    |
+| ------------ | ----- | --------------------------------------------------------------------------- |
+| **Free**     | $0    | Score + 2-week history + basic tips + shareable badge                       |
+| **Premium**  | 4€/mo | Full history + boss-by-boss breakdown + weekly trends + all recommendations |
+| **Pro/Team** | 7€/mo | Guild dashboard + team comparison + priority background scanning            |
 
 **Rationale:** WCL Premium is 9€/mo for multi-report analysis. StillNoob delivers better coaching at half the price. Free tier must be generous enough for viral sharing (the score badge IS the marketing).
 
@@ -98,13 +99,13 @@ Key differentiators:
 
 ### First 1000 Users Tactics
 
-| Channel | Expected Users | Effort |
-|---------|---------------|--------|
-| r/CompetitiveWoW post | 200-400 | Medium (need quality post) |
-| r/wownoob post | 100-200 | Low (beginner audience loves this) |
-| r/wow launch post | 300-500 | High (competitive, needs timing) |
-| Discord communities | 50-100 | Medium (manual outreach) |
-| Word of mouth (shareable scores) | 100-300 | Zero (viral) |
+| Channel                          | Expected Users | Effort                             |
+| -------------------------------- | -------------- | ---------------------------------- |
+| r/CompetitiveWoW post            | 200-400        | Medium (need quality post)         |
+| r/wownoob post                   | 100-200        | Low (beginner audience loves this) |
+| r/wow launch post                | 300-500        | High (competitive, needs timing)   |
+| Discord communities              | 50-100         | Medium (manual outreach)           |
+| Word of mouth (shareable scores) | 100-300        | Zero (viral)                       |
 
 ### Viral Loop Design
 
@@ -124,12 +125,12 @@ User searches character → Gets free score + badge
 
 ### Summary
 
-| Severity | Count | Status |
-|----------|-------|--------|
-| CRITICAL | 1 | ✅ Fixed (Feb 2026) |
-| HIGH | 4 | ✅ Fixed (Feb 2026) |
-| MEDIUM | 2 | ✅ Fixed (Feb 2026) |
-| LOW | 1 | Backlog |
+| Severity | Count | Status              |
+| -------- | ----- | ------------------- |
+| CRITICAL | 1     | ✅ Fixed (Feb 2026) |
+| HIGH     | 4     | ✅ Fixed (Feb 2026) |
+| MEDIUM   | 2     | ✅ Fixed (Feb 2026) |
+| LOW      | 1     | Backlog             |
 
 ---
 
@@ -219,13 +220,13 @@ User searches character → Gets free score + badge
 
 ### Scaling Path
 
-| Users | Infra | Monthly Cost | Key Actions |
-|-------|-------|-------------|-------------|
-| 0-100 | Render Free + Turso Free + CF Free | **$0** | Current setup. Add indexes + caching |
-| 100-500 | Render Starter ($7) | **$7** | Eliminate cold starts. Batch WCL calls |
-| 500-2K | Render Standard ($25) + Turso Scaler ($29) | **$54** | Add Redis for caching. Optimize SQL |
-| 2K-10K | Render Pro + Workers + dedicated DB | **$200-400** | Background workers, CDN for static assets |
-| 10K+ | Multi-region, dedicated instances | **$1K-3K** | Distributed caching, read replicas |
+| Users   | Infra                                      | Monthly Cost | Key Actions                               |
+| ------- | ------------------------------------------ | ------------ | ----------------------------------------- |
+| 0-100   | Render Free + Turso Free + CF Free         | **$0**       | Current setup. Add indexes + caching      |
+| 100-500 | Render Starter ($7)                        | **$7**       | Eliminate cold starts. Batch WCL calls    |
+| 500-2K  | Render Standard ($25) + Turso Scaler ($29) | **$54**      | Add Redis for caching. Optimize SQL       |
+| 2K-10K  | Render Pro + Workers + dedicated DB        | **$200-400** | Background workers, CDN for static assets |
+| 10K+    | Multi-region, dedicated instances          | **$1K-3K**   | Distributed caching, read replicas        |
 
 ---
 
@@ -268,4 +269,4 @@ User searches character → Gets free score + badge
 
 ---
 
-*This document should be reviewed and updated as items are completed. Security fixes are the highest priority — ship without features before shipping with vulnerabilities.*
+_This document should be reviewed and updated as items are completed. Security fixes are the highest priority — ship without features before shipping with vulnerabilities._

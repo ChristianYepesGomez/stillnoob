@@ -1,6 +1,7 @@
 # StillNoob - Project Rules & Context
 
 ## What is StillNoob?
+
 WoW coaching platform that analyzes player data (logs, gear, gameplay) and provides personalized coaching advice. Think "personal coach reading your logs and telling you exactly what to do."
 
 - **Domain:** stillnoob.com
@@ -11,6 +12,7 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ---
 
 ## Stack
+
 - **Frontend:** HTML/CSS (landing page), React (app futura)
 - **Backend:** Node.js with ES Modules, Express.js (in packages/api/)
 - **Database:** Turso (libsql remote) + Drizzle ORM — local dev uses `file:./data/stillnoob.db`
@@ -25,28 +27,32 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ## Infrastructure
 
 ### URLs
-| Service | URL | Host |
-|---------|-----|------|
-| Landing | `https://stillnoob.com` | Cloudflare Workers (`stillnoob`) |
-| Landing (www) | `https://www.stillnoob.com` | Cloudflare (CNAME → stillnoob.com) |
-| API (public) | `https://api.stillnoob.com` | Cloudflare Worker proxy → Render |
-| API (direct) | `https://stillnoob-api.onrender.com` | Render (free tier, Frankfurt) |
-| Database | Turso `stillnoob-db` | Turso (Frankfurt) |
+
+| Service       | URL                                  | Host                               |
+| ------------- | ------------------------------------ | ---------------------------------- |
+| Landing       | `https://stillnoob.com`              | Cloudflare Workers (`stillnoob`)   |
+| Landing (www) | `https://www.stillnoob.com`          | Cloudflare (CNAME → stillnoob.com) |
+| API (public)  | `https://api.stillnoob.com`          | Cloudflare Worker proxy → Render   |
+| API (direct)  | `https://stillnoob-api.onrender.com` | Render (free tier, Frankfurt)      |
+| Database      | Turso `stillnoob-db`                 | Turso (Frankfurt)                  |
 
 ### DNS Records (Cloudflare)
-| Type | Name | Content | Proxy |
-|------|------|---------|-------|
-| A | `stillnoob.com` | `192.0.2.1` | Proxied (Workers Route) |
-| A | `api` | `192.0.2.1` | Proxied (Workers Route) |
-| CNAME | `www` | `stillnoob.com` | Proxied |
+
+| Type  | Name            | Content         | Proxy                   |
+| ----- | --------------- | --------------- | ----------------------- |
+| A     | `stillnoob.com` | `192.0.2.1`     | Proxied (Workers Route) |
+| A     | `api`           | `192.0.2.1`     | Proxied (Workers Route) |
+| CNAME | `www`           | `stillnoob.com` | Proxied                 |
 
 ### Workers Routes
-| Route | Worker |
-|-------|--------|
-| `stillnoob.com/*` | `stillnoob` (static landing page) |
+
+| Route                 | Worker                                         |
+| --------------------- | ---------------------------------------------- |
+| `stillnoob.com/*`     | `stillnoob` (static landing page)              |
 | `api.stillnoob.com/*` | `stillnoob-api-proxy` (reverse proxy → Render) |
 
 ### Render Config
+
 - Blueprint: `render.yaml` in repo root
 - Root dir: `packages/api`
 - Build: `npm install`
@@ -56,12 +62,14 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 - Custom domain: `api.stillnoob.com` (verified, but uses Worker proxy route instead)
 
 ### Turso Config
+
 - Database: `stillnoob-db` (Frankfurt)
 - Schema push: `npx drizzle-kit push --config=drizzle.config.prod.js` (from packages/api/)
 - Local dev: `dialect: 'sqlite'` in `drizzle.config.js`
 - Production: `dialect: 'turso'` in `drizzle.config.prod.js`
 
 ### Architecture Notes
+
 - Render uses Cloudflare CDN internally → CNAME `api` → `onrender.com` causes Cloudflare Error 1000 (CF-to-CF conflict)
 - Solution: Cloudflare Worker `stillnoob-api-proxy` acts as reverse proxy, fetching from Render's origin URL
 - This avoids the DNS conflict while keeping `api.stillnoob.com` as the public-facing URL
@@ -70,6 +78,7 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ---
 
 ## Design Rules
+
 - Dark theme with void/purple palette matching WoW Midnight aesthetic
 - NEVER hardcode colors — use CSS variables (defined in index.html :root)
 - Color palette:
@@ -93,6 +102,7 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ---
 
 ## Code Rules
+
 - `node_modules/` NEVER in the repo — always in .gitignore
 - `.env` NEVER in the repo — use `.env.example` with placeholder values
 - `*.db` NEVER in the repo — database files are local-only
@@ -105,6 +115,7 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 ---
 
 ## Project Structure
+
 ```
 stillnoob/
 ├── public/
@@ -158,20 +169,22 @@ stillnoob/
 ## Database Schema (Drizzle ORM)
 
 ### Tables
-| Table | Purpose |
-|-------|---------|
-| `users` | User accounts (email, password, display name, tier: free/premium/admin) |
-| `auth_providers` | OAuth providers (google, discord, blizzard, warcraftlogs) |
-| `refresh_tokens` | JWT refresh tokens |
-| `characters` | WoW characters linked to users (name, realm, region, class, spec, role) |
-| `guilds` | Guild information |
-| `guild_members` | Guild membership |
-| `reports` | WarcraftLogs report metadata |
-| `fights` | Individual fights within reports |
-| `fight_performance` | Per-player per-fight performance data |
-| `bosses` | Boss reference data |
+
+| Table               | Purpose                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `users`             | User accounts (email, password, display name, tier: free/premium/admin) |
+| `auth_providers`    | OAuth providers (google, discord, blizzard, warcraftlogs)               |
+| `refresh_tokens`    | JWT refresh tokens                                                      |
+| `characters`        | WoW characters linked to users (name, realm, region, class, spec, role) |
+| `guilds`            | Guild information                                                       |
+| `guild_members`     | Guild membership                                                        |
+| `reports`           | WarcraftLogs report metadata                                            |
+| `fights`            | Individual fights within reports                                        |
+| `fight_performance` | Per-player per-fight performance data                                   |
+| `bosses`            | Boss reference data                                                     |
 
 ### Key relationships
+
 - `users` 1→N `characters` (user owns characters)
 - `users` 1→N `auth_providers` (OAuth connections)
 - `users` 1→N `guild_members` → `guilds` (user belongs to guilds)
@@ -181,7 +194,9 @@ stillnoob/
 - `fights` 1→N `fight_performance` (fight has player performances)
 
 ### Report Visibility
+
 Reports have a `visibility` field: `public` | `private` | `guild`
+
 - **public** — visible to everyone, included in SEO/public routes
 - **private** — only visible to the user who imported it
 - **guild** — visible to all members of the associated guild
@@ -193,18 +208,21 @@ Reports have a `visibility` field: `public` | `private` | `guild`
 ## API Architecture
 
 ### External APIs
-| API | Auth Method | Purpose |
-|-----|-------------|---------|
-| WarcraftLogs v2 | Client credentials (public data) + User OAuth (private logs) | Combat logs, parse data, rankings |
-| Blizzard API | Client credentials (public) + User OAuth (character linking) | Character profiles, gear, talents |
-| Raider.io | Public (no auth) | M+ score, dungeon run history (NOT YET IMPLEMENTED) |
+
+| API             | Auth Method                                                  | Purpose                                             |
+| --------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| WarcraftLogs v2 | Client credentials (public data) + User OAuth (private logs) | Combat logs, parse data, rankings                   |
+| Blizzard API    | Client credentials (public) + User OAuth (character linking) | Character profiles, gear, talents                   |
+| Raider.io       | Public (no auth)                                             | M+ score, dungeon run history (NOT YET IMPLEMENTED) |
 
 ### WCL Two-Tier Auth
+
 - **Client credentials** (`WCL_CLIENT_ID` + `WCL_CLIENT_SECRET`): Access public reports. Used by default for all imports and background scanning.
 - **User OAuth** (user links WCL account via `/auth/wcl/link`): Access private reports. Token stored in `auth_providers` with `provider='warcraftlogs'`. Import endpoint tries user token first, falls back to client credentials.
 - **GraphQL endpoints**: Client token → `https://www.warcraftlogs.com/api/v2/client`, User token → `https://www.warcraftlogs.com/api/v2/user`
 
 ### Environment Variables Required (.env)
+
 ```
 PORT=3001
 NODE_ENV=development
@@ -226,19 +244,21 @@ DISCORD_CLIENT_SECRET=
 ```
 
 ### API Routes
-| Route | Auth | Description |
-|-------|------|-------------|
-| `GET /api/health` | No | Health check |
-| `/api/v1/auth/*` | Mixed | Login, register, OAuth callbacks |
-| `/api/v1/characters/*` | Yes | Character CRUD, link to user |
-| `/api/v1/reports/*` | Yes | WCL report import & management |
-| `/api/v1/analysis/*` | Yes | Coaching analysis & scores |
-| `/api/v1/public/*` | No | Public character lookup (no login needed) |
-| `/api/v1/guilds/*` | Yes | Guild management |
+
+| Route                  | Auth  | Description                               |
+| ---------------------- | ----- | ----------------------------------------- |
+| `GET /api/health`      | No    | Health check                              |
+| `/api/v1/auth/*`       | Mixed | Login, register, OAuth callbacks          |
+| `/api/v1/characters/*` | Yes   | Character CRUD, link to user              |
+| `/api/v1/reports/*`    | Yes   | WCL report import & management            |
+| `/api/v1/analysis/*`   | Yes   | Coaching analysis & scores                |
+| `/api/v1/public/*`     | No    | Public character lookup (no login needed) |
+| `/api/v1/guilds/*`     | Yes   | Guild management                          |
 
 ---
 
 ## Authentication System
+
 - **Access tokens**: JWT, 15-minute expiry, sent as `Authorization: Bearer <token>`
 - **Refresh tokens**: JWT, 30-day expiry, stored in httpOnly cookie at path `/api/v1/auth`
 - **Token rotation**: On refresh, old token is deleted and new pair issued (prevents replay)
@@ -247,12 +267,14 @@ DISCORD_CLIENT_SECRET=
 - **User tiers**: `free` | `premium` | `admin`
 
 ## Background Jobs
+
 - **Scheduler**: `node-cron` running every 30 minutes (initialized on server start)
 - **Report scanner**: Iterates all registered characters, queries WCL for new reports, auto-imports
 - **Rate limiter**: Token bucket (280 tokens/hour, WCL limit is 300, 20 kept as buffer)
 - **Graceful degradation**: If WCL credentials not configured, scheduler logs and skips
 
 ## Development Commands
+
 ```bash
 # From packages/api/
 npx drizzle-kit push          # Apply schema changes to local SQLite
@@ -267,6 +289,7 @@ npm install                   # Install all workspace deps
 ---
 
 ## StillNoob Score System
+
 - **Performance:** 35% (DPS/HPS parse percentile from WCL)
 - **Survival:** 25% (avoidable damage, deaths per fight)
 - **Preparation:** 20% (gear, gems, enchants, consumables)
@@ -274,19 +297,21 @@ npm install                   # Install all workspace deps
 - **Consistency:** 10% (variance across fights)
 
 ### Tiers (defined in `packages/shared/src/constants.js`)
-| Tier | Score Range | Color | Description |
-|------|-------------|-------|-------------|
-| Noob | 0-20 | #888888 | Just starting out |
-| Casual | 21-40 | #00ff88 | Playing for fun |
-| Decent | 41-60 | #0096ff | Getting there |
-| Skilled | 61-75 | #9d5cff | Above average |
-| Pro | 76-85 | #ff9f1c | Competitive player |
-| Elite | 86-95 | #ff3b5c | Top tier |
-| Legendary | 96-100 | #f6c843 | Best of the best |
+
+| Tier      | Score Range | Color   | Description        |
+| --------- | ----------- | ------- | ------------------ |
+| Noob      | 0-20        | #888888 | Just starting out  |
+| Casual    | 21-40       | #00ff88 | Playing for fun    |
+| Decent    | 41-60       | #0096ff | Getting there      |
+| Skilled   | 61-75       | #9d5cff | Above average      |
+| Pro       | 76-85       | #ff9f1c | Competitive player |
+| Elite     | 86-95       | #ff3b5c | Top tier           |
+| Legendary | 96-100      | #f6c843 | Best of the best   |
 
 ---
 
 ## Data Sources
+
 - **WarcraftLogs API** — Combat logs, parses, rankings, fight-by-fight data (GraphQL)
 - **Raider.io API** — M+ score, dungeon runs, best runs
 - **Blizzard Armory API** — Character gear, talents, spec, achievement points
@@ -295,6 +320,7 @@ npm install                   # Install all workspace deps
 ---
 
 ## User Flow (Screens)
+
 1. **Landing Page** → Character name + realm + region input (current: public/index.html)
 2. **Loading** → Animated progress with status messages ("Analyzing your logs...")
 3. **Dashboard** → Score badge + Stats + Gear + Coaching messages
@@ -306,6 +332,7 @@ npm install                   # Install all workspace deps
 ## Current Status (Feb 9, 2026)
 
 ### Backend — DONE
+
 - Auth (register/login/refresh/logout/me)
 - Characters CRUD (create/list/primary/ownership)
 - WCL import (public + private reports via user OAuth)
@@ -320,6 +347,7 @@ npm install                   # Install all workspace deps
 - Rate limiter (token bucket for WCL API)
 
 ### Frontend — DONE (Feb 9, 2026)
+
 - React 18 + Vite 6 + Tailwind 3 + Recharts + i18next (EN/ES)
 - Void palette aligned with landing page design
 - Pages: Landing, Login, Register, Dashboard, Analysis (5 tabs), Guild, CharacterPublic
@@ -329,12 +357,14 @@ npm install                   # Install all workspace deps
 - OAuth linking UI (WCL + Blizzard) in Dashboard
 
 ### Infrastructure — DONE (Feb 9, 2026)
+
 - Landing: Cloudflare Workers (`stillnoob`) → `stillnoob.com`
 - API: Render free tier (Frankfurt) → `api.stillnoob.com` (via Worker proxy)
 - Database: Turso `stillnoob-db` (Frankfurt)
 - Auto-deploy on push to `main`
 
 ### Not Yet Built
+
 - Raider.io integration
 - Google/Discord OAuth
 - Email verification
@@ -347,11 +377,11 @@ npm install                   # Install all workspace deps
 
 ## Business Model
 
-| Tier | Price | Includes |
-|------|-------|----------|
-| **Free** | $0 | Score + 2-week history + basic tips + shareable badge (viral growth engine) |
-| **Premium** | 4€/mo | Full history + boss breakdown + weekly trends + all recommendations |
-| **Pro/Team** | 7€/mo | Guild dashboard + team comparison + priority background scanning |
+| Tier         | Price | Includes                                                                    |
+| ------------ | ----- | --------------------------------------------------------------------------- |
+| **Free**     | $0    | Score + 2-week history + basic tips + shareable badge (viral growth engine) |
+| **Premium**  | 4€/mo | Full history + boss breakdown + weekly trends + all recommendations         |
+| **Pro/Team** | 7€/mo | Guild dashboard + team comparison + priority background scanning            |
 
 - Free for first 3 months post-launch. Introduce Premium at month 4 when users are hooked
 - Free tier MUST include shareable score badge — this is the growth engine
@@ -360,6 +390,7 @@ npm install                   # Install all workspace deps
 ---
 
 ## Common Mistakes Log
+
 - ❌ `node_modules` was committed to repo → Fixed with `.gitignore` + `git rm -r --cached` (Feb 9, 2026)
 - ❌ `wrangler.jsonc` pointed to `"./"` instead of `"./public"` → Fixed (Feb 9, 2026)
 - ❌ `.gitignore` was in UTF-16LE encoding, git didn't read it properly → Rewritten in UTF-8 (Feb 9, 2026)
@@ -380,19 +411,21 @@ npm install                   # Install all workspace deps
 
 > Full analysis with pricing strategy, launch plan, security audit, and architecture review: **[ANALYSIS.md](ANALYSIS.md)**
 
-| Product | What it does | StillNoob's edge |
-|---------|-------------|------------------|
-| WarcraftLogs | Raw data, rankings, detailed logs. Multi-report analysis at 9€/mo | No coaching — just data dumps. StillNoob delivers better coaching cheaper |
-| Raider.io | M+ rankings, dungeon scores | No coaching, no raid analysis |
-| WoWAnalyzer | Per-spec rotation analysis (open source) | Per-spec maintenance unsustainable. Limited coverage. No cross-fight trends |
-| Archon | Tier lists, meta builds | Generic, not personalized |
-| Wipefest | Was great for wipe analysis | **Dead.** Lesson: single-dev maintenance risk |
-| **StillNoob** | **Automated personalized coaching from real data** | **"Spotify Wrapped" for WoW + skill-adapted advice. Nobody else does this** |
+| Product       | What it does                                                      | StillNoob's edge                                                            |
+| ------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| WarcraftLogs  | Raw data, rankings, detailed logs. Multi-report analysis at 9€/mo | No coaching — just data dumps. StillNoob delivers better coaching cheaper   |
+| Raider.io     | M+ rankings, dungeon scores                                       | No coaching, no raid analysis                                               |
+| WoWAnalyzer   | Per-spec rotation analysis (open source)                          | Per-spec maintenance unsustainable. Limited coverage. No cross-fight trends |
+| Archon        | Tier lists, meta builds                                           | Generic, not personalized                                                   |
+| Wipefest      | Was great for wipe analysis                                       | **Dead.** Lesson: single-dev maintenance risk                               |
+| **StillNoob** | **Automated personalized coaching from real data**                | **"Spotify Wrapped" for WoW + skill-adapted advice. Nobody else does this** |
 
 ---
 
 ## Relationship with DKP Backend
+
 StillNoob was born from the "Deep Performance Analysis" feature of the DKP backend (github.com/ChristianYepesGomez — dkp-backend/dkp-frontend). Key context:
+
 - The DKP project has existing code for WCL integration, performance analysis, and recommendations
 - Files that inspired StillNoob: `services/performanceAnalysis.js`, `services/warcraftlogs.js`
 - StillNoob is independent — it does NOT share code or database with DKP
@@ -402,32 +435,36 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 ---
 
 ## Timeline (Updated)
-| Week | Dates | Goal |
-|------|-------|------|
-| 1 | Feb 10-16 | Name ✅, domain ✅, user flow ✅, landing ✅, infra ✅ (Render+Turso+CF Workers) |
-| 2 | Feb 17-23 | Project structure, input system, **setup Playwright + first tests** |
-| 3 | Feb 24 - Mar 2 | Analysis engine (APIs) + **tests for API calls & character input** |
-| 4 | Mar 3-9 | Coaching system, dashboard + **tests for dashboard & coaching** |
-| 5 | Mar 10-16 | Polish UI, promotion — **everything already tested, no firefighting** |
-| 🎯 | **Mar 17** | **LAUNCH with Midnight Season 1** |
+
+| Week | Dates          | Goal                                                                             |
+| ---- | -------------- | -------------------------------------------------------------------------------- |
+| 1    | Feb 10-16      | Name ✅, domain ✅, user flow ✅, landing ✅, infra ✅ (Render+Turso+CF Workers) |
+| 2    | Feb 17-23      | Project structure, input system, **setup Playwright + first tests**              |
+| 3    | Feb 24 - Mar 2 | Analysis engine (APIs) + **tests for API calls & character input**               |
+| 4    | Mar 3-9        | Coaching system, dashboard + **tests for dashboard & coaching**                  |
+| 5    | Mar 10-16      | Polish UI, promotion — **everything already tested, no firefighting**            |
+| 🎯   | **Mar 17**     | **LAUNCH with Midnight Season 1**                                                |
 
 ---
 
 ## AI Assistant Rules (for Claude / any LLM)
 
 ### Context Management
+
 - Use `/clear` between unrelated tasks — a clean session with a good prompt always beats a long polluted one
 - If you've corrected Claude 2+ times on the same issue in one session, `/clear` and rewrite the prompt incorporating what you learned
 - Use subagents for codebase exploration — keeps main context clean for implementation
 - Scope investigations: "investigate token refresh in src/middleware/auth.js" NOT "investigate the auth system"
 
 ### Session Patterns
+
 - **Explore → Plan → Implement → Verify → Commit** for non-trivial tasks
 - **Interview-Driven Spec**: For complex features, have Claude interview you about requirements → write spec to file → `/clear` → implement from spec in clean session
 - **Writer/Reviewer**: Use one session to implement, another to review the implementation
 - **Fresh sessions for fresh tasks**: Don't mix unrelated work in one session
 
 ### Code Quality Enforcement
+
 - **ESLint** is configured — run `npm run lint` to check, fix warnings before committing
 - **Prettier** is configured — run `npm run format` to auto-format, `npm run format:check` to verify
 - **Vitest + Supertest** for API tests — run `npm run test` before committing
@@ -436,6 +473,7 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 - Don't ask Claude to catch unused variables — ESLint does that
 
 ### General Rules
+
 - If something goes sideways, STOP and re-plan. Don't keep pushing broken approaches
 - Write rules here that prevent the same mistake from happening twice
 - Always check `.gitignore` before committing new file types
@@ -454,15 +492,16 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 
 ## Code Quality Tooling
 
-| Tool | Command | Purpose |
-|------|---------|---------|
-| ESLint | `npm run lint` | Code quality, unused vars, common errors |
-| Prettier | `npm run format` | Deterministic code formatting |
-| Vitest | `npm run test` | API unit/integration tests |
-| Supertest | (used in tests) | HTTP assertion library for Express |
-| GitHub Actions | (automatic on push) | CI pipeline: lint + format + test |
+| Tool           | Command             | Purpose                                  |
+| -------------- | ------------------- | ---------------------------------------- |
+| ESLint         | `npm run lint`      | Code quality, unused vars, common errors |
+| Prettier       | `npm run format`    | Deterministic code formatting            |
+| Vitest         | `npm run test`      | API unit/integration tests               |
+| Supertest      | (used in tests)     | HTTP assertion library for Express       |
+| GitHub Actions | (automatic on push) | CI pipeline: lint + format + test        |
 
 ### Adding New Tests
+
 - Test files go in `packages/api/src/__tests__/*.test.js`
 - Use Supertest to test HTTP endpoints: `request(app).get('/api/...')`
 - Config in `packages/api/vitest.config.js`
@@ -471,6 +510,7 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 ---
 
 ## Testing Strategy
+
 - **API tests (Vitest + Supertest)**: Already configured, add tests as features are built
 - **E2E tests (Playwright)**: Setup from week 2
 - Add tests alongside each feature, not after
@@ -489,10 +529,11 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 ---
 
 ## Analysis & Planning
+
 - **[ANALYSIS.md](ANALYSIS.md)** — Full competitive analysis, launch strategy, security audit, architecture review, pre-launch checklist
 - **[AGENT-TASKS.md](AGENT-TASKS.md)** — 7 detailed improvement tasks ready for agent execution
 - **[FOUNDATIONS.md](FOUNDATIONS.md)** — Product decisions and design foundations
 
 ---
 
-*Last updated: February 12, 2026 — Analysis document added*
+_Last updated: February 12, 2026 — Analysis document added_

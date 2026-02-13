@@ -1,10 +1,12 @@
 # StillNoob - Claude Instructions
 
 ## What is this?
+
 WoW coaching platform — analyzes WarcraftLogs data and gives personalized improvement advice.
 **Domain:** stillnoob.com | **Launch:** March 17, 2026 (WoW Midnight Season 1)
 
 ## Stack
+
 - **Monorepo:** npm workspaces + turbo
 - **API:** Express.js + Drizzle ORM + Turso (libsql) in `packages/api/src/`
 - **Frontend:** React + Vite + Tailwind in `packages/web/` (landing page in `public/`)
@@ -13,6 +15,7 @@ WoW coaching platform — analyzes WarcraftLogs data and gives personalized impr
 - **ES Modules everywhere** — no `require()`
 
 ## Key Files
+
 - `packages/api/src/app.js` — Express setup, middleware, routes
 - `packages/api/src/db/schema.js` — Drizzle schema (all tables)
 - `packages/api/src/services/analysis.js` — Score engine, recommendations
@@ -24,6 +27,7 @@ WoW coaching platform — analyzes WarcraftLogs data and gives personalized impr
 - `FOUNDATIONS.md` — Product decisions (local only, not in git)
 
 ## Code Rules
+
 - API routes: `/api/v1/` prefix, JSON responses: `{ error: "message" }`
 - Dark void/purple palette — NEVER hardcode colors, use CSS variables
 - Fonts: Cinzel (headings), Rajdhani (body), Orbitron (stats)
@@ -31,6 +35,7 @@ WoW coaching platform — analyzes WarcraftLogs data and gives personalized impr
 - Run `npm run lint` + `npm run test` before committing
 
 ## Development
+
 ```bash
 # API (from packages/api/)
 node --watch src/index.js       # Dev server (port 3001)
@@ -43,6 +48,7 @@ npm run test                    # Vitest + Supertest
 ```
 
 ## Workflow
+
 - Plan mode for non-trivial tasks. Explore → Plan → Implement → Verify → Commit
 - Read before writing — understand existing code first
 - Use `/clear` between unrelated tasks — clean sessions beat polluted ones

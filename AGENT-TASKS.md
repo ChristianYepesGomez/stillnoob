@@ -11,12 +11,14 @@
 **Contexto**: ESLint ya está configurado. Hay 12 warnings de variables no usadas.
 
 **Ejecutar**:
+
 ```bash
 cd c:/Proyectos/stillnoob
 npx eslint packages/api/src/ --fix
 ```
 
 **Instrucciones**:
+
 1. Ejecuta `npx eslint packages/api/src/` para ver los warnings actuales
 2. Para cada variable sin usar: evalúa si se puede borrar el import o si se necesitará pronto
 3. Si el import es claramente innecesario, elimínalo
@@ -32,6 +34,7 @@ npx eslint packages/api/src/ --fix
 **Contexto**: Ya hay un test básico en `packages/api/src/__tests__/health.test.js`. Vitest y Supertest están instalados.
 
 **Instrucciones**:
+
 1. Lee `packages/api/src/app.js` para entender la estructura de rutas
 2. Lee `packages/api/src/routes/auth.js` — crea tests para:
    - POST `/api/v1/auth/register` — registrar usuario (validar campos requeridos, email duplicado)
@@ -54,6 +57,7 @@ npx eslint packages/api/src/ --fix
 **Contexto**: `c:/Proyectos/dkp-backend/server.js` tiene ~4500 líneas con TODAS las rutas API. El proyecto StillNoob ya tiene la estructura correcta (`routes/`, `middleware/`, `services/`). Usar StillNoob como referencia.
 
 **Instrucciones**:
+
 1. Lee `server.js` completo para entender la estructura
 2. Identifica grupos de endpoints:
    - Auth routes (login, register, profile) → `routes/auth.js`
@@ -73,6 +77,7 @@ npx eslint packages/api/src/ --fix
 8. Commit por cada grupo de rutas extraído
 
 **Principios**:
+
 - NO cambiar la lógica de negocio, solo mover código
 - Mantener las mismas rutas exactas (no renombrar endpoints)
 - Los middlewares compartidos (auth, role check) van a `middleware/`
@@ -85,6 +90,7 @@ npx eslint packages/api/src/ --fix
 **Contexto**: Todo es vanilla JS. Para el launch (Mar 17) no es prioritario, pero post-launch queremos migrar gradualmente.
 
 **Instrucciones**:
+
 1. Instalar TypeScript y tipos:
    ```bash
    cd packages/api
@@ -121,6 +127,7 @@ npx eslint packages/api/src/ --fix
 **Contexto**: No hay monitorización de errores en producción. Sentry tiene free tier (5K events/mes).
 
 **Instrucciones**:
+
 1. Crear cuenta en sentry.io (si no existe)
 2. Crear proyecto "stillnoob-api" (Node.js)
 3. Instalar:
@@ -170,6 +177,7 @@ git worktree add ../stillnoob-test test-infra
 ```
 
 **Beneficios**:
+
 - Cada agente trabaja en archivos aislados, sin conflictos
 - Git comparte el historial, así que pueden ver los commits del otro
 - Merge branches cuando estén listos
@@ -181,6 +189,7 @@ git worktree add ../stillnoob-test test-infra
 **Contexto**: El CLAUDE.md actual tiene ~180 líneas con mucho detalle de schema y endpoints. La recomendación es mantenerlo <100 líneas para no consumir contexto innecesariamente.
 
 **Instrucciones**:
+
 1. Lee `c:/Proyectos/dkp-backend/.claude/CLAUDE.md`
 2. Mueve el detalle de "Database Schema" a `docs/schema.md` — deja solo una referencia en CLAUDE.md
 3. Mueve el detalle de "API Endpoints" a `docs/api.md` — deja solo las rutas principales
@@ -196,4 +205,4 @@ git worktree add ../stillnoob-test test-infra
 
 ---
 
-*Cada tarea es independiente. Prioridad recomendada: 1 → 2 → 3 → 7 → 4 → 5 → 6*
+_Cada tarea es independiente. Prioridad recomendada: 1 → 2 → 3 → 7 → 4 → 5 → 6_

@@ -31,13 +31,14 @@ export default function RegionSelect({ value, onChange, inputClassName = '' }) {
       setIsOpen(false);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      setIsOpen(o => !o);
+      setIsOpen((o) => !o);
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const currentIdx = REGIONS.findIndex(r => r.value === value);
-      const next = e.key === 'ArrowDown'
-        ? (currentIdx + 1) % REGIONS.length
-        : (currentIdx - 1 + REGIONS.length) % REGIONS.length;
+      const currentIdx = REGIONS.findIndex((r) => r.value === value);
+      const next =
+        e.key === 'ArrowDown'
+          ? (currentIdx + 1) % REGIONS.length
+          : (currentIdx - 1 + REGIONS.length) % REGIONS.length;
       onChange(REGIONS[next].value);
     }
   }
@@ -46,9 +47,12 @@ export default function RegionSelect({ value, onChange, inputClassName = '' }) {
     <div ref={containerRef} className="relative">
       <button
         type="button"
-        onClick={() => setIsOpen(o => !o)}
+        onClick={() => setIsOpen((o) => !o)}
         onKeyDown={handleKeyDown}
-        className={inputClassName || 'w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none text-left cursor-pointer'}
+        className={
+          inputClassName ||
+          'w-full pt-7 pb-3 px-4 bg-transparent text-white font-rajdhani text-base outline-none text-left cursor-pointer'
+        }
         role="combobox"
         aria-expanded={isOpen}
       >
@@ -60,7 +64,8 @@ export default function RegionSelect({ value, onChange, inputClassName = '' }) {
 
       {isOpen && (
         <ul
-          className="absolute z-50 top-full left-0 right-0 bg-void-mid border border-void-glow/30 rounded-b-xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden"
+          className="absolute z-[100] top-full left-0 right-0 rounded-b-xl border border-void-bright/25 overflow-hidden"
+          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
           role="listbox"
         >
           {REGIONS.map((region) => (
@@ -68,12 +73,13 @@ export default function RegionSelect({ value, onChange, inputClassName = '' }) {
               key={region.value}
               role="option"
               aria-selected={region.value === value}
-              className={`px-4 py-2.5 text-sm font-rajdhani cursor-pointer transition-colors flex items-center justify-between
-                ${region.value === value
-                  ? 'bg-void-glow/20 text-white'
-                  : 'text-void-secondary hover:bg-void-surface hover:text-white'
-                }`}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(region); }}
+              className={`px-4 py-2.5 text-sm font-rajdhani cursor-pointer transition-colors flex items-center justify-between border-b border-void-bright/5 last:border-b-0
+                ${region.value === value ? 'text-white' : 'text-void-text/80 hover:text-white'}`}
+              style={{ backgroundColor: region.value === value ? '#251a3d' : '#1a0f2e' }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleSelect(region);
+              }}
             >
               <span className="font-semibold">{region.label}</span>
               <span className="text-xs text-void-muted">{region.desc}</span>

@@ -6,7 +6,9 @@ export default function ConsumableBar({ label, pct }) {
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] text-void-text truncate">{label}</span>
-        <span className="text-[10px] font-bold" style={{ color }}>{val}%</span>
+        <span className="text-[10px] font-bold" style={{ color }}>
+          {val}%
+        </span>
       </div>
       <div className="h-2 bg-void-surface/30 rounded-full overflow-hidden">
         <div

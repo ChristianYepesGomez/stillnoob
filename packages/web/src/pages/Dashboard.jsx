@@ -19,8 +19,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      charactersAPI.list().then(r => setCharacters(r.data)),
-      reportsAPI.list().then(r => setReports(r.data)),
+      charactersAPI.list().then((r) => setCharacters(r.data)),
+      reportsAPI.list().then((r) => setReports(r.data)),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -77,16 +77,22 @@ export default function Dashboard() {
               disabled={importing}
               className="px-4 py-2 bg-void-bright hover:bg-void-glow text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
             >
-              {importing ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-download" />}
+              {importing ? (
+                <i className="fas fa-spinner fa-spin" />
+              ) : (
+                <i className="fas fa-download" />
+              )}
             </button>
           </form>
 
           {importResult && (
-            <div className={`mt-3 p-3 rounded-lg text-sm ${
-              importResult.success
-                ? 'bg-green-900/20 border border-green-500/30 text-green-400'
-                : 'bg-red-900/20 border border-red-500/30 text-red-400'
-            }`}>
+            <div
+              className={`mt-3 p-3 rounded-lg text-sm ${
+                importResult.success
+                  ? 'bg-green-900/20 border border-green-500/30 text-green-400'
+                  : 'bg-red-900/20 border border-red-500/30 text-red-400'
+              }`}
+            >
               {importResult.success
                 ? `${t('reports.processed')} — ${t('reports.fights', { count: importResult.data.stats.fightsProcessed })}`
                 : importResult.error}
@@ -104,7 +110,7 @@ export default function Dashboard() {
             <p className="text-sm text-void-text/60">{t('dashboard.noCharacters')}</p>
           ) : (
             <div className="space-y-2">
-              {characters.map(char => (
+              {characters.map((char) => (
                 <button
                   key={char.id}
                   onClick={() => navigate(`/analysis/${char.id}`)}
@@ -117,7 +123,9 @@ export default function Dashboard() {
                     {char.name}
                   </span>
                   <span className="text-xs text-void-text/60">{char.realm}</span>
-                  <span className="text-xs text-void-text/40 ml-auto">{char.spec || char.className}</span>
+                  <span className="text-xs text-void-text/40 ml-auto">
+                    {char.spec || char.className}
+                  </span>
                   {char.isPrimary && (
                     <span className="text-[10px] px-1.5 py-0.5 bg-void-bright/20 text-void-accent rounded">
                       {t('characters.primary')}
@@ -141,21 +149,27 @@ export default function Dashboard() {
             <p className="text-sm text-void-text/60">{t('dashboard.noReports')}</p>
           ) : (
             <div className="space-y-2">
-              {reports.slice(0, 10).map(report => (
+              {reports.slice(0, 10).map((report) => (
                 <div
                   key={report.id}
                   className="flex items-center gap-4 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium truncate">{report.title || report.wclCode}</p>
+                    <p className="text-sm text-white font-medium truncate">
+                      {report.title || report.wclCode}
+                    </p>
                     <p className="text-xs text-void-text/60">{report.zoneName}</p>
                   </div>
                   <span className="text-xs text-void-text/40">
                     {report.processedAt ? new Date(report.processedAt).toLocaleDateString() : '—'}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                    report.importSource === 'auto' ? 'bg-blue-900/20 text-blue-400' : 'bg-void-surface/20 text-void-text'
-                  }`}>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded ${
+                      report.importSource === 'auto'
+                        ? 'bg-blue-900/20 text-blue-400'
+                        : 'bg-void-surface/20 text-void-text'
+                    }`}
+                  >
                     {t(`reports.${report.importSource || 'manual'}`)}
                   </span>
                 </div>
@@ -177,7 +191,9 @@ export default function Dashboard() {
                 try {
                   const { data } = await api.get('/auth/wcl/link');
                   window.location.href = data.url;
-                } catch { /* WCL not configured */ }
+                } catch {
+                  /* WCL not configured */
+                }
               }}
               className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10 hover:border-void-bright/30 transition-colors text-left"
             >
@@ -195,7 +211,9 @@ export default function Dashboard() {
                 try {
                   const { data } = await api.get('/auth/blizzard/link');
                   window.location.href = data.url;
-                } catch { /* Blizzard not configured */ }
+                } catch {
+                  /* Blizzard not configured */
+                }
               }}
               className="w-full flex items-center gap-3 p-3 rounded-xl bg-void-deep/50 border border-void-bright/10 hover:border-void-bright/30 transition-colors text-left"
             >

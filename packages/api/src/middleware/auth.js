@@ -14,11 +14,9 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
  * @returns {string}
  */
 export function generateAccessToken(user) {
-  return jwt.sign(
-    { id: user.id, email: user.email, tier: user.tier },
-    JWT_SECRET,
-    { expiresIn: '15m' }
-  );
+  return jwt.sign({ id: user.id, email: user.email, tier: user.tier }, JWT_SECRET, {
+    expiresIn: '15m',
+  });
 }
 
 /**
@@ -27,11 +25,9 @@ export function generateAccessToken(user) {
  * @returns {string}
  */
 export function generateRefreshToken(user) {
-  return jwt.sign(
-    { id: user.id, type: 'refresh', jti: crypto.randomUUID() },
-    JWT_REFRESH_SECRET,
-    { expiresIn: '30d' }
-  );
+  return jwt.sign({ id: user.id, type: 'refresh', jti: crypto.randomUUID() }, JWT_REFRESH_SECRET, {
+    expiresIn: '30d',
+  });
 }
 
 /**

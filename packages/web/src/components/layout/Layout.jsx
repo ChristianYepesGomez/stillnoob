@@ -36,7 +36,7 @@ export default function Layout() {
 
           {/* Navigation */}
           <div className="flex items-center gap-1">
-            {navItems.map(item => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

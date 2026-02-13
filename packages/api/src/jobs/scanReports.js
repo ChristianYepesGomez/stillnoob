@@ -1,7 +1,12 @@
 import { db } from '../db/client.js';
 import { characters, reports, fights } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { getCharacterReports, getReportData, getBatchFightStats, getBatchExtendedFightStats } from '../services/wcl.js';
+import {
+  getCharacterReports,
+  getReportData,
+  getBatchFightStats,
+  getBatchExtendedFightStats,
+} from '../services/wcl.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
 import { acquireToken } from '../services/rateLimiter.js';
@@ -23,9 +28,13 @@ function isTransientError(err) {
     return status === 429 || status >= 500;
   }
   // Network errors, timeouts
-  return err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT' ||
-    err.code === 'ECONNRESET' || err.code === 'ENOTFOUND' ||
-    err.message?.includes('timeout');
+  return (
+    err.code === 'ECONNABORTED' ||
+    err.code === 'ETIMEDOUT' ||
+    err.code === 'ECONNRESET' ||
+    err.code === 'ENOTFOUND' ||
+    err.message?.includes('timeout')
+  );
 }
 
 /**
@@ -43,7 +52,7 @@ async function retryWithBackoff(fn, label) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
         const status = err.response?.status || err.code || 'unknown';
         log.warn(`${label} failed (${status}), retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
       } else {
         break;
       }
@@ -73,7 +82,9 @@ export async function scanForNewReports() {
   for (const char of allChars) {
     // Circuit breaker: if WCL is consistently failing, abort early
     if (consecutiveWclFailures >= CIRCUIT_BREAKER_THRESHOLD) {
-      log.error(`Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} consecutive WCL failures — aborting scan`);
+      log.error(
+        `Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} consecutive WCL failures — aborting scan`,
+      );
       break;
     }
 
@@ -82,7 +93,7 @@ export async function scanForNewReports() {
 
       const wclReports = await retryWithBackoff(
         () => getCharacterReports(char.name, char.realmSlug, char.region, 5),
-        `getCharacterReports(${char.name})`
+        `getCharacterReports(${char.name})`,
       );
 
       // WCL responded — reset circuit breaker
@@ -90,7 +101,8 @@ export async function scanForNewReports() {
 
       for (const wclReport of wclReports) {
         // Check if already imported
-        const existing = await db.select({ id: reports.id })
+        const existing = await db
+          .select({ id: reports.id })
           .from(reports)
           .where(eq(reports.wclCode, wclReport.code))
           .get();
@@ -102,12 +114,13 @@ export async function scanForNewReports() {
           await acquireToken();
           const reportData = await retryWithBackoff(
             () => getReportData(wclReport.code),
-            `getReportData(${wclReport.code})`
+            `getReportData(${wclReport.code})`,
           );
           if (!reportData) continue;
 
           // Build char map for this user (before transaction)
-          const userChars = await db.select()
+          const userChars = await db
+            .select()
             .from(characters)
             .where(eq(characters.userId, char.userId))
             .all();
@@ -116,43 +129,61 @@ export async function scanForNewReports() {
             charMap[c.name.normalize('NFC').toLowerCase()] = c.id;
           }
 
-          const encounterFights = (reportData.fights || []).filter(f => f.encounterID > 0);
+          const encounterFights = (reportData.fights || []).filter((f) => f.encounterID > 0);
 
           // Transaction: insert report + all fights atomically
           const { fightMappings } = await db.transaction(async (tx) => {
-            const [txReport] = await tx.insert(reports).values({
-              wclCode: wclReport.code,
-              title: reportData.title,
-              startTime: reportData.startTime,
-              endTime: reportData.endTime,
-              region: reportData.region,
-              guildName: reportData.guild?.name || null,
-              zoneName: reportData.zone?.name || null,
-              participantsCount: reportData.participants?.length || 0,
-              importedBy: char.userId,
-              importSource: 'auto',
-            }).returning();
+            const [txReport] = await tx
+              .insert(reports)
+              .values({
+                wclCode: wclReport.code,
+                title: reportData.title,
+                startTime: reportData.startTime,
+                endTime: reportData.endTime,
+                region: reportData.region,
+                guildName: reportData.guild?.name || null,
+                zoneName: reportData.zone?.name || null,
+                participantsCount: reportData.participants?.length || 0,
+                importedBy: char.userId,
+                importSource: 'auto',
+              })
+              .returning();
 
             const txFightMappings = [];
             for (const fight of encounterFights) {
-              const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
-              const difficulty = fight.difficulty >= 10 ? 'Mythic+' : (difficultyMap[fight.difficulty] || 'Normal');
+              const difficultyMap = {
+                1: 'LFR',
+                2: 'Normal',
+                3: 'Heroic',
+                4: 'Heroic',
+                5: 'Mythic',
+              };
+              const difficulty =
+                fight.difficulty >= 10 ? 'Mythic+' : difficultyMap[fight.difficulty] || 'Normal';
               const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
 
-              const [storedFight] = await tx.insert(fights).values({
-                reportId: txReport.id,
-                wclFightId: fight.id,
-                encounterId: fight.encounterID,
-                bossName: fight.name || 'Unknown',
-                difficulty,
-                isKill: fight.kill || false,
-                startTime: fight.startTime,
-                endTime: fight.endTime,
-                durationMs,
-              }).onConflictDoNothing().returning();
+              const [storedFight] = await tx
+                .insert(fights)
+                .values({
+                  reportId: txReport.id,
+                  wclFightId: fight.id,
+                  encounterId: fight.encounterID,
+                  bossName: fight.name || 'Unknown',
+                  difficulty,
+                  isKill: fight.kill || false,
+                  startTime: fight.startTime,
+                  endTime: fight.endTime,
+                  durationMs,
+                })
+                .onConflictDoNothing()
+                .returning();
 
               if (storedFight) {
-                txFightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
+                txFightMappings.push({
+                  wclFightId: fight.id,
+                  storedFightId: storedFight.id,
+                  durationMs,
+                });
               }
             }
 
@@ -162,15 +193,15 @@ export async function scanForNewReports() {
           // Performance data (outside transaction — tolerant of partial failure)
           if (fightMappings.length > 0) {
             await acquireToken();
-            const allFightIds = fightMappings.map(f => f.wclFightId);
+            const allFightIds = fightMappings.map((f) => f.wclFightId);
             const [batchBasicStats, batchExtStats] = await Promise.all([
               retryWithBackoff(
                 () => getBatchFightStats(wclReport.code, allFightIds),
-                `getBatchFightStats(${wclReport.code})`
+                `getBatchFightStats(${wclReport.code})`,
               ),
               retryWithBackoff(
                 () => getBatchExtendedFightStats(wclReport.code, allFightIds),
-                `getBatchExtendedFightStats(${wclReport.code})`
+                `getBatchExtendedFightStats(${wclReport.code})`,
               ),
             ]);
 
@@ -180,10 +211,17 @@ export async function scanForNewReports() {
               if (basicStats && extStats) {
                 try {
                   await processExtendedFightData(
-                    mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
+                    mapping.storedFightId,
+                    mapping.durationMs,
+                    basicStats,
+                    extStats,
+                    charMap,
                   );
                 } catch (statsErr) {
-                  log.warn(`Stats processing failed for fight ${mapping.wclFightId}`, statsErr.message);
+                  log.warn(
+                    `Stats processing failed for fight ${mapping.wclFightId}`,
+                    statsErr.message,
+                  );
                 }
               }
             }
@@ -222,7 +260,9 @@ export async function scanForNewReports() {
 
   const summary = { scanned: allChars.length, imported: totalNew, failed: totalFailed };
   if (totalFailed > 0) {
-    log.warn(`Scan complete with errors — ${totalNew} imported, ${totalFailed} failed out of ${allChars.length} characters`);
+    log.warn(
+      `Scan complete with errors — ${totalNew} imported, ${totalFailed} failed out of ${allChars.length} characters`,
+    );
   } else {
     log.info(`Scan complete — ${totalNew} new reports imported from ${allChars.length} characters`);
   }

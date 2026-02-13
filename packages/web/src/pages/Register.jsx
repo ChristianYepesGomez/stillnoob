@@ -44,7 +44,9 @@ export default function Register() {
         </Link>
 
         <div className="bg-void-mid/50 border border-void-bright/20 rounded-2xl p-6">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">{t('auth.register')}</h2>
+          <h2 className="text-xl font-semibold text-white mb-6 text-center">
+            {t('auth.register')}
+          </h2>
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-900/20 border border-red-500/30 text-red-400 text-sm">

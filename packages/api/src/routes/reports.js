@@ -4,7 +4,12 @@ import { reports, fights, characters } from '../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 import { importLimiter } from '../middleware/rateLimit.js';
-import { getReportData, getReportDataWithUserToken, getBatchFightStats, getBatchExtendedFightStats } from '../services/wcl.js';
+import {
+  getReportData,
+  getReportDataWithUserToken,
+  getBatchFightStats,
+  getBatchExtendedFightStats,
+} from '../services/wcl.js';
 import { authProviders, guildMembers } from '../db/schema.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { decryptToken } from '../utils/encryption.js';
@@ -45,7 +50,8 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
 
     // If guild visibility, verify membership
     if (guildId) {
-      const membership = await db.select({ role: guildMembers.role })
+      const membership = await db
+        .select({ role: guildMembers.role })
         .from(guildMembers)
         .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
         .get();
@@ -56,7 +62,8 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
     }
 
     // Check if already imported
-    const existing = await db.select({ id: reports.id })
+    const existing = await db
+      .select({ id: reports.id })
       .from(reports)
       .where(eq(reports.wclCode, reportCode))
       .get();
@@ -67,7 +74,8 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
 
     // Try fetching with user token first (for private reports), fallback to client credentials
     let reportData = null;
-    const wclProvider = await db.select({ accessToken: authProviders.accessToken })
+    const wclProvider = await db
+      .select({ accessToken: authProviders.accessToken })
       .from(authProviders)
       .where(and(eq(authProviders.userId, req.user.id), eq(authProviders.provider, 'warcraftlogs')))
       .get();
@@ -86,11 +94,14 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
     }
 
     if (!reportData) {
-      return res.status(404).json({ error: 'Report not found on Warcraft Logs. If private, link your WCL account first.' });
+      return res.status(404).json({
+        error: 'Report not found on Warcraft Logs. If private, link your WCL account first.',
+      });
     }
 
     // Build character name → id map before transaction
-    const userChars = await db.select()
+    const userChars = await db
+      .select()
       .from(characters)
       .where(eq(characters.userId, req.user.id))
       .all();
@@ -100,43 +111,51 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
     }
 
     // Parse encounter fights before transaction
-    const encounterFights = (reportData.fights || []).filter(f => f.encounterID > 0);
+    const encounterFights = (reportData.fights || []).filter((f) => f.encounterID > 0);
     let performanceCount = 0;
 
     // Transaction: insert report + all fights atomically (rollback on failure)
     const { report, fightMappings } = await db.transaction(async (tx) => {
-      const [txReport] = await tx.insert(reports).values({
-        wclCode: reportCode,
-        title: reportData.title,
-        startTime: reportData.startTime,
-        endTime: reportData.endTime,
-        region: reportData.region,
-        guildName: reportData.guild?.name || null,
-        zoneName: reportData.zone?.name || null,
-        participantsCount: reportData.participants?.length || 0,
-        importedBy: req.user.id,
-        importSource: 'manual',
-        visibility,
-        guildId: guildId || null,
-      }).returning();
+      const [txReport] = await tx
+        .insert(reports)
+        .values({
+          wclCode: reportCode,
+          title: reportData.title,
+          startTime: reportData.startTime,
+          endTime: reportData.endTime,
+          region: reportData.region,
+          guildName: reportData.guild?.name || null,
+          zoneName: reportData.zone?.name || null,
+          participantsCount: reportData.participants?.length || 0,
+          importedBy: req.user.id,
+          importSource: 'manual',
+          visibility,
+          guildId: guildId || null,
+        })
+        .returning();
 
       const txFightMappings = [];
       for (const fight of encounterFights) {
         const difficultyMap = { 1: 'LFR', 2: 'Normal', 3: 'Heroic', 4: 'Heroic', 5: 'Mythic' };
-        const difficulty = fight.difficulty >= 10 ? 'Mythic+' : (difficultyMap[fight.difficulty] || 'Normal');
+        const difficulty =
+          fight.difficulty >= 10 ? 'Mythic+' : difficultyMap[fight.difficulty] || 'Normal';
         const durationMs = (fight.endTime || 0) - (fight.startTime || 0);
 
-        const [storedFight] = await tx.insert(fights).values({
-          reportId: txReport.id,
-          wclFightId: fight.id,
-          encounterId: fight.encounterID,
-          bossName: fight.name || 'Unknown',
-          difficulty,
-          isKill: fight.kill || false,
-          startTime: fight.startTime,
-          endTime: fight.endTime,
-          durationMs,
-        }).onConflictDoNothing().returning();
+        const [storedFight] = await tx
+          .insert(fights)
+          .values({
+            reportId: txReport.id,
+            wclFightId: fight.id,
+            encounterId: fight.encounterID,
+            bossName: fight.name || 'Unknown',
+            difficulty,
+            isKill: fight.kill || false,
+            startTime: fight.startTime,
+            endTime: fight.endTime,
+            durationMs,
+          })
+          .onConflictDoNothing()
+          .returning();
 
         if (storedFight) {
           txFightMappings.push({ wclFightId: fight.id, storedFightId: storedFight.id, durationMs });
@@ -148,7 +167,7 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
 
     // Performance data processing (outside transaction — tolerant of partial failure)
     if (fightMappings.length > 0) {
-      const allFightIds = fightMappings.map(f => f.wclFightId);
+      const allFightIds = fightMappings.map((f) => f.wclFightId);
       try {
         const [batchBasicStats, batchExtStats] = await Promise.all([
           getBatchFightStats(reportCode, allFightIds),
@@ -161,7 +180,11 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
           if (basicStats && extStats) {
             try {
               const count = await processExtendedFightData(
-                mapping.storedFightId, mapping.durationMs, basicStats, extStats, charMap
+                mapping.storedFightId,
+                mapping.durationMs,
+                basicStats,
+                extStats,
+                charMap,
               );
               performanceCount += count;
             } catch (statsErr) {
@@ -203,7 +226,8 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
 // GET /api/v1/reports — list my reports
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userReports = await db.select()
+    const userReports = await db
+      .select()
       .from(reports)
       .where(eq(reports.importedBy, req.user.id))
       .orderBy(desc(reports.processedAt))
@@ -219,7 +243,8 @@ router.get('/', authenticateToken, async (req, res) => {
 // GET /api/v1/reports/:code — report detail with fights (visibility-aware)
 router.get('/:code', optionalAuth, async (req, res) => {
   try {
-    const report = await db.select()
+    const report = await db
+      .select()
       .from(reports)
       .where(eq(reports.wclCode, req.params.code))
       .get();
@@ -238,9 +263,12 @@ router.get('/:code', optionalAuth, async (req, res) => {
         return res.status(404).json({ error: 'Report not found' });
       }
       if (req.user.id !== report.importedBy && report.guildId) {
-        const membership = await db.select({ role: guildMembers.role })
+        const membership = await db
+          .select({ role: guildMembers.role })
           .from(guildMembers)
-          .where(and(eq(guildMembers.guildId, report.guildId), eq(guildMembers.userId, req.user.id)))
+          .where(
+            and(eq(guildMembers.guildId, report.guildId), eq(guildMembers.userId, req.user.id)),
+          )
           .get();
         if (!membership) {
           return res.status(404).json({ error: 'Report not found' });
@@ -250,10 +278,7 @@ router.get('/:code', optionalAuth, async (req, res) => {
       }
     }
 
-    const reportFights = await db.select()
-      .from(fights)
-      .where(eq(fights.reportId, report.id))
-      .all();
+    const reportFights = await db.select().from(fights).where(eq(fights.reportId, report.id)).all();
 
     res.json({ ...report, fights: reportFights });
   } catch (err) {

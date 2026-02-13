@@ -11,12 +11,12 @@ function formatDps(val) {
 
 function getParseColor(pct) {
   if (pct == null) return 'text-void-text/50';
-  if (pct >= 99) return 'text-pink-400';    // gold/artifact
-  if (pct >= 95) return 'text-orange-400';   // legendary
-  if (pct >= 75) return 'text-purple-400';   // epic
-  if (pct >= 50) return 'text-blue-400';     // rare
-  if (pct >= 25) return 'text-green-400';    // uncommon
-  return 'text-gray-400';                     // common
+  if (pct >= 99) return 'text-pink-400'; // gold/artifact
+  if (pct >= 95) return 'text-orange-400'; // legendary
+  if (pct >= 75) return 'text-purple-400'; // epic
+  if (pct >= 50) return 'text-blue-400'; // rare
+  if (pct >= 25) return 'text-green-400'; // uncommon
+  return 'text-gray-400'; // common
 }
 
 export default function OverviewSection({ data }) {
@@ -27,15 +27,33 @@ export default function OverviewSection({ data }) {
     if (!summary) return [];
     const b = score?.breakdown || {};
     return [
-      { axis: t('analysis.scorePerformance'), value: b.performance ?? Math.min(summary.dpsVsMedianPct || 0, 100), max: 100 },
-      { axis: t('analysis.scoreSurvival'), value: b.survival ?? Math.max(0, 100 - (summary.deathRate || 0) * 100), max: 100 },
-      { axis: t('analysis.scorePreparation'), value: b.preparation ?? (summary.consumableScore || 0), max: 100 },
-      { axis: t('analysis.scoreUtility'), value: b.utility ?? Math.min((summary.avgInterrupts || 0) * 33, 100), max: 100 },
+      {
+        axis: t('analysis.scorePerformance'),
+        value: b.performance ?? Math.min(summary.dpsVsMedianPct || 0, 100),
+        max: 100,
+      },
+      {
+        axis: t('analysis.scoreSurvival'),
+        value: b.survival ?? Math.max(0, 100 - (summary.deathRate || 0) * 100),
+        max: 100,
+      },
+      {
+        axis: t('analysis.scorePreparation'),
+        value: b.preparation ?? (summary.consumableScore || 0),
+        max: 100,
+      },
+      {
+        axis: t('analysis.scoreUtility'),
+        value: b.utility ?? Math.min((summary.avgInterrupts || 0) * 33, 100),
+        max: 100,
+      },
       { axis: t('analysis.scoreConsistency'), value: b.consistency ?? 50, max: 100 },
     ];
   }, [summary, score, t]);
 
-  const topTips = (recommendations?.primaryTips || []).filter(r => r.severity !== 'positive').slice(0, 3);
+  const topTips = (recommendations?.primaryTips || [])
+    .filter((r) => r.severity !== 'positive')
+    .slice(0, 3);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -68,16 +86,30 @@ export default function OverviewSection({ data }) {
         <StatCard
           label={t('analysis.activeTime')}
           value={`${Math.round(summary.avgActiveTime || 0)}%`}
-          color={summary.avgActiveTime >= 85 ? 'text-green-400' : summary.avgActiveTime >= 70 ? 'text-yellow-400' : 'text-red-400'}
+          color={
+            summary.avgActiveTime >= 85
+              ? 'text-green-400'
+              : summary.avgActiveTime >= 70
+                ? 'text-yellow-400'
+                : 'text-red-400'
+          }
         />
         <StatCard
           label={t('analysis.cpm')}
           value={(summary.avgCpm || 0).toFixed(1)}
-          color={summary.avgCpm >= 35 ? 'text-green-400' : summary.avgCpm >= 25 ? 'text-yellow-400' : 'text-red-400'}
+          color={
+            summary.avgCpm >= 35
+              ? 'text-green-400'
+              : summary.avgCpm >= 25
+                ? 'text-yellow-400'
+                : 'text-red-400'
+          }
         />
         <StatCard
           label={t('analysis.avgParse')}
-          value={summary.avgParsePercentile != null ? `${Math.round(summary.avgParsePercentile)}%` : '—'}
+          value={
+            summary.avgParsePercentile != null ? `${Math.round(summary.avgParsePercentile)}%` : '—'
+          }
           color={getParseColor(summary.avgParsePercentile)}
         />
       </div>
@@ -92,7 +124,13 @@ export default function OverviewSection({ data }) {
             <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
               <PolarGrid stroke="#1a0f2e" />
               <PolarAngleAxis dataKey="axis" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-              <Radar dataKey="value" stroke="#c084fc" fill="#c084fc" fillOpacity={0.25} strokeWidth={2} />
+              <Radar
+                dataKey="value"
+                stroke="#c084fc"
+                fill="#c084fc"
+                fillOpacity={0.25}
+                strokeWidth={2}
+              />
             </RadarChart>
           </ResponsiveContainer>
         </div>
@@ -107,11 +145,16 @@ export default function OverviewSection({ data }) {
           ) : (
             <div className="space-y-2">
               {topTips.map((tip, i) => (
-                <div key={i} className={`p-3 rounded-lg text-xs border ${
-                  tip.severity === 'critical' ? 'bg-red-900/20 border-red-500/30 text-red-400' :
-                  tip.severity === 'warning' ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-400' :
-                  'bg-blue-900/20 border-blue-500/30 text-blue-400'
-                }`}>
+                <div
+                  key={i}
+                  className={`p-3 rounded-lg text-xs border ${
+                    tip.severity === 'critical'
+                      ? 'bg-red-900/20 border-red-500/30 text-red-400'
+                      : tip.severity === 'warning'
+                        ? 'bg-yellow-900/20 border-yellow-500/30 text-yellow-400'
+                        : 'bg-blue-900/20 border-blue-500/30 text-blue-400'
+                  }`}
+                >
                   {t(`rec.${tip.key}`, tip.data)}
                 </div>
               ))}

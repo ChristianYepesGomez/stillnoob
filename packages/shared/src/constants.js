@@ -27,9 +27,19 @@ export const DIFFICULTY_COLORS = {
 
 /** WoW classes list */
 export const WOW_CLASSES = [
-  'Warrior', 'Paladin', 'Hunter', 'Rogue', 'Priest',
-  'Shaman', 'Mage', 'Warlock', 'Druid', 'Death Knight',
-  'Monk', 'Demon Hunter', 'Evoker',
+  'Warrior',
+  'Paladin',
+  'Hunter',
+  'Rogue',
+  'Priest',
+  'Shaman',
+  'Mage',
+  'Warlock',
+  'Druid',
+  'Death Knight',
+  'Monk',
+  'Demon Hunter',
+  'Evoker',
 ];
 
 /** Raid roles */
@@ -42,17 +52,44 @@ export const REGIONS = ['us', 'eu', 'kr', 'tw'];
 export const USER_TIERS = ['free', 'premium', 'admin'];
 
 /** Recommendation categories */
-export const REC_CATEGORIES = ['survivability', 'consumables', 'performance', 'utility', 'mythicPlus', 'gear'];
+export const REC_CATEGORIES = [
+  'survivability',
+  'consumables',
+  'performance',
+  'utility',
+  'mythicPlus',
+  'gear',
+];
 
 /** Recommendation severities */
 export const REC_SEVERITIES = ['positive', 'info', 'warning', 'critical'];
 
 /** Severity styles for frontend */
 export const SEVERITY_STYLES = {
-  positive: { bg: 'bg-green-900/20', border: 'border-green-500/30', icon: 'fa-check-circle', color: 'text-green-400' },
-  info: { bg: 'bg-blue-900/20', border: 'border-blue-500/30', icon: 'fa-info-circle', color: 'text-blue-400' },
-  warning: { bg: 'bg-yellow-900/20', border: 'border-yellow-500/30', icon: 'fa-exclamation-triangle', color: 'text-yellow-400' },
-  critical: { bg: 'bg-red-900/20', border: 'border-red-500/30', icon: 'fa-times-circle', color: 'text-red-400' },
+  positive: {
+    bg: 'bg-green-900/20',
+    border: 'border-green-500/30',
+    icon: 'fa-check-circle',
+    color: 'text-green-400',
+  },
+  info: {
+    bg: 'bg-blue-900/20',
+    border: 'border-blue-500/30',
+    icon: 'fa-info-circle',
+    color: 'text-blue-400',
+  },
+  warning: {
+    bg: 'bg-yellow-900/20',
+    border: 'border-yellow-500/30',
+    icon: 'fa-exclamation-triangle',
+    color: 'text-yellow-400',
+  },
+  critical: {
+    bg: 'bg-red-900/20',
+    border: 'border-red-500/30',
+    icon: 'fa-times-circle',
+    color: 'text-red-400',
+  },
 };
 
 /** Category styles for frontend */
@@ -71,7 +108,8 @@ export const AUTO_ATTACK_PATTERNS = /^(Melee|Auto Shot|Shoot)$/i;
 /** Consumable detection regex patterns */
 export const CONSUMABLE_PATTERNS = {
   healthstone: /healthstone/i,
-  combatPotion: /tempered potion|potion of unwavering focus|frontline potion|elemental potion|potion of the .*(war|twilight)/i,
+  combatPotion:
+    /tempered potion|potion of unwavering focus|frontline potion|elemental potion|potion of the .*(war|twilight)/i,
 };
 
 /** Buff detection regex patterns */
@@ -83,9 +121,9 @@ export const BUFF_PATTERNS = {
 
 /** Consumable score weights (must sum to 1.0) */
 export const CONSUMABLE_WEIGHTS = {
-  healthstone: 0.20,
-  combatPotion: 0.30,
-  flask: 0.30,
+  healthstone: 0.2,
+  combatPotion: 0.3,
+  flask: 0.3,
   food: 0.13,
   augmentRune: 0.07,
 };
@@ -94,9 +132,9 @@ export const CONSUMABLE_WEIGHTS = {
 export const SCORE_WEIGHTS = {
   performance: 0.35,
   survival: 0.25,
-  preparation: 0.20,
-  utility: 0.10,
-  consistency: 0.10,
+  preparation: 0.2,
+  utility: 0.1,
+  consistency: 0.1,
 };
 
 /** StillNoob Score tier definitions */
@@ -112,13 +150,13 @@ export const SCORE_TIERS = [
 
 /** WarcraftLogs parse percentile color tiers (official) */
 export const WCL_PARSE_COLORS = {
-  grey:   { min: 0,  max: 24,  color: '#666666', label: 'Grey' },
-  green:  { min: 25, max: 49,  color: '#1eff00', label: 'Green' },
-  blue:   { min: 50, max: 74,  color: '#0070dd', label: 'Blue' },
-  purple: { min: 75, max: 94,  color: '#a335ee', label: 'Purple' },
-  orange: { min: 95, max: 98,  color: '#ff8000', label: 'Orange' },
-  pink:   { min: 99, max: 99,  color: '#e268a8', label: 'Pink' },
-  gold:   { min: 100, max: 100, color: '#e5cc80', label: 'Gold' },
+  grey: { min: 0, max: 24, color: '#666666', label: 'Grey' },
+  green: { min: 25, max: 49, color: '#1eff00', label: 'Green' },
+  blue: { min: 50, max: 74, color: '#0070dd', label: 'Blue' },
+  purple: { min: 75, max: 94, color: '#a335ee', label: 'Purple' },
+  orange: { min: 95, max: 98, color: '#ff8000', label: 'Orange' },
+  pink: { min: 99, max: 99, color: '#e268a8', label: 'Pink' },
+  gold: { min: 100, max: 100, color: '#e5cc80', label: 'Gold' },
 };
 
 /** Player skill levels for adaptive coaching */
@@ -151,10 +189,10 @@ export const LEVEL_DETECTION = {
 
 /** M+ Score brackets for coaching */
 export const MPLUS_BRACKETS = [
-  { min: 0,    max: 750,  key: 'starter',         label: 'Starter',         color: '#888888' },
-  { min: 751,  max: 1500, key: 'apprentice',       label: 'Apprentice',      color: '#1eff00' },
-  { min: 1501, max: 2000, key: 'challenger',       label: 'Challenger',      color: '#0070dd' },
-  { min: 2001, max: 2500, key: 'keystone_hero',    label: 'Keystone Hero',   color: '#a335ee' },
-  { min: 2501, max: 3000, key: 'keystone_master',  label: 'Keystone Master', color: '#ff8000' },
-  { min: 3001, max: 9999, key: 'keystone_legend',  label: 'Keystone Legend', color: '#e268a8' },
+  { min: 0, max: 750, key: 'starter', label: 'Starter', color: '#888888' },
+  { min: 751, max: 1500, key: 'apprentice', label: 'Apprentice', color: '#1eff00' },
+  { min: 1501, max: 2000, key: 'challenger', label: 'Challenger', color: '#0070dd' },
+  { min: 2001, max: 2500, key: 'keystone_hero', label: 'Keystone Hero', color: '#a335ee' },
+  { min: 2501, max: 3000, key: 'keystone_master', label: 'Keystone Master', color: '#ff8000' },
+  { min: 3001, max: 9999, key: 'keystone_legend', label: 'Keystone Legend', color: '#e268a8' },
 ];

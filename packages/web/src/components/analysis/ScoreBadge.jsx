@@ -27,7 +27,10 @@ export default function ScoreBadge({ score }) {
           <svg width="140" height="140" className="transform -rotate-90">
             <circle cx="70" cy="70" r="54" fill="none" stroke="#1a0f2e" strokeWidth="10" />
             <circle
-              cx="70" cy="70" r="54" fill="none"
+              cx="70"
+              cy="70"
+              r="54"
+              fill="none"
               stroke={tier.color}
               strokeWidth="10"
               strokeLinecap="round"
@@ -55,7 +58,11 @@ export default function ScoreBadge({ score }) {
             </span>
             <span
               className="text-xs px-2 py-0.5 rounded-full border font-semibold"
-              style={{ borderColor: `${tier.color}40`, color: tier.color, backgroundColor: `${tier.color}15` }}
+              style={{
+                borderColor: `${tier.color}40`,
+                color: tier.color,
+                backgroundColor: `${tier.color}15`,
+              }}
             >
               {t('analysis.stillnoobScore')}
             </span>
@@ -63,7 +70,7 @@ export default function ScoreBadge({ score }) {
 
           {/* Breakdown bars */}
           <div className="space-y-2">
-            {BREAKDOWN_KEYS.map(key => {
+            {BREAKDOWN_KEYS.map((key) => {
               const value = breakdown?.[key] || 0;
               const weight = Math.round(SCORE_WEIGHTS[key] * 100);
               const color = BREAKDOWN_COLORS[key];

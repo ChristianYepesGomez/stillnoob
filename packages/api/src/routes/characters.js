@@ -14,7 +14,8 @@ router.use(authenticateToken);
 // GET /api/v1/characters — list my characters
 router.get('/', async (req, res) => {
   try {
-    const chars = await db.select()
+    const chars = await db
+      .select()
       .from(characters)
       .where(eq(characters.userId, req.user.id))
       .all();
@@ -37,16 +38,19 @@ router.post('/', async (req, res) => {
 
     const slug = realmSlug || realm.toLowerCase().replace(/\s+/g, '-');
 
-    const result = await db.insert(characters).values({
-      userId: req.user.id,
-      name: name.trim().normalize('NFC'),
-      realm,
-      realmSlug: slug,
-      region: region || 'eu',
-      className,
-      spec: spec || null,
-      raidRole: raidRole || null,
-    }).returning();
+    const result = await db
+      .insert(characters)
+      .values({
+        userId: req.user.id,
+        name: name.trim().normalize('NFC'),
+        realm,
+        realmSlug: slug,
+        region: region || 'eu',
+        className,
+        spec: spec || null,
+        raidRole: raidRole || null,
+      })
+      .returning();
 
     res.status(201).json(result[0]);
   } catch (err) {
@@ -67,7 +71,8 @@ router.put('/:id/primary', async (req, res) => {
     }
 
     // Verify ownership
-    const char = await db.select()
+    const char = await db
+      .select()
       .from(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)))
       .get();
@@ -77,14 +82,10 @@ router.put('/:id/primary', async (req, res) => {
     }
 
     // Unset all primary flags for this user
-    await db.update(characters)
-      .set({ isPrimary: false })
-      .where(eq(characters.userId, req.user.id));
+    await db.update(characters).set({ isPrimary: false }).where(eq(characters.userId, req.user.id));
 
     // Set this one as primary
-    await db.update(characters)
-      .set({ isPrimary: true })
-      .where(eq(characters.id, charId));
+    await db.update(characters).set({ isPrimary: true }).where(eq(characters.id, charId));
 
     res.json({ message: 'Primary character updated' });
   } catch (err) {
@@ -101,7 +102,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid character ID' });
     }
 
-    const result = await db.delete(characters)
+    const result = await db
+      .delete(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)));
 
     if (result.rowsAffected === 0) {

@@ -5,15 +5,15 @@
  */
 
 export const SPEC_DATA = {
-  'Warrior': {
-    'Arms': {
+  Warrior: {
+    Arms: {
       role: 'DPS',
       mainStat: 'strength',
       statPriority: ['crit', 'haste', 'mastery', 'versatility'],
       expectedCpm: 35,
       softCaps: {},
     },
-    'Fury': {
+    Fury: {
       role: 'DPS',
       mainStat: 'strength',
       statPriority: ['haste', 'crit', 'mastery', 'versatility'],
@@ -29,7 +29,7 @@ export const SPEC_DATA = {
     },
   },
 
-  'Paladin': {
+  Paladin: {
     'Holy Paladin': {
       role: 'Healer',
       mainStat: 'intellect',
@@ -44,7 +44,7 @@ export const SPEC_DATA = {
       expectedCpm: 28,
       softCaps: {},
     },
-    'Retribution': {
+    Retribution: {
       role: 'DPS',
       mainStat: 'strength',
       statPriority: ['haste', 'versatility', 'crit', 'mastery'],
@@ -53,7 +53,7 @@ export const SPEC_DATA = {
     },
   },
 
-  'Hunter': {
+  Hunter: {
     'Beast Mastery': {
       role: 'DPS',
       mainStat: 'agility',
@@ -61,14 +61,14 @@ export const SPEC_DATA = {
       expectedCpm: 38,
       softCaps: {},
     },
-    'Marksmanship': {
+    Marksmanship: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['mastery', 'crit', 'versatility', 'haste'],
       expectedCpm: 28,
       softCaps: {},
     },
-    'Survival': {
+    Survival: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['haste', 'versatility', 'crit', 'mastery'],
@@ -77,22 +77,22 @@ export const SPEC_DATA = {
     },
   },
 
-  'Rogue': {
-    'Assassination': {
+  Rogue: {
+    Assassination: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
       expectedCpm: 32,
       softCaps: {},
     },
-    'Outlaw': {
+    Outlaw: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['versatility', 'haste', 'crit', 'mastery'],
       expectedCpm: 40,
       softCaps: {},
     },
-    'Subtlety': {
+    Subtlety: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['versatility', 'crit', 'haste', 'mastery'],
@@ -101,8 +101,8 @@ export const SPEC_DATA = {
     },
   },
 
-  'Priest': {
-    'Discipline': {
+  Priest: {
+    Discipline: {
       role: 'Healer',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'versatility', 'mastery'],
@@ -116,7 +116,7 @@ export const SPEC_DATA = {
       expectedCpm: 30,
       softCaps: {},
     },
-    'Shadow': {
+    Shadow: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
@@ -126,7 +126,7 @@ export const SPEC_DATA = {
   },
 
   'Death Knight': {
-    'Blood': {
+    Blood: {
       role: 'Tank',
       mainStat: 'strength',
       statPriority: ['haste', 'versatility', 'mastery', 'crit'],
@@ -140,7 +140,7 @@ export const SPEC_DATA = {
       expectedCpm: 35,
       softCaps: {},
     },
-    'Unholy': {
+    Unholy: {
       role: 'DPS',
       mainStat: 'strength',
       statPriority: ['mastery', 'haste', 'crit', 'versatility'],
@@ -149,15 +149,15 @@ export const SPEC_DATA = {
     },
   },
 
-  'Shaman': {
-    'Elemental': {
+  Shaman: {
+    Elemental: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'versatility', 'crit', 'mastery'],
       expectedCpm: 33,
       softCaps: {},
     },
-    'Enhancement': {
+    Enhancement: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['haste', 'mastery', 'versatility', 'crit'],
@@ -173,15 +173,15 @@ export const SPEC_DATA = {
     },
   },
 
-  'Mage': {
-    'Arcane': {
+  Mage: {
+    Arcane: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'versatility', 'mastery'],
       expectedCpm: 35,
       softCaps: {},
     },
-    'Fire': {
+    Fire: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'versatility', 'mastery', 'crit'],
@@ -197,22 +197,22 @@ export const SPEC_DATA = {
     },
   },
 
-  'Warlock': {
-    'Affliction': {
+  Warlock: {
+    Affliction: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
       expectedCpm: 28,
       softCaps: {},
     },
-    'Demonology': {
+    Demonology: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
       expectedCpm: 33,
       softCaps: {},
     },
-    'Destruction': {
+    Destruction: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'mastery', 'versatility'],
@@ -221,22 +221,22 @@ export const SPEC_DATA = {
     },
   },
 
-  'Monk': {
-    'Brewmaster': {
+  Monk: {
+    Brewmaster: {
       role: 'Tank',
       mainStat: 'agility',
       statPriority: ['versatility', 'crit', 'mastery', 'haste'],
       expectedCpm: 30,
       softCaps: {},
     },
-    'Windwalker': {
+    Windwalker: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['mastery', 'versatility', 'crit', 'haste'],
       expectedCpm: 40,
       softCaps: {},
     },
-    'Mistweaver': {
+    Mistweaver: {
       role: 'Healer',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'versatility', 'mastery'],
@@ -245,22 +245,22 @@ export const SPEC_DATA = {
     },
   },
 
-  'Druid': {
-    'Balance': {
+  Druid: {
+    Balance: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
       expectedCpm: 30,
       softCaps: {},
     },
-    'Feral': {
+    Feral: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['crit', 'mastery', 'versatility', 'haste'],
       expectedCpm: 35,
       softCaps: {},
     },
-    'Guardian': {
+    Guardian: {
       role: 'Tank',
       mainStat: 'agility',
       statPriority: ['versatility', 'haste', 'mastery', 'crit'],
@@ -277,14 +277,14 @@ export const SPEC_DATA = {
   },
 
   'Demon Hunter': {
-    'Havoc': {
+    Havoc: {
       role: 'DPS',
       mainStat: 'agility',
       statPriority: ['haste', 'crit', 'versatility', 'mastery'],
       expectedCpm: 42,
       softCaps: {},
     },
-    'Vengeance': {
+    Vengeance: {
       role: 'Tank',
       mainStat: 'agility',
       statPriority: ['haste', 'versatility', 'crit', 'mastery'],
@@ -293,22 +293,22 @@ export const SPEC_DATA = {
     },
   },
 
-  'Evoker': {
-    'Devastation': {
+  Evoker: {
+    Devastation: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'mastery', 'crit', 'versatility'],
       expectedCpm: 35,
       softCaps: {},
     },
-    'Preservation': {
+    Preservation: {
       role: 'Healer',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'versatility', 'mastery'],
       expectedCpm: 28,
       softCaps: {},
     },
-    'Augmentation': {
+    Augmentation: {
       role: 'DPS',
       mainStat: 'intellect',
       statPriority: ['haste', 'crit', 'mastery', 'versatility'],

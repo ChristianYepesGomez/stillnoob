@@ -30,7 +30,8 @@ router.get('/character/:id', async (req, res) => {
     const difficulty = req.query.difficulty || undefined;
 
     // Verify ownership
-    const char = await db.select()
+    const char = await db
+      .select()
       .from(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)))
       .get();
@@ -48,13 +49,44 @@ router.get('/character/:id', async (req, res) => {
     // Look up spec-specific CPM baseline
     const specInfo = char.className && char.spec ? getSpecData(char.className, char.spec) : null;
 
+    // Fetch specMeta from cache (used by both talent tips and build analysis)
+    let specMeta = null;
+    if (char.className && char.spec) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const cached = await db
+        .select()
+        .from(specMetaCache)
+        .where(
+          and(
+            eq(specMetaCache.className, char.className),
+            eq(specMetaCache.spec, char.spec),
+            eq(specMetaCache.region, 'world'),
+            gte(specMetaCache.lastUpdated, sevenDaysAgo),
+          ),
+        )
+        .get();
+      if (cached) {
+        specMeta = {
+          avgStats: JSON.parse(cached.avgStats || '{}'),
+          avgItemLevel: cached.avgItemLevel,
+          commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
+          commonGems: JSON.parse(cached.commonGems || '{}'),
+          commonTalents: JSON.parse(cached.commonTalents || '{}'),
+          sampleSize: cached.sampleSize,
+        };
+      }
+    }
+
     const data = await getCharacterPerformance(charId, {
-      weeks, bossId, difficulty,
+      weeks,
+      bossId,
+      difficulty,
       characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region },
       raiderIO,
       specCpmBaseline: specInfo?.expectedCpm || null,
       className: char.className,
       spec: char.spec,
+      specMeta,
     });
 
     // M+ visual analysis (charts, brackets, trends)
@@ -69,41 +101,23 @@ router.get('/character/:id', async (req, res) => {
     let buildAnalysis = null;
     if (equipment) {
       const transformed = transformEquipment(equipment);
-
-      // Try to get specMeta from cache
-      let specMeta = null;
-      if (char.className && char.spec) {
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        const cached = await db.select()
-          .from(specMetaCache)
-          .where(and(
-            eq(specMetaCache.className, char.className),
-            eq(specMetaCache.spec, char.spec),
-            eq(specMetaCache.region, 'world'),
-            gte(specMetaCache.lastUpdated, sevenDaysAgo),
-          ))
-          .get();
-        if (cached) {
-          specMeta = {
-            avgStats: JSON.parse(cached.avgStats || '{}'),
-            avgItemLevel: cached.avgItemLevel,
-            commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
-            commonGems: JSON.parse(cached.commonGems || '{}'),
-            sampleSize: cached.sampleSize,
-          };
-        }
-      }
-
       buildAnalysis = analyzeCharacterBuild(transformed, char.className, char.spec, specMeta);
     }
 
-    res.json({ ...data, raiderIO, mplusAnalysis: mplusAnalysis ? {
-      dungeonAnalysis: mplusAnalysis.dungeonAnalysis,
-      scoreAnalysis: mplusAnalysis.scoreAnalysis,
-      timingAnalysis: mplusAnalysis.timingAnalysis,
-      upgradeAnalysis: mplusAnalysis.upgradeAnalysis,
-      pushTargets: mplusAnalysis.pushTargets,
-    } : null, buildAnalysis });
+    res.json({
+      ...data,
+      raiderIO,
+      mplusAnalysis: mplusAnalysis
+        ? {
+            dungeonAnalysis: mplusAnalysis.dungeonAnalysis,
+            scoreAnalysis: mplusAnalysis.scoreAnalysis,
+            timingAnalysis: mplusAnalysis.timingAnalysis,
+            upgradeAnalysis: mplusAnalysis.upgradeAnalysis,
+            pushTargets: mplusAnalysis.pushTargets,
+          }
+        : null,
+      buildAnalysis,
+    });
   } catch (err) {
     log.error('Analysis failed', err);
     res.status(500).json({ error: 'Failed to get analysis' });
@@ -116,7 +130,8 @@ router.get('/overview', async (req, res) => {
     const weeks = parseInt(req.query.weeks) || 8;
 
     // Get all user's characters
-    const userChars = await db.select()
+    const userChars = await db
+      .select()
       .from(characters)
       .where(eq(characters.userId, req.user.id))
       .all();
@@ -126,30 +141,42 @@ router.get('/overview', async (req, res) => {
     }
 
     // Get analysis for each character in parallel
-    const results = await Promise.all(userChars.map(async (char) => {
-      try {
-        const data = await getCharacterPerformance(char.id, { weeks, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } });
-        return {
-          character: {
-            id: char.id,
-            name: char.name,
-            realm: char.realm,
-            className: char.className,
-            spec: char.spec,
-            isPrimary: char.isPrimary,
-          },
-          summary: data.summary,
-          totalFights: data.summary?.totalFights || 0,
-        };
-      } catch (err) {
-        log.warn(`Overview: analysis failed for character ${char.id}`, err.message);
-        return {
-          character: { id: char.id, name: char.name, realm: char.realm, className: char.className, spec: char.spec, isPrimary: char.isPrimary },
-          summary: null,
-          totalFights: 0,
-        };
-      }
-    }));
+    const results = await Promise.all(
+      userChars.map(async (char) => {
+        try {
+          const data = await getCharacterPerformance(char.id, {
+            weeks,
+            characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region },
+          });
+          return {
+            character: {
+              id: char.id,
+              name: char.name,
+              realm: char.realm,
+              className: char.className,
+              spec: char.spec,
+              isPrimary: char.isPrimary,
+            },
+            summary: data.summary,
+            totalFights: data.summary?.totalFights || 0,
+          };
+        } catch (err) {
+          log.warn(`Overview: analysis failed for character ${char.id}`, err.message);
+          return {
+            character: {
+              id: char.id,
+              name: char.name,
+              realm: char.realm,
+              className: char.className,
+              spec: char.spec,
+              isPrimary: char.isPrimary,
+            },
+            summary: null,
+            totalFights: 0,
+          };
+        }
+      }),
+    );
 
     res.json({ characters: results });
   } catch (err) {
@@ -168,7 +195,8 @@ router.get('/character/:id/mplus-history', async (req, res) => {
     const weeks = parseInt(req.query.weeks) || 12;
 
     // Verify ownership
-    const char = await db.select()
+    const char = await db
+      .select()
       .from(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)))
       .get();
@@ -178,7 +206,8 @@ router.get('/character/:id/mplus-history', async (req, res) => {
     }
 
     const cutoff = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-    const snapshots = await db.select()
+    const snapshots = await db
+      .select()
       .from(mplusSnapshots)
       .where(and(eq(mplusSnapshots.characterId, charId), gte(mplusSnapshots.snapshotAt, cutoff)))
       .orderBy(desc(mplusSnapshots.snapshotAt))
@@ -190,7 +219,10 @@ router.get('/character/:id/mplus-history', async (req, res) => {
       const newest = snapshots[0].score;
       const oldest = snapshots[snapshots.length - 1].score;
       const change = newest - oldest;
-      trend = { change: Math.round(change), direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat' };
+      trend = {
+        change: Math.round(change),
+        direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
+      };
     }
 
     res.json({ snapshots, trend });
@@ -209,7 +241,8 @@ router.get('/character/:id/build', async (req, res) => {
     }
 
     // Verify ownership
-    const char = await db.select()
+    const char = await db
+      .select()
       .from(characters)
       .where(and(eq(characters.id, charId), eq(characters.userId, req.user.id)))
       .get();
@@ -229,14 +262,17 @@ router.get('/character/:id/build', async (req, res) => {
     let specMeta = null;
     if (char.className && char.spec) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db.select()
+      const cached = await db
+        .select()
         .from(specMetaCache)
-        .where(and(
-          eq(specMetaCache.className, char.className),
-          eq(specMetaCache.spec, char.spec),
-          eq(specMetaCache.region, 'world'),
-          gte(specMetaCache.lastUpdated, sevenDaysAgo),
-        ))
+        .where(
+          and(
+            eq(specMetaCache.className, char.className),
+            eq(specMetaCache.spec, char.spec),
+            eq(specMetaCache.region, 'world'),
+            gte(specMetaCache.lastUpdated, sevenDaysAgo),
+          ),
+        )
         .get();
       if (cached) {
         specMeta = {

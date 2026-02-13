@@ -15,7 +15,9 @@ async function getAccessToken() {
   const clientSecret = process.env.WCL_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error('WCL credentials not configured. Set WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env');
+    throw new Error(
+      'WCL credentials not configured. Set WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env',
+    );
   }
 
   // Return cached token if still valid (5-min buffer)
@@ -23,18 +25,14 @@ async function getAccessToken() {
     return cachedToken;
   }
 
-  const response = await axios.post(
-    WCL_TOKEN_URL,
-    'grant_type=client_credentials',
-    {
-      auth: { username: clientId, password: clientSecret },
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 10000,
-    }
-  );
+  const response = await axios.post(WCL_TOKEN_URL, 'grant_type=client_credentials', {
+    auth: { username: clientId, password: clientSecret },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 10000,
+  });
 
   cachedToken = response.data.access_token;
-  tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+  tokenExpiry = Date.now() + response.data.expires_in * 1000;
   return cachedToken;
 }
 
@@ -49,11 +47,11 @@ async function executeGraphQL(query, variables = {}) {
     { query, variables },
     {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
-    }
+    },
   );
 
   if (response.data.errors) {
@@ -114,7 +112,7 @@ export async function getReportData(reportCode) {
     guild: report.guild,
     zone: report.zone,
     fights: report.fights || [],
-    participants: (report.masterData?.actors || []).map(a => ({
+    participants: (report.masterData?.actors || []).map((a) => ({
       name: a.name,
       server: a.server || 'Unknown',
       class: a.subType,
@@ -149,10 +147,14 @@ export async function getFightStats(reportCode, fightIds) {
   };
 
   return {
-    damage: parseTable(report.damage).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
-    healing: parseTable(report.healing).map(e => ({ name: e.name, total: e.total || 0 })),
-    damageTaken: parseTable(report.damageTaken).map(e => ({ name: e.name, total: e.total || 0 })),
-    deaths: parseTable(report.deaths).map(e => ({ name: e.name, total: e.total || 0 })),
+    damage: parseTable(report.damage).map((e) => ({
+      name: e.name,
+      total: e.total || 0,
+      activeTime: e.activeTime || 0,
+    })),
+    healing: parseTable(report.healing).map((e) => ({ name: e.name, total: e.total || 0 })),
+    damageTaken: parseTable(report.damageTaken).map((e) => ({ name: e.name, total: e.total || 0 })),
+    deaths: parseTable(report.deaths).map((e) => ({ name: e.name, total: e.total || 0 })),
   };
 }
 
@@ -196,12 +198,16 @@ export async function getExtendedFightStats(reportCode, fightIds) {
 export async function getBatchFightStats(reportCode, fightIds) {
   if (fightIds.length === 0) return new Map();
 
-  const fightQueries = fightIds.map(id => `
+  const fightQueries = fightIds
+    .map(
+      (id) => `
     fight_${id}_damage: table(dataType: DamageDone, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_healing: table(dataType: Healing, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_damageTaken: table(dataType: DamageTaken, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_deaths: table(dataType: Deaths, fightIDs: [${id}], hostilityType: Friendlies)
-  `).join('\n');
+  `,
+    )
+    .join('\n');
 
   const query = `
     query GetBatchFightStats($reportCode: String!) {
@@ -225,10 +231,23 @@ export async function getBatchFightStats(reportCode, fightIds) {
   const results = new Map();
   for (const id of fightIds) {
     results.set(id, {
-      damage: parseTable(report[`fight_${id}_damage`]).map(e => ({ name: e.name, total: e.total || 0, activeTime: e.activeTime || 0 })),
-      healing: parseTable(report[`fight_${id}_healing`]).map(e => ({ name: e.name, total: e.total || 0 })),
-      damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map(e => ({ name: e.name, total: e.total || 0 })),
-      deaths: parseTable(report[`fight_${id}_deaths`]).map(e => ({ name: e.name, total: e.total || 0 })),
+      damage: parseTable(report[`fight_${id}_damage`]).map((e) => ({
+        name: e.name,
+        total: e.total || 0,
+        activeTime: e.activeTime || 0,
+      })),
+      healing: parseTable(report[`fight_${id}_healing`]).map((e) => ({
+        name: e.name,
+        total: e.total || 0,
+      })),
+      damageTaken: parseTable(report[`fight_${id}_damageTaken`]).map((e) => ({
+        name: e.name,
+        total: e.total || 0,
+      })),
+      deaths: parseTable(report[`fight_${id}_deaths`]).map((e) => ({
+        name: e.name,
+        total: e.total || 0,
+      })),
     });
   }
   return results;
@@ -249,12 +268,16 @@ export async function getBatchFightStats(reportCode, fightIds) {
 export async function getBatchExtendedFightStats(reportCode, fightIds) {
   if (fightIds.length === 0) return new Map();
 
-  const fightQueries = fightIds.map(id => `
+  const fightQueries = fightIds
+    .map(
+      (id) => `
     fight_${id}_casts: table(dataType: Casts, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_summary: table(dataType: Summary, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_interrupts: table(dataType: Interrupts, fightIDs: [${id}], hostilityType: Friendlies)
     fight_${id}_dispels: table(dataType: Dispels, fightIDs: [${id}], hostilityType: Friendlies)
-  `).join('\n');
+  `,
+    )
+    .join('\n');
 
   const query = `
     query GetBatchExtendedFightStats($reportCode: String!) {
@@ -336,7 +359,7 @@ export async function exchangeWclCode(code) {
       auth: { username: process.env.WCL_CLIENT_ID, password: process.env.WCL_CLIENT_SECRET },
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 10000,
-    }
+    },
   );
 
   return {
@@ -358,11 +381,11 @@ async function executeUserGraphQL(userToken, query, variables = {}) {
     { query, variables },
     {
       headers: {
-        'Authorization': `Bearer ${userToken}`,
+        Authorization: `Bearer ${userToken}`,
         'Content-Type': 'application/json',
       },
       timeout: 15000,
-    }
+    },
   );
 
   if (response.data.errors) {
@@ -426,7 +449,7 @@ export async function getReportDataWithUserToken(reportCode, userToken) {
     zone: report.zone,
     visibility: report.visibility || 'public',
     fights: report.fights || [],
-    participants: (report.masterData?.actors || []).map(a => ({
+    participants: (report.masterData?.actors || []).map((a) => ({
       name: a.name,
       server: a.server || 'Unknown',
       class: a.subType,
@@ -473,15 +496,21 @@ export async function getCharacterReports(name, serverSlug, serverRegion, limit 
  * Uses GraphQL aliases to fetch all encounters in a single API call.
  * Returns Map<encounterID, { bestPercent, medianPercent, kills, bestAmount }>
  */
-export async function getCharacterEncounterRankings(name, serverSlug, serverRegion, encounterIds, difficulty) {
+export async function getCharacterEncounterRankings(
+  name,
+  serverSlug,
+  serverRegion,
+  encounterIds,
+  difficulty,
+) {
   if (!encounterIds || encounterIds.length === 0) return new Map();
 
-  const difficultyMap = { 'LFR': 1, 'Normal': 2, 'Heroic': 3, 'Mythic': 5 };
-  const diffNum = typeof difficulty === 'string' ? (difficultyMap[difficulty] || 5) : (difficulty || 5);
+  const difficultyMap = { LFR: 1, Normal: 2, Heroic: 3, Mythic: 5 };
+  const diffNum = typeof difficulty === 'string' ? difficultyMap[difficulty] || 5 : difficulty || 5;
 
-  const encounterQueries = encounterIds.map(id =>
-    `enc_${id}: encounterRankings(encounterID: ${id}, difficulty: ${diffNum})`
-  ).join('\n');
+  const encounterQueries = encounterIds
+    .map((id) => `enc_${id}: encounterRankings(encounterID: ${id}, difficulty: ${diffNum})`)
+    .join('\n');
 
   const query = `
     query GetCharacterRankings($name: String!, $serverSlug: String!, $serverRegion: String!) {
@@ -568,12 +597,12 @@ async function getCurrentRaidEncounterId() {
   }
 
   const data = await executeGraphQL(
-    `{ worldData { zones(expansion_id: 6) { id name encounters { id name } } } }`
+    `{ worldData { zones(expansion_id: 6) { id name encounters { id name } } } }`,
   );
   const zones = data.worldData?.zones || [];
 
   // Find the latest raid zone (7+ bosses, highest ID)
-  const raids = zones.filter(z => z.encounters?.length >= 7);
+  const raids = zones.filter((z) => z.encounters?.length >= 7);
   const latestRaid = raids[raids.length - 1];
 
   if (!latestRaid?.encounters?.length) {
@@ -619,7 +648,7 @@ export async function getTopPerformersForSpec(className, spec, limit = 30) {
   const data = await executeGraphQL(query);
   const rankings = data.worldData?.encounter?.characterRankings?.rankings || [];
 
-  return rankings.slice(0, limit).map(p => ({
+  return rankings.slice(0, limit).map((p) => ({
     name: p.name,
     realm: slugifyRealm(p.server?.name || ''),
     region: (p.server?.region || 'eu').toLowerCase(),

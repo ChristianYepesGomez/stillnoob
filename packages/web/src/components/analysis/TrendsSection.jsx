@@ -1,8 +1,17 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ResponsiveContainer, AreaChart, BarChart, LineChart,
-  CartesianGrid, XAxis, YAxis, Tooltip, Area, Bar, Line,
+  ResponsiveContainer,
+  AreaChart,
+  BarChart,
+  LineChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Area,
+  Bar,
+  Line,
 } from 'recharts';
 
 function formatDps(val) {
@@ -15,7 +24,7 @@ export default function TrendsSection({ data }) {
 
   const chartData = useMemo(() => {
     if (!weeklyTrends) return [];
-    return weeklyTrends.map(w => ({
+    return weeklyTrends.map((w) => ({
       week: w.weekStart?.substring(5) || '',
       dps: Math.round(w.avgDps || 0),
       deaths: w.avgDeaths || 0,
@@ -45,9 +54,22 @@ export default function TrendsSection({ data }) {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e33" />
             <XAxis dataKey="week" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-            <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} tickFormatter={v => formatDps(v)} />
-            <Tooltip contentStyle={{ backgroundColor: '#12091f', border: '1px solid #1a0f2e', borderRadius: 8, fontSize: 12 }} />
-            <Area type="monotone" dataKey="dps" stroke="#60a5fa" fill="url(#dpsFill)" strokeWidth={2} />
+            <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} tickFormatter={(v) => formatDps(v)} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#12091f',
+                border: '1px solid #1a0f2e',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="dps"
+              stroke="#60a5fa"
+              fill="url(#dpsFill)"
+              strokeWidth={2}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -62,7 +84,14 @@ export default function TrendsSection({ data }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e33" />
             <XAxis dataKey="week" tick={{ fill: '#9ca3af', fontSize: 10 }} />
             <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#12091f', border: '1px solid #1a0f2e', borderRadius: 8, fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#12091f',
+                border: '1px solid #1a0f2e',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
             <Bar dataKey="deaths" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />
           </BarChart>
         </ResponsiveContainer>
@@ -78,8 +107,21 @@ export default function TrendsSection({ data }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e33" />
             <XAxis dataKey="week" tick={{ fill: '#9ca3af', fontSize: 10 }} />
             <YAxis tick={{ fill: '#9ca3af', fontSize: 10 }} domain={[0, 100]} />
-            <Tooltip contentStyle={{ backgroundColor: '#12091f', border: '1px solid #1a0f2e', borderRadius: 8, fontSize: 12 }} />
-            <Line type="monotone" dataKey="consumables" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 3 }} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#12091f',
+                border: '1px solid #1a0f2e',
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="consumables"
+              stroke="#22c55e"
+              strokeWidth={2}
+              dot={{ fill: '#22c55e', r: 3 }}
+            />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -108,21 +150,29 @@ export default function TrendsSection({ data }) {
                   <td className="py-2 px-2 text-center">
                     <span className="text-blue-400">{formatDps(w.avgDps)}</span>
                     {w.dpsChange !== undefined && w.dpsChange !== 0 && (
-                      <span className={`ml-1 ${w.dpsChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {w.dpsChange > 0 ? '+' : ''}{w.dpsChange}%
+                      <span
+                        className={`ml-1 ${w.dpsChange > 0 ? 'text-green-400' : 'text-red-400'}`}
+                      >
+                        {w.dpsChange > 0 ? '+' : ''}
+                        {w.dpsChange}%
                       </span>
                     )}
                   </td>
                   <td className="py-2 px-2 text-center">
                     <span className="text-white">{w.avgDeaths.toFixed(2)}</span>
                     {w.deathChange !== undefined && w.deathChange !== 0 && (
-                      <span className={`ml-1 ${w.deathChange < 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {w.deathChange < 0 ? '' : '+'}{w.deathChange}%
+                      <span
+                        className={`ml-1 ${w.deathChange < 0 ? 'text-green-400' : 'text-red-400'}`}
+                      >
+                        {w.deathChange < 0 ? '' : '+'}
+                        {w.deathChange}%
                       </span>
                     )}
                   </td>
                   <td className="py-2 px-2 text-center">
-                    <span className={w.consumableScore >= 70 ? 'text-green-400' : 'text-yellow-400'}>
+                    <span
+                      className={w.consumableScore >= 70 ? 'text-green-400' : 'text-yellow-400'}
+                    >
                       {Math.round(w.consumableScore)}
                     </span>
                   </td>

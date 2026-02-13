@@ -62,7 +62,7 @@ export async function getCharacterRaiderIO(region, realm, name) {
 
   try {
     const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(10000),
     });
 
@@ -98,7 +98,8 @@ export async function saveScoreSnapshot(characterId, raiderIO) {
 
   try {
     // Get the most recent snapshot
-    const [lastSnapshot] = await db.select()
+    const [lastSnapshot] = await db
+      .select()
       .from(mplusSnapshots)
       .where(eq(mplusSnapshots.characterId, characterId))
       .orderBy(desc(mplusSnapshots.snapshotAt))
@@ -111,12 +112,12 @@ export async function saveScoreSnapshot(characterId, raiderIO) {
     if (lastSnapshot && lastSnapshot.score === currentScore) return false;
 
     const bestRunLevel = raiderIO.bestRuns?.length
-      ? Math.max(...raiderIO.bestRuns.map(r => r.level))
+      ? Math.max(...raiderIO.bestRuns.map((r) => r.level))
       : null;
 
     // Count unique dungeons with timed runs
     const timedDungeons = new Set(
-      (raiderIO.bestRuns || []).filter(r => r.upgrades > 0).map(r => r.dungeon)
+      (raiderIO.bestRuns || []).filter((r) => r.upgrades > 0).map((r) => r.dungeon),
     );
 
     await db.insert(mplusSnapshots).values({
@@ -154,7 +155,7 @@ function transformRaiderIOData(raw) {
     },
 
     // Best runs (top 8 by score)
-    bestRuns: (raw.mythic_plus_best_runs || []).slice(0, 8).map(run => ({
+    bestRuns: (raw.mythic_plus_best_runs || []).slice(0, 8).map((run) => ({
       dungeon: run.dungeon,
       shortName: run.short_name,
       level: run.mythic_level,
@@ -167,7 +168,7 @@ function transformRaiderIOData(raw) {
     })),
 
     // Recent runs (last 5)
-    recentRuns: (raw.mythic_plus_recent_runs || []).slice(0, 5).map(run => ({
+    recentRuns: (raw.mythic_plus_recent_runs || []).slice(0, 5).map((run) => ({
       dungeon: run.dungeon,
       shortName: run.short_name,
       level: run.mythic_level,
@@ -188,10 +189,12 @@ function transformRaiderIOData(raw) {
     })),
 
     // Gear
-    gear: raw.gear ? {
-      itemLevel: raw.gear.item_level_equipped,
-      itemLevelTotal: raw.gear.item_level_total,
-    } : null,
+    gear: raw.gear
+      ? {
+          itemLevel: raw.gear.item_level_equipped,
+          itemLevelTotal: raw.gear.item_level_total,
+        }
+      : null,
 
     // Profile info
     profile: {

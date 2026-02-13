@@ -1,6 +1,15 @@
 import { db } from '../db/client.js';
 import { fightPerformance } from '../db/schema.js';
-import { BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS, getSpecData } from '@stillnoob/shared';
+import {
+  BUFF_PATTERNS,
+  CONSUMABLE_WEIGHTS,
+  SCORE_WEIGHTS,
+  SCORE_TIERS,
+  LEVEL_DETECTION,
+  TIP_LIMITS,
+  getSpecData,
+  getSpecCoaching,
+} from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Analysis');
@@ -47,27 +56,56 @@ export function invalidateAnalysisCache(characterId) {
  * @param {object} charMap - { "lowercaseName": characterId }
  * @returns {number} Number of records inserted
  */
-export async function processExtendedFightData(storedFightId, fightDurationMs, basicStats, extendedStats, charMap) {
+export async function processExtendedFightData(
+  storedFightId,
+  fightDurationMs,
+  basicStats,
+  extendedStats,
+  charMap,
+) {
   const fightDurationSec = fightDurationMs / 1000;
   const playerData = {};
 
   const ensurePlayer = (name) => {
     if (!playerData[name]) {
       playerData[name] = {
-        damageDone: 0, healingDone: 0, damageTaken: 0, deaths: 0,
-        activeTime: 0, totalCasts: 0,
-        healthstones: 0, combatPotions: 0,
-        flaskUptime: 0, foodBuff: false, augmentRune: false,
-        interrupts: 0, dispels: 0,
+        damageDone: 0,
+        healingDone: 0,
+        damageTaken: 0,
+        deaths: 0,
+        activeTime: 0,
+        totalCasts: 0,
+        healthstones: 0,
+        combatPotions: 0,
+        flaskUptime: 0,
+        foodBuff: false,
+        augmentRune: false,
+        interrupts: 0,
+        dispels: 0,
+        specId: null,
+        talents: null,
       };
     }
   };
 
   // Basic stats
-  for (const e of basicStats.damage || []) { ensurePlayer(e.name); playerData[e.name].damageDone = e.total || 0; playerData[e.name].activeTime = e.activeTime || 0; }
-  for (const e of basicStats.healing || []) { ensurePlayer(e.name); playerData[e.name].healingDone = e.total || 0; }
-  for (const e of basicStats.damageTaken || []) { ensurePlayer(e.name); playerData[e.name].damageTaken = e.total || 0; }
-  for (const e of basicStats.deaths || []) { ensurePlayer(e.name); playerData[e.name].deaths = e.total || 0; }
+  for (const e of basicStats.damage || []) {
+    ensurePlayer(e.name);
+    playerData[e.name].damageDone = e.total || 0;
+    playerData[e.name].activeTime = e.activeTime || 0;
+  }
+  for (const e of basicStats.healing || []) {
+    ensurePlayer(e.name);
+    playerData[e.name].healingDone = e.total || 0;
+  }
+  for (const e of basicStats.damageTaken || []) {
+    ensurePlayer(e.name);
+    playerData[e.name].damageTaken = e.total || 0;
+  }
+  for (const e of basicStats.deaths || []) {
+    ensurePlayer(e.name);
+    playerData[e.name].deaths = e.total || 0;
+  }
 
   // Casts — use entry.total for CPM (the WCL Casts table truncates abilities to top 5,
   // but entry.total includes ALL casts for that player)
@@ -94,11 +132,20 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
     }
   }
 
-  // CombatantInfo events — pre-fight auras (flask, food, augment rune)
+  // CombatantInfo events — pre-fight auras (flask, food, augment rune) + spec/talents
   for (const event of extendedStats.combatantInfo || []) {
     const playerName = sourceIdToName[event.sourceID];
     if (!playerName) continue;
     ensurePlayer(playerName);
+
+    // Extract spec ID and talent tree
+    if (event.specID != null) {
+      playerData[playerName].specId = event.specID;
+    }
+    if (event.talentTree && Array.isArray(event.talentTree) && event.talentTree.length > 0) {
+      playerData[playerName].talents = event.talentTree;
+    }
+
     for (const aura of event.auras || []) {
       const name = aura.name || '';
       if (BUFF_PATTERNS.flask.test(name)) {
@@ -139,12 +186,14 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
   const allRawDps = [];
   const allDtps = [];
   for (const data of Object.values(playerData)) {
-    if (data.damageDone > 0 && fightDurationSec > 0) allRawDps.push(data.damageDone / fightDurationSec);
-    if (data.damageTaken > 0 && fightDurationSec > 0) allDtps.push(data.damageTaken / fightDurationSec);
+    if (data.damageDone > 0 && fightDurationSec > 0)
+      allRawDps.push(data.damageDone / fightDurationSec);
+    if (data.damageTaken > 0 && fightDurationSec > 0)
+      allDtps.push(data.damageTaken / fightDurationSec);
   }
   // Filter: only include players with DPS >= 40% of max (auto-excludes tanks ~30% and healers ~10-20%)
   const maxDps = allRawDps.length > 0 ? Math.max(...allRawDps) : 0;
-  const allDps = allRawDps.filter(d => d >= maxDps * 0.4);
+  const allDps = allRawDps.filter((d) => d >= maxDps * 0.4);
   allDps.sort((a, b) => a - b);
   allDtps.sort((a, b) => a - b);
   const medianDps = allDps.length > 0 ? allDps[Math.floor(allDps.length / 2)] : 0;
@@ -166,26 +215,33 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
     const cpm = fightDurationMs > 0 ? data.totalCasts / (fightDurationMs / 60000) : 0;
 
     try {
-      await db.insert(fightPerformance).values({
-        fightId: storedFightId,
-        characterId,
-        damageDone: data.damageDone,
-        healingDone: data.healingDone,
-        damageTaken: data.damageTaken,
-        deaths: data.deaths,
-        dps, hps, dtps,
-        activeTimePct,
-        cpm,
-        healthstones: data.healthstones,
-        combatPotions: data.combatPotions,
-        flaskUptimePct: data.flaskUptime,
-        foodBuffActive: data.foodBuff,
-        augmentRuneActive: data.augmentRune,
-        interrupts: data.interrupts,
-        dispels: data.dispels,
-        raidMedianDps: medianDps,
-        raidMedianDtps: medianDtps,
-      }).onConflictDoNothing();
+      await db
+        .insert(fightPerformance)
+        .values({
+          fightId: storedFightId,
+          characterId,
+          damageDone: data.damageDone,
+          healingDone: data.healingDone,
+          damageTaken: data.damageTaken,
+          deaths: data.deaths,
+          dps,
+          hps,
+          dtps,
+          activeTimePct,
+          cpm,
+          healthstones: data.healthstones,
+          combatPotions: data.combatPotions,
+          flaskUptimePct: data.flaskUptime,
+          foodBuffActive: data.foodBuff,
+          augmentRuneActive: data.augmentRune,
+          interrupts: data.interrupts,
+          dispels: data.dispels,
+          raidMedianDps: medianDps,
+          raidMedianDtps: medianDtps,
+          specId: data.specId,
+          talentData: data.talents ? JSON.stringify(data.talents) : null,
+        })
+        .onConflictDoNothing();
       inserted++;
     } catch (err) {
       if (!err.message?.includes('UNIQUE')) {
@@ -202,7 +258,15 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
  * Returns summary, boss breakdown, weekly trends, recent fights, and recommendations.
  */
 export async function getCharacterPerformance(characterId, options = {}) {
-  const { weeks = 8, bossId, difficulty, visibilityFilter, characterInfo, className, spec } = options;
+  const {
+    weeks = 8,
+    bossId,
+    difficulty,
+    visibilityFilter,
+    characterInfo,
+    className,
+    spec,
+  } = options;
 
   // Check cache first
   const cacheKey = buildCacheKey(characterId, { weeks, bossId, difficulty, visibilityFilter });
@@ -210,7 +274,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
   if (cached) return cached.data;
 
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - (weeks * 7));
+  cutoff.setDate(cutoff.getDate() - weeks * 7);
 
   // Build dynamic WHERE conditions for raw SQL
   // When visibilityFilter is set, JOIN reports to filter by visibility
@@ -219,9 +283,18 @@ export async function getCharacterPerformance(characterId, options = {}) {
 
   let where = "WHERE fp.character_id = ? AND f.start_time >= ? AND f.difficulty != 'Mythic+'";
   const params = [characterId, cutoff.getTime()];
-  if (bossId) { where += ' AND f.encounter_id = ?'; params.push(bossId); }
-  if (difficulty) { where += ' AND f.difficulty = ?'; params.push(difficulty); }
-  if (visibilityFilter) { where += ' AND r.visibility = ?'; params.push(visibilityFilter); }
+  if (bossId) {
+    where += ' AND f.encounter_id = ?';
+    params.push(bossId);
+  }
+  if (difficulty) {
+    where += ' AND f.difficulty = ?';
+    params.push(difficulty);
+  }
+  if (visibilityFilter) {
+    where += ' AND r.visibility = ?';
+    params.push(visibilityFilter);
+  }
 
   // Use raw SQL via the libsql client for complex aggregate queries
   const { client } = await import('../db/client.js');
@@ -264,10 +337,10 @@ export async function getCharacterPerformance(characterId, options = {}) {
 
   const consumableScore = Math.round(
     healthstoneRate * CONSUMABLE_WEIGHTS.healthstone +
-    combatPotionRate * CONSUMABLE_WEIGHTS.combatPotion +
-    avgFlaskUptime * CONSUMABLE_WEIGHTS.flask +
-    foodRate * CONSUMABLE_WEIGHTS.food +
-    augmentRate * CONSUMABLE_WEIGHTS.augmentRune
+      combatPotionRate * CONSUMABLE_WEIGHTS.combatPotion +
+      avgFlaskUptime * CONSUMABLE_WEIGHTS.flask +
+      foodRate * CONSUMABLE_WEIGHTS.food +
+      augmentRate * CONSUMABLE_WEIGHTS.augmentRune,
   );
 
   // Boss breakdown
@@ -298,7 +371,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
     args: params,
   });
 
-  const bossBreakdown = bossResult.rows.map(r => ({
+  const bossBreakdown = bossResult.rows.map((r) => ({
     bossId: Number(r.bossId),
     bossName: r.bossName,
     difficulty: r.difficulty,
@@ -344,7 +417,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
     args: params,
   });
 
-  const weeklyTrends = trendsResult.rows.map(r => ({
+  const weeklyTrends = trendsResult.rows.map((r) => ({
     weekStart: r.weekStart,
     fights: Number(r.fights),
     avgDps: Number(r.avgDps),
@@ -360,8 +433,12 @@ export async function getCharacterPerformance(characterId, options = {}) {
   for (let i = 1; i < weeklyTrends.length; i++) {
     const prev = weeklyTrends[i - 1];
     const curr = weeklyTrends[i];
-    curr.dpsChange = prev.avgDps > 0 ? Math.round((curr.avgDps - prev.avgDps) / prev.avgDps * 100) : 0;
-    curr.deathChange = prev.avgDeaths > 0 ? Math.round((curr.avgDeaths - prev.avgDeaths) / prev.avgDeaths * 100) : 0;
+    curr.dpsChange =
+      prev.avgDps > 0 ? Math.round(((curr.avgDps - prev.avgDps) / prev.avgDps) * 100) : 0;
+    curr.deathChange =
+      prev.avgDeaths > 0
+        ? Math.round(((curr.avgDeaths - prev.avgDeaths) / prev.avgDeaths) * 100)
+        : 0;
   }
 
   // Recent fights
@@ -389,7 +466,7 @@ export async function getCharacterPerformance(characterId, options = {}) {
     args: params,
   });
 
-  const recentFights = recentResult.rows.map(r => ({
+  const recentFights = recentResult.rows.map((r) => ({
     date: r.date,
     boss: r.boss,
     difficulty: r.difficulty,
@@ -430,12 +507,15 @@ export async function getCharacterPerformance(characterId, options = {}) {
   if (characterInfo && bossBreakdown.length > 0) {
     try {
       const { getCharacterEncounterRankings } = await import('../services/wcl.js');
-      const encounterIds = [...new Set(bossBreakdown.map(b => b.bossId))];
+      const encounterIds = [...new Set(bossBreakdown.map((b) => b.bossId))];
       const topDifficulty = bossBreakdown[0]?.difficulty;
 
       const rankingsMap = await getCharacterEncounterRankings(
-        characterInfo.name, characterInfo.realmSlug, characterInfo.region,
-        encounterIds, topDifficulty,
+        characterInfo.name,
+        characterInfo.realmSlug,
+        characterInfo.region,
+        encounterIds,
+        topDifficulty,
       );
 
       for (const boss of bossBreakdown) {
@@ -446,10 +526,10 @@ export async function getCharacterPerformance(characterId, options = {}) {
         }
       }
 
-      const parsesWithData = bossBreakdown.filter(b => b.parsePercentile != null);
+      const parsesWithData = bossBreakdown.filter((b) => b.parsePercentile != null);
       if (parsesWithData.length > 0) {
         summaryData.avgParsePercentile = Math.round(
-          parsesWithData.reduce((sum, b) => sum + b.parsePercentile, 0) / parsesWithData.length
+          parsesWithData.reduce((sum, b) => sum + b.parsePercentile, 0) / parsesWithData.length,
         );
       }
     } catch (err) {
@@ -457,11 +537,42 @@ export async function getCharacterPerformance(characterId, options = {}) {
     }
   }
 
+  // Fetch latest talent data for this character (for talent comparison tips)
+  let latestTalentData = null;
+  if (totalFights > 0) {
+    const talentResult = await client.execute({
+      sql: `SELECT fp.talent_data FROM fight_performance fp
+        JOIN fights f ON f.id = fp.fight_id
+        WHERE fp.character_id = ? AND fp.talent_data IS NOT NULL
+        ORDER BY f.start_time DESC LIMIT 1`,
+      args: [characterId],
+    });
+    if (talentResult.rows[0]?.talent_data) {
+      try {
+        latestTalentData = JSON.parse(talentResult.rows[0].talent_data);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   const score = calculateStillNoobScore(summaryData, bossBreakdown);
   const playerLevel = detectPlayerLevel(summaryData, bossBreakdown, options.raiderIO);
   const specData = className && spec ? getSpecData(className, spec) : null;
   const role = specData?.role || 'DPS';
-  const recommendations = generateRecommendations({ summary: summaryData, bossBreakdown, weeklyTrends, playerLevel, raiderIO: options.raiderIO, specCpmBaseline: options.specCpmBaseline, className, spec, role });
+  const recommendations = generateRecommendations({
+    summary: summaryData,
+    bossBreakdown,
+    weeklyTrends,
+    playerLevel,
+    raiderIO: options.raiderIO,
+    specCpmBaseline: options.specCpmBaseline,
+    className,
+    spec,
+    role,
+    talentData: latestTalentData,
+    specMeta: options.specMeta,
+  });
 
   const result = {
     summary: summaryData,
@@ -494,7 +605,11 @@ export async function getCharacterPerformance(characterId, options = {}) {
  */
 export function calculateStillNoobScore(summary, bossBreakdown) {
   if (!summary || summary.totalFights === 0) {
-    return { total: 0, tier: SCORE_TIERS[0], breakdown: { performance: 0, survival: 0, preparation: 0, utility: 0, consistency: 0 } };
+    return {
+      total: 0,
+      tier: SCORE_TIERS[0],
+      breakdown: { performance: 0, survival: 0, preparation: 0, utility: 0, consistency: 0 },
+    };
   }
 
   // Performance (35%): DPS vs raid median — 100% median = 50 points, 130%+ = 100
@@ -503,7 +618,7 @@ export function calculateStillNoobScore(summary, bossBreakdown) {
 
   // Survival (25%): death rate inverted — 0 deaths = 100, threshold+ = 0
   // More lenient for Mythic progression where deaths are expected
-  const hasMythicKills = bossBreakdown.some(b => b.difficulty === 'Mythic' && b.fights > 0);
+  const hasMythicKills = bossBreakdown.some((b) => b.difficulty === 'Mythic' && b.fights > 0);
   const deathCeiling = hasMythicKills ? 0.7 : 0.5;
   const survivalRaw = Math.min(100, Math.max(0, (1 - summary.deathRate / deathCeiling) * 100));
 
@@ -517,7 +632,7 @@ export function calculateStillNoobScore(summary, bossBreakdown) {
   // Consistency (10%): inverse of DPS variance across bosses
   let consistencyRaw = 100;
   if (bossBreakdown.length >= 3) {
-    const dpsValues = bossBreakdown.filter(b => b.avgDps > 0).map(b => b.avgDps);
+    const dpsValues = bossBreakdown.filter((b) => b.avgDps > 0).map((b) => b.avgDps);
     if (dpsValues.length >= 3) {
       const max = Math.max(...dpsValues);
       const min = Math.min(...dpsValues);
@@ -536,13 +651,13 @@ export function calculateStillNoobScore(summary, bossBreakdown) {
 
   const total = Math.round(
     breakdown.performance * SCORE_WEIGHTS.performance +
-    breakdown.survival * SCORE_WEIGHTS.survival +
-    breakdown.preparation * SCORE_WEIGHTS.preparation +
-    breakdown.utility * SCORE_WEIGHTS.utility +
-    breakdown.consistency * SCORE_WEIGHTS.consistency
+      breakdown.survival * SCORE_WEIGHTS.survival +
+      breakdown.preparation * SCORE_WEIGHTS.preparation +
+      breakdown.utility * SCORE_WEIGHTS.utility +
+      breakdown.consistency * SCORE_WEIGHTS.consistency,
   );
 
-  const tier = SCORE_TIERS.find(t => total >= t.min && total <= t.max) || SCORE_TIERS[0];
+  const tier = SCORE_TIERS.find((t) => total >= t.min && total <= t.max) || SCORE_TIERS[0];
 
   return { total, tier, breakdown };
 }
@@ -559,7 +674,10 @@ export function detectPlayerLevel(summary, bossBreakdown, raiderIO) {
       const progression = raiderIO?.raidProgression?.[0];
       const hasMythicKills = progression?.mythic > 0;
 
-      if (mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[2] || (hasMythicKills && mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[1])) {
+      if (
+        mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[2] ||
+        (hasMythicKills && mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[1])
+      ) {
         return 'advanced';
       }
       if (mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[0] || progression?.heroic > 0) {
@@ -603,7 +721,7 @@ export function detectPlayerLevel(summary, bossBreakdown, raiderIO) {
 
   // Consistency (0-10 points) — low variance across bosses
   if (bossBreakdown.length >= 3) {
-    const dpsValues = bossBreakdown.filter(b => b.avgDps > 0).map(b => b.avgDps);
+    const dpsValues = bossBreakdown.filter((b) => b.avgDps > 0).map((b) => b.avgDps);
     if (dpsValues.length >= 3) {
       const max = Math.max(...dpsValues);
       const min = Math.min(...dpsValues);
@@ -641,26 +759,47 @@ export function detectPlayerLevel(summary, bossBreakdown, raiderIO) {
  * Dynamic priority: bigger gaps = lower priority number = shown first.
  * Returns { primaryTips, secondaryTips, playerLevel }.
  */
-export function generateRecommendations({ summary, bossBreakdown, weeklyTrends: _weeklyTrends, playerLevel = 'beginner', raiderIO, specCpmBaseline, className, spec, role }) {
+export function generateRecommendations({
+  summary,
+  bossBreakdown,
+  weeklyTrends: _weeklyTrends,
+  playerLevel = 'beginner',
+  raiderIO,
+  specCpmBaseline,
+  className,
+  spec,
+  role,
+  talentData,
+  specMeta,
+}) {
   if (!summary) {
     return { primaryTips: [], secondaryTips: [], playerLevel };
   }
 
   if (summary.totalFights === 0) {
-    const tips = [{ category: 'performance', key: 'no_recent_data', severity: 'info', priority: 30, data: {} }];
+    const tips = [
+      { category: 'performance', key: 'no_recent_data', severity: 'info', priority: 30, data: {} },
+    ];
     return { primaryTips: tips, secondaryTips: [], playerLevel };
   }
 
   const tips = [
+    ...generateTalentTips(talentData, specMeta, spec),
     ...generateBossSpecificTips(summary, bossBreakdown, playerLevel),
     ...generateCrossPatternTips(summary, bossBreakdown),
     ...generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBaseline),
-    ...generateGeneralTips(summary, bossBreakdown, playerLevel, specCpmBaseline),
+    ...generateGeneralTips(summary, bossBreakdown, playerLevel, specCpmBaseline, className, spec),
   ];
 
   // M+ vault nudge: has raid data but no M+ activity this season
   if (raiderIO && (raiderIO.mythicPlus?.score || 0) === 0) {
-    tips.push({ category: 'mythicPlus', key: 'no_mplus_activity', severity: 'info', priority: 35, data: {} });
+    tips.push({
+      category: 'mythicPlus',
+      key: 'no_mplus_activity',
+      severity: 'info',
+      priority: 35,
+      data: {},
+    });
   }
 
   // Sort by priority (lowest first = most important)
@@ -674,13 +813,85 @@ export function generateRecommendations({ summary, bossBreakdown, weeklyTrends: 
   };
 }
 
+// ── Tier 1.5: Talent Comparison Tips ──────────────────────────
+// Compare player's talents vs meta builds. High priority when data is available.
+
+function generateTalentTips(talentData, specMeta, spec) {
+  const tips = [];
+  if (!talentData || !Array.isArray(talentData) || talentData.length === 0) return tips;
+  if (!specMeta?.commonTalents) return tips;
+
+  let commonTalents;
+  try {
+    commonTalents =
+      typeof specMeta.commonTalents === 'string'
+        ? JSON.parse(specMeta.commonTalents)
+        : specMeta.commonTalents;
+  } catch {
+    return tips;
+  }
+
+  if (!Array.isArray(commonTalents) || commonTalents.length === 0) return tips;
+
+  // Build a set of the player's talent node IDs
+  const playerTalentIds = new Set(talentData.map((t) => t.id || t.nodeId).filter(Boolean));
+
+  // talent_missing_key — meta talent the player doesn't have (>80% popularity)
+  for (const meta of commonTalents) {
+    const metaId = meta.id || meta.nodeId;
+    if (!metaId) continue;
+    if (meta.popularity >= 80 && !playerTalentIds.has(metaId)) {
+      tips.push({
+        category: 'gear',
+        key: 'talent_missing_key',
+        severity: 'warning',
+        priority: 7,
+        data: {
+          talentName: meta.name || `Node ${metaId}`,
+          metaPct: Math.round(meta.popularity),
+          spec: spec || '',
+        },
+      });
+      break; // only report the most popular missing talent
+    }
+  }
+
+  // talent_off_meta — player uses a talent that <20% of top players use
+  for (const playerTalent of talentData) {
+    const id = playerTalent.id || playerTalent.nodeId;
+    if (!id) continue;
+    const metaEntry = commonTalents.find((m) => (m.id || m.nodeId) === id);
+    if (metaEntry && metaEntry.popularity < 20) {
+      // Find the most popular alternative the player doesn't already have
+      const alternative = commonTalents.find(
+        (m) => !playerTalentIds.has(m.id || m.nodeId) && m.popularity >= 60,
+      );
+      tips.push({
+        category: 'gear',
+        key: 'talent_off_meta',
+        severity: 'info',
+        priority: 9,
+        data: {
+          talentName: playerTalent.name || metaEntry.name || `Node ${id}`,
+          metaPct: Math.round(metaEntry.popularity),
+          metaAlternative: alternative?.name || 'the popular alternative',
+          spec: spec || '',
+        },
+      });
+      break; // only report the most off-meta talent
+    }
+  }
+
+  return tips;
+}
+
 // ── Tier 1: Boss-Specific Tips ────────────────────────────────
 // These are the most valuable — they tell the player exactly WHICH boss
 // to focus on and WHAT aspect to improve.
 
 function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
   const tips = [];
-  const eligibleBosses = bossBreakdown.filter(b => b.fights >= 1);
+  const eligibleBosses = bossBreakdown.filter((b) => b.fights >= 1);
 
   // boss_uptime_drop — active time drops significantly on a specific boss
   for (const boss of eligibleBosses) {
@@ -688,9 +899,17 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
       const drop = summary.avgActiveTime - boss.avgActiveTime;
       if (drop >= 8) {
         tips.push({
-          category: 'performance', key: 'boss_uptime_drop', severity: drop >= 15 ? 'critical' : 'warning',
+          category: 'performance',
+          key: 'boss_uptime_drop',
+          severity: drop >= 15 ? 'critical' : 'warning',
           priority: 10 - Math.min(8, Math.round(drop / 2)),
-          data: { boss: boss.bossName, difficulty: boss.difficulty, pct: Math.round(boss.avgActiveTime), avg: Math.round(summary.avgActiveTime), drop: Math.round(drop) },
+          data: {
+            boss: boss.bossName,
+            difficulty: boss.difficulty,
+            pct: Math.round(boss.avgActiveTime),
+            avg: Math.round(summary.avgActiveTime),
+            drop: Math.round(drop),
+          },
         });
       }
     }
@@ -703,9 +922,17 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
       if (ratio < 0.85) {
         const dropPct = Math.round((1 - ratio) * 100);
         tips.push({
-          category: 'performance', key: 'boss_cpm_drop', severity: 'warning',
+          category: 'performance',
+          key: 'boss_cpm_drop',
+          severity: 'warning',
           priority: 12 - Math.min(6, Math.round(dropPct / 5)),
-          data: { boss: boss.bossName, difficulty: boss.difficulty, cpm: boss.avgCpm.toFixed(1), avg: summary.avgCpm.toFixed(1), dropPct },
+          data: {
+            boss: boss.bossName,
+            difficulty: boss.difficulty,
+            cpm: boss.avgCpm.toFixed(1),
+            avg: summary.avgCpm.toFixed(1),
+            dropPct,
+          },
         });
       }
     }
@@ -718,9 +945,17 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
       if (ratio > 1.3) {
         const excessPct = Math.round((ratio - 1) * 100);
         tips.push({
-          category: 'survivability', key: 'boss_excess_damage', severity: ratio > 1.6 ? 'critical' : 'warning',
+          category: 'survivability',
+          key: 'boss_excess_damage',
+          severity: ratio > 1.6 ? 'critical' : 'warning',
           priority: 10 - Math.min(7, Math.round(excessPct / 10)),
-          data: { boss: boss.bossName, difficulty: boss.difficulty, dtps: Math.round(boss.avgDtps), avg: Math.round(summary.avgDtps), excessPct },
+          data: {
+            boss: boss.bossName,
+            difficulty: boss.difficulty,
+            dtps: Math.round(boss.avgDtps),
+            avg: Math.round(summary.avgDtps),
+            excessPct,
+          },
         });
       }
     }
@@ -730,26 +965,45 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
   for (const boss of eligibleBosses) {
     const threshold = Math.max(summary.deathRate * 2, 0.2);
     if (boss.deathRate > threshold) {
-      const spikeMultiple = summary.deathRate > 0 ? (boss.deathRate / summary.deathRate).toFixed(1) : 'N/A';
+      const spikeMultiple =
+        summary.deathRate > 0 ? (boss.deathRate / summary.deathRate).toFixed(1) : 'N/A';
       tips.push({
-        category: 'survivability', key: 'boss_death_spike', severity: boss.deathRate > 0.4 ? 'critical' : 'warning',
+        category: 'survivability',
+        key: 'boss_death_spike',
+        severity: boss.deathRate > 0.4 ? 'critical' : 'warning',
         priority: 8 - Math.min(6, Math.round(boss.deathRate * 10)),
-        data: { boss: boss.bossName, difficulty: boss.difficulty, rate: boss.deathRate.toFixed(2), avg: summary.deathRate.toFixed(2), multiple: spikeMultiple, fights: boss.fights },
+        data: {
+          boss: boss.bossName,
+          difficulty: boss.difficulty,
+          rate: boss.deathRate.toFixed(2),
+          avg: summary.deathRate.toFixed(2),
+          multiple: spikeMultiple,
+          fights: boss.fights,
+        },
       });
     }
   }
 
   // boss_potion_neglect — low potion usage specifically on the worst-performing boss
-  const bossesWithEnoughFights = bossBreakdown.filter(b => b.fights >= 1 && b.dpsVsMedian > 0);
+  const bossesWithEnoughFights = bossBreakdown.filter((b) => b.fights >= 1 && b.dpsVsMedian > 0);
   if (bossesWithEnoughFights.length >= 2) {
-    const weakest = bossesWithEnoughFights.reduce((w, b) => b.dpsVsMedian < w.dpsVsMedian ? b : w);
+    const weakest = bossesWithEnoughFights.reduce((w, b) =>
+      b.dpsVsMedian < w.dpsVsMedian ? b : w,
+    );
     if (weakest.combatPotionRate < 50) {
-      const bestPotRate = Math.max(...bossesWithEnoughFights.map(b => b.combatPotionRate));
+      const bestPotRate = Math.max(...bossesWithEnoughFights.map((b) => b.combatPotionRate));
       if (bestPotRate - weakest.combatPotionRate > 20) {
         tips.push({
-          category: 'consumables', key: 'boss_potion_neglect', severity: 'warning',
+          category: 'consumables',
+          key: 'boss_potion_neglect',
+          severity: 'warning',
           priority: 14 - Math.min(5, Math.round((bestPotRate - weakest.combatPotionRate) / 10)),
-          data: { boss: weakest.bossName, difficulty: weakest.difficulty, rate: Math.round(weakest.combatPotionRate), bestRate: Math.round(bestPotRate) },
+          data: {
+            boss: weakest.bossName,
+            difficulty: weakest.difficulty,
+            rate: Math.round(weakest.combatPotionRate),
+            bestRate: Math.round(bestPotRate),
+          },
         });
       }
     }
@@ -757,19 +1011,23 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
 
   // boss_weakest_dps — biggest DPS gap across bosses (all levels)
   if (bossBreakdown.length >= 2) {
-    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 1);
+    const bossesWithDps = bossBreakdown.filter((b) => b.avgDps > 0 && b.fights >= 1);
     if (bossesWithDps.length >= 2) {
-      const weakest = bossesWithDps.reduce((w, b) => b.dpsVsMedian < w.dpsVsMedian ? b : w);
-      const strongest = bossesWithDps.reduce((s, b) => b.dpsVsMedian > s.dpsVsMedian ? b : s);
+      const weakest = bossesWithDps.reduce((w, b) => (b.dpsVsMedian < w.dpsVsMedian ? b : w));
+      const strongest = bossesWithDps.reduce((s, b) => (b.dpsVsMedian > s.dpsVsMedian ? b : s));
       const gap = strongest.dpsVsMedian - weakest.dpsVsMedian;
       if (gap > 10) {
         tips.push({
-          category: 'performance', key: 'boss_weakest_dps', severity: gap > 25 ? 'warning' : 'info',
+          category: 'performance',
+          key: 'boss_weakest_dps',
+          severity: gap > 25 ? 'warning' : 'info',
           priority: 8 - Math.min(6, Math.round(gap / 5)),
           data: {
-            weakBoss: weakest.bossName, weakDifficulty: weakest.difficulty,
+            weakBoss: weakest.bossName,
+            weakDifficulty: weakest.difficulty,
             weakDpsVsMedian: Math.round(weakest.dpsVsMedian),
-            strongBoss: strongest.bossName, strongDpsVsMedian: Math.round(strongest.dpsVsMedian),
+            strongBoss: strongest.bossName,
+            strongDpsVsMedian: Math.round(strongest.dpsVsMedian),
             gap: Math.round(gap),
           },
         });
@@ -785,22 +1043,30 @@ function generateBossSpecificTips(summary, bossBreakdown, _playerLevel) {
 
 function generateCrossPatternTips(summary, bossBreakdown) {
   const tips = [];
-  const eligible = bossBreakdown.filter(b => b.fights >= 1);
+  const eligible = bossBreakdown.filter((b) => b.fights >= 1);
 
   // deaths_from_damage — bosses with highest deaths also have highest DTPS
   if (eligible.length >= 2) {
-    const deathBosses = eligible.filter(b => b.deathRate > 0.15);
-    const highDtpsBosses = eligible.filter(b => summary.avgDtps > 0 && b.avgDtps > summary.avgDtps * 1.2);
-    const overlap = deathBosses.filter(db => highDtpsBosses.some(hb => hb.bossId === db.bossId));
+    const deathBosses = eligible.filter((b) => b.deathRate > 0.15);
+    const highDtpsBosses = eligible.filter(
+      (b) => summary.avgDtps > 0 && b.avgDtps > summary.avgDtps * 1.2,
+    );
+    const overlap = deathBosses.filter((db) =>
+      highDtpsBosses.some((hb) => hb.bossId === db.bossId),
+    );
     if (overlap.length > 0) {
-      const worst = overlap.reduce((w, b) => b.deathRate > w.deathRate ? b : w);
+      const worst = overlap.reduce((w, b) => (b.deathRate > w.deathRate ? b : w));
       tips.push({
-        category: 'survivability', key: 'deaths_from_damage', severity: 'warning',
+        category: 'survivability',
+        key: 'deaths_from_damage',
+        severity: 'warning',
         priority: 15,
         data: {
-          boss: worst.bossName, difficulty: worst.difficulty,
+          boss: worst.bossName,
+          difficulty: worst.difficulty,
           deathRate: worst.deathRate.toFixed(2),
-          dtps: Math.round(worst.avgDtps), avgDtps: Math.round(summary.avgDtps),
+          dtps: Math.round(worst.avgDtps),
+          avgDtps: Math.round(summary.avgDtps),
           count: overlap.length,
         },
       });
@@ -809,16 +1075,22 @@ function generateCrossPatternTips(summary, bossBreakdown) {
 
   // uptime_drives_dps — bosses with low active time also have low DPS vs median
   if (eligible.length >= 2 && summary.avgActiveTime > 0) {
-    const lowUptimeBosses = eligible.filter(b => b.avgActiveTime > 0 && b.avgActiveTime < summary.avgActiveTime - 5);
-    const lowDpsBosses = lowUptimeBosses.filter(b => b.dpsVsMedian < 100);
+    const lowUptimeBosses = eligible.filter(
+      (b) => b.avgActiveTime > 0 && b.avgActiveTime < summary.avgActiveTime - 5,
+    );
+    const lowDpsBosses = lowUptimeBosses.filter((b) => b.dpsVsMedian < 100);
     if (lowDpsBosses.length > 0) {
-      const worst = lowDpsBosses.reduce((w, b) => b.dpsVsMedian < w.dpsVsMedian ? b : w);
+      const worst = lowDpsBosses.reduce((w, b) => (b.dpsVsMedian < w.dpsVsMedian ? b : w));
       tips.push({
-        category: 'performance', key: 'uptime_drives_dps', severity: 'info',
+        category: 'performance',
+        key: 'uptime_drives_dps',
+        severity: 'info',
         priority: 16,
         data: {
-          boss: worst.bossName, difficulty: worst.difficulty,
-          activeTime: Math.round(worst.avgActiveTime), avgActiveTime: Math.round(summary.avgActiveTime),
+          boss: worst.bossName,
+          difficulty: worst.difficulty,
+          activeTime: Math.round(worst.avgActiveTime),
+          avgActiveTime: Math.round(summary.avgActiveTime),
           dpsVsMedian: Math.round(worst.dpsVsMedian),
           count: lowDpsBosses.length,
         },
@@ -833,7 +1105,9 @@ function generateCrossPatternTips(summary, bossBreakdown) {
     // Low parse but beating raid median = raid is underperforming
     if (parse < 50 && median > 100) {
       tips.push({
-        category: 'performance', key: 'parse_vs_raid', severity: 'info',
+        category: 'performance',
+        key: 'parse_vs_raid',
+        severity: 'info',
         priority: 18,
         data: { parse, median: Math.round(median), context: 'raid_low' },
       });
@@ -841,7 +1115,9 @@ function generateCrossPatternTips(summary, bossBreakdown) {
     // High parse but not beating raid median = raid is very strong
     if (parse >= 75 && median < 105) {
       tips.push({
-        category: 'performance', key: 'parse_vs_raid', severity: 'info',
+        category: 'performance',
+        key: 'parse_vs_raid',
+        severity: 'info',
         priority: 18,
         data: { parse, median: Math.round(median), context: 'raid_strong' },
       });
@@ -851,7 +1127,9 @@ function generateCrossPatternTips(summary, bossBreakdown) {
   // defensive_gap — dying but not using healthstones
   if (summary.deathRate > 0.15 && summary.healthstoneRate < 30) {
     tips.push({
-      category: 'survivability', key: 'defensive_gap', severity: 'warning',
+      category: 'survivability',
+      key: 'defensive_gap',
+      severity: 'warning',
       priority: 17,
       data: {
         deathRate: summary.deathRate.toFixed(2),
@@ -874,7 +1152,8 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
     // tank_death_impact — tank deaths cause wipes, amplified severity
     if (summary.deathRate > 0.2) {
       tips.push({
-        category: 'survivability', key: 'tank_death_impact',
+        category: 'survivability',
+        key: 'tank_death_impact',
         severity: summary.deathRate > 0.35 ? 'critical' : 'warning',
         priority: 14 - Math.min(5, Math.round(summary.deathRate * 10)),
         data: { rate: summary.deathRate.toFixed(2) },
@@ -886,24 +1165,37 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
     if (summary.avgCpm > 0 && summary.avgCpm < tankCpmBaseline * 0.75) {
       const pct = Math.round((summary.avgCpm / tankCpmBaseline) * 100);
       tips.push({
-        category: 'performance', key: 'tank_low_cpm_mitigation', severity: 'warning',
+        category: 'performance',
+        key: 'tank_low_cpm_mitigation',
+        severity: 'warning',
         priority: 16,
-        data: { cpm: summary.avgCpm.toFixed(1), expected: tankCpmBaseline, pct, spec: spec || 'Tank' },
+        data: {
+          cpm: summary.avgCpm.toFixed(1),
+          expected: tankCpmBaseline,
+          pct,
+          spec: spec || 'Tank',
+        },
       });
     }
 
     // tank_dtps_outlier — specific boss where tank takes way more damage than their average
-    const eligible = bossBreakdown.filter(b => b.fights >= 1);
+    const eligible = bossBreakdown.filter((b) => b.fights >= 1);
     for (const boss of eligible) {
       if (summary.avgDtps > 0 && boss.avgDtps > 0) {
         const ratio = boss.avgDtps / summary.avgDtps;
         if (ratio > 1.4) {
           const excessPct = Math.round((ratio - 1) * 100);
           tips.push({
-            category: 'survivability', key: 'tank_dtps_outlier',
+            category: 'survivability',
+            key: 'tank_dtps_outlier',
             severity: ratio > 1.7 ? 'critical' : 'warning',
             priority: 15,
-            data: { boss: boss.bossName, difficulty: boss.difficulty, dtps: Math.round(boss.avgDtps), excessPct },
+            data: {
+              boss: boss.bossName,
+              difficulty: boss.difficulty,
+              dtps: Math.round(boss.avgDtps),
+              excessPct,
+            },
           });
           break; // only report the worst outlier
         }
@@ -913,7 +1205,9 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
     // tank_low_interrupts — tanks should interrupt more (higher threshold than DPS)
     if (summary.avgInterrupts < 2 && summary.totalFights >= 2) {
       tips.push({
-        category: 'utility', key: 'tank_low_interrupts', severity: 'info',
+        category: 'utility',
+        key: 'tank_low_interrupts',
+        severity: 'info',
         priority: 19,
         data: { avg: summary.avgInterrupts.toFixed(1), target: 3 },
       });
@@ -924,7 +1218,9 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
     // healer_low_dispels — healers should dispel proactively
     if (summary.avgDispels < 1.5 && summary.totalFights >= 3) {
       tips.push({
-        category: 'utility', key: 'healer_low_dispels', severity: 'warning',
+        category: 'utility',
+        key: 'healer_low_dispels',
+        severity: 'warning',
         priority: 16,
         data: { avg: summary.avgDispels.toFixed(1), fights: summary.totalFights },
       });
@@ -933,7 +1229,8 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
     // healer_death_impact — healer deaths are extra costly
     if (summary.deathRate > 0.15) {
       tips.push({
-        category: 'survivability', key: 'healer_death_impact',
+        category: 'survivability',
+        key: 'healer_death_impact',
         severity: summary.deathRate > 0.3 ? 'critical' : 'warning',
         priority: 14 - Math.min(5, Math.round(summary.deathRate * 10)),
         data: { rate: summary.deathRate.toFixed(2) },
@@ -947,45 +1244,105 @@ function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBas
 // ── Tier 3: General Performance ───────────────────────────────
 // Essential baseline checks — only show when there's a real issue.
 
-function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseline) {
+function generateGeneralTips(
+  summary,
+  bossBreakdown,
+  _playerLevel,
+  specCpmBaseline,
+  className,
+  spec,
+) {
   const tips = [];
+  const coaching = className && spec ? getSpecCoaching(className, spec) : null;
 
   // High death rate (critical survivability issue)
+  // When spec coaching is available, use contextualized version with defensive CD advice
   if (summary.deathRate > 0.4) {
-    tips.push({
-      category: 'survivability', key: 'high_death_rate', severity: 'critical',
-      priority: 20,
-      data: { rate: summary.deathRate.toFixed(2) },
-    });
+    if (coaching) {
+      tips.push({
+        category: 'survivability',
+        key: 'spec_deaths_context',
+        severity: 'critical',
+        priority: 20,
+        data: {
+          rate: summary.deathRate.toFixed(2),
+          spec: spec || '',
+          defensiveCd: coaching.defensiveCd,
+        },
+      });
+    } else {
+      tips.push({
+        category: 'survivability',
+        key: 'high_death_rate',
+        severity: 'critical',
+        priority: 20,
+        data: { rate: summary.deathRate.toFixed(2) },
+      });
+    }
   }
 
   // Low active time
+  // When spec coaching is available, use contextualized version with movement advice
   if (summary.avgActiveTime > 0 && summary.avgActiveTime < 85) {
-    tips.push({
-      category: 'performance', key: 'low_active_time',
-      severity: summary.avgActiveTime < 70 ? 'critical' : 'warning',
-      priority: 22,
-      data: { pct: Math.round(summary.avgActiveTime) },
-    });
+    if (coaching) {
+      tips.push({
+        category: 'performance',
+        key: 'spec_uptime_context',
+        severity: summary.avgActiveTime < 70 ? 'critical' : 'warning',
+        priority: 22,
+        data: {
+          pct: Math.round(summary.avgActiveTime),
+          spec: spec || '',
+          context: coaching.lowUptime,
+        },
+      });
+    } else {
+      tips.push({
+        category: 'performance',
+        key: 'low_active_time',
+        severity: summary.avgActiveTime < 70 ? 'critical' : 'warning',
+        priority: 22,
+        data: { pct: Math.round(summary.avgActiveTime) },
+      });
+    }
   }
 
   // Low CPM (spec-aware thresholds)
+  // When spec coaching is available, use contextualized version with rotation advice
   const cpmBaseline = specCpmBaseline || 30;
   const cpmWarningThreshold = cpmBaseline * 0.75;
   const cpmCriticalThreshold = cpmBaseline * 0.55;
   if (summary.avgCpm > 0 && summary.avgCpm < cpmWarningThreshold) {
-    tips.push({
-      category: 'performance', key: 'low_cpm',
-      severity: summary.avgCpm < cpmCriticalThreshold ? 'critical' : 'warning',
-      priority: 23,
-      data: { cpm: summary.avgCpm.toFixed(1) },
-    });
+    if (coaching) {
+      tips.push({
+        category: 'performance',
+        key: 'spec_cpm_context',
+        severity: summary.avgCpm < cpmCriticalThreshold ? 'critical' : 'warning',
+        priority: 23,
+        data: {
+          cpm: summary.avgCpm.toFixed(1),
+          spec: spec || '',
+          expected: cpmBaseline,
+          context: coaching.lowCpm,
+        },
+      });
+    } else {
+      tips.push({
+        category: 'performance',
+        key: 'low_cpm',
+        severity: summary.avgCpm < cpmCriticalThreshold ? 'critical' : 'warning',
+        priority: 23,
+        data: { cpm: summary.avgCpm.toFixed(1) },
+      });
+    }
   }
 
   // Low flask uptime
   if (summary.avgFlaskUptime < 90) {
     tips.push({
-      category: 'consumables', key: 'low_flask', severity: 'warning',
+      category: 'consumables',
+      key: 'low_flask',
+      severity: 'warning',
       priority: 25,
       data: { uptime: Math.round(summary.avgFlaskUptime) },
     });
@@ -994,7 +1351,9 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseli
   // No food buff
   if (summary.foodRate < 80) {
     tips.push({
-      category: 'consumables', key: 'no_food', severity: 'info',
+      category: 'consumables',
+      key: 'no_food',
+      severity: 'info',
       priority: 27,
       data: { rate: Math.round(summary.foodRate) },
     });
@@ -1003,7 +1362,9 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseli
   // Low combat potion usage
   if (summary.combatPotionRate < 60) {
     tips.push({
-      category: 'consumables', key: 'low_combat_potion', severity: 'warning',
+      category: 'consumables',
+      key: 'low_combat_potion',
+      severity: 'warning',
       priority: 26,
       data: { rate: Math.round(summary.combatPotionRate) },
     });
@@ -1012,23 +1373,53 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseli
   // Low interrupts
   if (summary.avgInterrupts < 1 && summary.totalFights >= 2) {
     tips.push({
-      category: 'utility', key: 'low_interrupts', severity: 'info',
+      category: 'utility',
+      key: 'low_interrupts',
+      severity: 'info',
       priority: 28,
       data: { avg: summary.avgInterrupts.toFixed(1) },
     });
   }
 
-  // Low parse
+  // Low parse — when spec is known, use spec_parse_standing for context
   if (summary.avgParsePercentile != null) {
-    if (summary.avgParsePercentile < 25) {
+    if (spec && summary.avgParsePercentile < 25) {
       tips.push({
-        category: 'performance', key: 'low_parse', severity: 'critical',
+        category: 'performance',
+        key: 'spec_parse_standing',
+        severity: 'critical',
+        priority: 21,
+        data: {
+          parse: summary.avgParsePercentile,
+          spec,
+          context: 'Focus on rotation fundamentals and uptime to climb out of the bottom quartile.',
+        },
+      });
+    } else if (spec && summary.avgParsePercentile >= 25 && summary.avgParsePercentile < 50) {
+      tips.push({
+        category: 'performance',
+        key: 'spec_parse_standing',
+        severity: 'warning',
+        priority: 24,
+        data: {
+          parse: summary.avgParsePercentile,
+          spec,
+          context: 'Small rotation and uptime improvements can push you above the median.',
+        },
+      });
+    } else if (summary.avgParsePercentile < 25) {
+      tips.push({
+        category: 'performance',
+        key: 'low_parse',
+        severity: 'critical',
         priority: 21,
         data: { pct: summary.avgParsePercentile },
       });
     } else if (summary.avgParsePercentile < 50) {
       tips.push({
-        category: 'performance', key: 'below_avg_parse', severity: 'warning',
+        category: 'performance',
+        key: 'below_avg_parse',
+        severity: 'warning',
         priority: 24,
         data: { pct: summary.avgParsePercentile },
       });
@@ -1037,19 +1428,31 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseli
 
   // Good preparation (positive benchmark — max 1)
   if (summary.combatPotionRate >= 70 && summary.avgFlaskUptime >= 90 && summary.foodRate >= 80) {
-    tips.push({ category: 'consumables', key: 'good_preparation', severity: 'positive', priority: 50, data: {} });
+    tips.push({
+      category: 'consumables',
+      key: 'good_preparation',
+      severity: 'positive',
+      priority: 50,
+      data: {},
+    });
   }
 
   // Strong boss (positive benchmark — shows best performance as reference)
   if (bossBreakdown.length >= 2) {
-    const bossesWithDps = bossBreakdown.filter(b => b.avgDps > 0 && b.fights >= 1);
+    const bossesWithDps = bossBreakdown.filter((b) => b.avgDps > 0 && b.fights >= 1);
     if (bossesWithDps.length >= 2) {
-      const strongest = bossesWithDps.reduce((s, b) => b.dpsVsMedian > s.dpsVsMedian ? b : s);
+      const strongest = bossesWithDps.reduce((s, b) => (b.dpsVsMedian > s.dpsVsMedian ? b : s));
       if (strongest.dpsVsMedian > 110) {
         tips.push({
-          category: 'performance', key: 'strong_boss', severity: 'positive',
+          category: 'performance',
+          key: 'strong_boss',
+          severity: 'positive',
           priority: 50,
-          data: { boss: strongest.bossName, difficulty: strongest.difficulty, dpsVsMedian: Math.round(strongest.dpsVsMedian) },
+          data: {
+            boss: strongest.bossName,
+            difficulty: strongest.difficulty,
+            dpsVsMedian: Math.round(strongest.dpsVsMedian),
+          },
         });
       }
     }

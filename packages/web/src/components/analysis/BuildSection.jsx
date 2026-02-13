@@ -1,13 +1,22 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 import { analysisAPI, publicAPI } from '../../services/api';
 import { SEVERITY_STYLES, CATEGORY_STYLES } from '@stillnoob/shared';
 
 const STAT_COLORS = {
   prioritized: '#22c55e', // green-500
-  secondary: '#f59e0b',  // amber-500
-  low: '#6b7280',        // gray-500
+  secondary: '#f59e0b', // amber-500
+  low: '#6b7280', // gray-500
 };
 
 /** Map enchantable slot key to a display-friendly name */
@@ -54,12 +63,12 @@ function getAlignmentStyle(alignment) {
 function TipCard({ tip, t }) {
   const sevStyle = SEVERITY_STYLES[tip.severity] || SEVERITY_STYLES.info;
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-lg border ${sevStyle.bg} ${sevStyle.border}`}>
+    <div
+      className={`flex items-start gap-3 p-3 rounded-lg border ${sevStyle.bg} ${sevStyle.border}`}
+    >
       <i className={`fas ${sevStyle.icon} ${sevStyle.color} mt-0.5`} />
       <div className="flex-1">
-        <p className="text-sm text-white">
-          {t(`rec.${tip.key}`, tip.data)}
-        </p>
+        <p className="text-sm text-white">{t(`rec.${tip.key}`, tip.data)}</p>
       </div>
       <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${sevStyle.color}`}>
         {t(`severity.${tip.severity}`)}
@@ -95,16 +104,29 @@ function StatDistributionSection({ statAnalysis, t }) {
           {t('analysis.statDistribution')}
         </h3>
         {statAnalysis.alignment && (
-          <span className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${getAlignmentStyle(statAnalysis.alignment)}`}>
-            {t(`analysis.alignment${statAnalysis.alignment.charAt(0).toUpperCase() + statAnalysis.alignment.slice(1)}`)}
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${getAlignmentStyle(statAnalysis.alignment)}`}
+          >
+            {t(
+              `analysis.alignment${statAnalysis.alignment.charAt(0).toUpperCase() + statAnalysis.alignment.slice(1)}`,
+            )}
           </span>
         )}
       </div>
 
       <ResponsiveContainer width="100%" height={160}>
-        <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ left: 10, right: 30, top: 5, bottom: 5 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#1a0f2e" horizontal={false} />
-          <XAxis type="number" domain={[0, 'auto']} tick={{ fill: '#9ca3af', fontSize: 11 }} unit="%" />
+          <XAxis
+            type="number"
+            domain={[0, 'auto']}
+            tick={{ fill: '#9ca3af', fontSize: 11 }}
+            unit="%"
+          />
           <YAxis
             type="category"
             dataKey="stat"
@@ -112,7 +134,11 @@ function StatDistributionSection({ statAnalysis, t }) {
             width={90}
           />
           <Tooltip
-            contentStyle={{ backgroundColor: '#0d0a1a', border: '1px solid #2d1f4e', borderRadius: '8px' }}
+            contentStyle={{
+              backgroundColor: '#0d0a1a',
+              border: '1px solid #2d1f4e',
+              borderRadius: '8px',
+            }}
             labelStyle={{ color: '#fff', fontFamily: 'Orbitron' }}
             formatter={(value) => [`${value}%`, 'Distribution']}
           />
@@ -199,14 +225,20 @@ function GemAuditSection({ gemAudit, t }) {
         <div className="flex items-center gap-3 flex-wrap">
           {/* Filled sockets */}
           {Array.from({ length: gemAudit.filled }).map((_, i) => (
-            <div key={`filled-${i}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-900/10 border border-green-500/20">
+            <div
+              key={`filled-${i}`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-900/10 border border-green-500/20"
+            >
               <i className="fas fa-gem text-green-400 text-sm" />
               <span className="text-sm text-gray-400">{t('analysis.filled')}</span>
             </div>
           ))}
           {/* Empty sockets */}
           {(gemAudit.emptySlots || []).map((slot) => (
-            <div key={`empty-${slot}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-900/10 border border-red-500/20">
+            <div
+              key={`empty-${slot}`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-900/10 border border-red-500/20"
+            >
               <i className="far fa-gem text-red-400 text-sm" />
               <span className="text-sm text-white">{SLOT_LABELS[slot] || slot}</span>
               <span className="text-[10px] text-red-400">{t('analysis.empty')}</span>
@@ -223,7 +255,7 @@ function GearTipsSection({ gearTips, t }) {
     if (!gearTips?.length) return [];
     const severityOrder = { critical: 0, warning: 1, info: 2, positive: 3 };
     return [...gearTips].sort(
-      (a, b) => (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4)
+      (a, b) => (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4),
     );
   }, [gearTips]);
 
@@ -232,7 +264,9 @@ function GearTipsSection({ gearTips, t }) {
   return (
     <div className="bg-void-mid/30 rounded-xl border border-void-bright/10 p-4">
       <div className="flex items-center gap-2 mb-4">
-        <i className={`fas ${CATEGORY_STYLES.gear?.icon || 'fa-shield-halved'} ${CATEGORY_STYLES.gear?.color || 'text-amber-400'}`} />
+        <i
+          className={`fas ${CATEGORY_STYLES.gear?.icon || 'fa-shield-halved'} ${CATEGORY_STYLES.gear?.color || 'text-amber-400'}`}
+        />
         <h3 className="text-sm font-semibold text-void-text uppercase tracking-wider">
           {t('categories.gear')}
         </h3>
@@ -260,7 +294,11 @@ export default function BuildSection({ characterId, publicCharacter }) {
         setError(null);
         const res = characterId
           ? await analysisAPI.build(characterId)
-          : await publicAPI.build(publicCharacter.region, publicCharacter.realm, publicCharacter.name);
+          : await publicAPI.build(
+              publicCharacter.region,
+              publicCharacter.realm,
+              publicCharacter.name,
+            );
         setData(res.data);
       } catch (err) {
         setError(err.response?.data?.error || 'Failed to load build data');
@@ -280,9 +318,7 @@ export default function BuildSection({ characterId, publicCharacter }) {
   }
 
   if (error) {
-    return (
-      <div className="text-center py-12 text-gray-400">{error}</div>
-    );
+    return <div className="text-center py-12 text-gray-400">{error}</div>;
   }
 
   if (!data) {

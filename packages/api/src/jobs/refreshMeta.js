@@ -30,9 +30,11 @@ export async function refreshAllSpecMeta() {
       log.error(`Failed to refresh ${className} - ${spec}:`, err.message);
     }
     // 2 second delay between specs (WCL + Blizzard handle this comfortably)
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 2000));
   }
 
-  log.info(`Meta refresh complete: ${success} success, ${failed} failed out of ${specs.length} total`);
+  log.info(
+    `Meta refresh complete: ${success} success, ${failed} failed out of ${specs.length} total`,
+  );
   return { success, failed, total: specs.length };
 }

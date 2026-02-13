@@ -19,14 +19,15 @@ router.post('/', async (req, res) => {
     }
 
     // Check if guild already exists
-    const existing = await db.select({ id: guilds.id })
+    const existing = await db
+      .select({ id: guilds.id })
       .from(guilds)
       .where(
         and(
           eq(guilds.realmSlug, realmSlug.toLowerCase()),
           eq(guilds.region, region.toLowerCase()),
           eq(guilds.name, name),
-        )
+        ),
       )
       .get();
 
@@ -34,13 +35,16 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Guild already exists' });
     }
 
-    const [guild] = await db.insert(guilds).values({
-      name,
-      realm,
-      realmSlug: realmSlug.toLowerCase(),
-      region: region.toLowerCase(),
-      ownerId: req.user.id,
-    }).returning();
+    const [guild] = await db
+      .insert(guilds)
+      .values({
+        name,
+        realm,
+        realmSlug: realmSlug.toLowerCase(),
+        region: region.toLowerCase(),
+        ownerId: req.user.id,
+      })
+      .returning();
 
     // Auto-add creator as leader
     await db.insert(guildMembers).values({
@@ -59,14 +63,15 @@ router.post('/', async (req, res) => {
 // GET /api/v1/guilds — list my guilds
 router.get('/', async (req, res) => {
   try {
-    const memberships = await db.select({
-      guildId: guildMembers.guildId,
-      role: guildMembers.role,
-      guildName: guilds.name,
-      realm: guilds.realm,
-      region: guilds.region,
-      avatarUrl: guilds.avatarUrl,
-    })
+    const memberships = await db
+      .select({
+        guildId: guildMembers.guildId,
+        role: guildMembers.role,
+        guildName: guilds.name,
+        realm: guilds.realm,
+        region: guilds.region,
+        avatarUrl: guilds.avatarUrl,
+      })
       .from(guildMembers)
       .innerJoin(guilds, eq(guildMembers.guildId, guilds.id))
       .where(eq(guildMembers.userId, req.user.id))
@@ -88,7 +93,8 @@ router.get('/:id', async (req, res) => {
     }
 
     // Check membership
-    const membership = await db.select({ role: guildMembers.role })
+    const membership = await db
+      .select({ role: guildMembers.role })
       .from(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
       .get();
@@ -102,13 +108,14 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Guild not found' });
     }
 
-    const members = await db.select({
-      userId: guildMembers.userId,
-      role: guildMembers.role,
-      joinedAt: guildMembers.joinedAt,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-    })
+    const members = await db
+      .select({
+        userId: guildMembers.userId,
+        role: guildMembers.role,
+        joinedAt: guildMembers.joinedAt,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+      })
       .from(guildMembers)
       .innerJoin(users, eq(guildMembers.userId, users.id))
       .where(eq(guildMembers.guildId, guildId))
@@ -150,8 +157,11 @@ router.post('/:id/join', async (req, res) => {
       return res.status(400).json({ error: 'Invite code is required' });
     }
 
-    const guild = await db.select({ id: guilds.id, inviteCode: guilds.inviteCode })
-      .from(guilds).where(eq(guilds.id, guildId)).get();
+    const guild = await db
+      .select({ id: guilds.id, inviteCode: guilds.inviteCode })
+      .from(guilds)
+      .where(eq(guilds.id, guildId))
+      .get();
     if (!guild) {
       return res.status(404).json({ error: 'Guild not found' });
     }
@@ -160,11 +170,14 @@ router.post('/:id/join', async (req, res) => {
       return res.status(403).json({ error: 'Invalid invite code' });
     }
 
-    await db.insert(guildMembers).values({
-      guildId,
-      userId: req.user.id,
-      role: 'member',
-    }).onConflictDoNothing();
+    await db
+      .insert(guildMembers)
+      .values({
+        guildId,
+        userId: req.user.id,
+        role: 'member',
+      })
+      .onConflictDoNothing();
 
     res.json({ message: 'Joined guild' });
   } catch (err) {
@@ -182,12 +195,17 @@ router.post('/:id/leave', async (req, res) => {
     }
 
     // Can't leave if you're the owner
-    const guild = await db.select({ ownerId: guilds.ownerId }).from(guilds).where(eq(guilds.id, guildId)).get();
+    const guild = await db
+      .select({ ownerId: guilds.ownerId })
+      .from(guilds)
+      .where(eq(guilds.id, guildId))
+      .get();
     if (guild && guild.ownerId === req.user.id) {
       return res.status(400).json({ error: 'Owner cannot leave. Transfer ownership first.' });
     }
 
-    await db.delete(guildMembers)
+    await db
+      .delete(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)));
 
     res.json({ message: 'Left guild' });
@@ -212,7 +230,8 @@ router.put('/:id/members/:userId', async (req, res) => {
     }
 
     // Check caller is leader or officer
-    const callerMembership = await db.select({ role: guildMembers.role })
+    const callerMembership = await db
+      .select({ role: guildMembers.role })
       .from(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
       .get();
@@ -226,7 +245,8 @@ router.put('/:id/members/:userId', async (req, res) => {
       return res.status(403).json({ error: 'Only the guild leader can promote to leader' });
     }
 
-    await db.update(guildMembers)
+    await db
+      .update(guildMembers)
       .set({ role })
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, targetUserId)));
 
@@ -252,7 +272,8 @@ router.delete('/:id/members/:userId', async (req, res) => {
     }
 
     // Check caller permissions
-    const callerMembership = await db.select({ role: guildMembers.role })
+    const callerMembership = await db
+      .select({ role: guildMembers.role })
       .from(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
       .get();
@@ -261,7 +282,8 @@ router.delete('/:id/members/:userId', async (req, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
-    await db.delete(guildMembers)
+    await db
+      .delete(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, targetUserId)));
 
     res.json({ message: 'Member removed' });
@@ -281,7 +303,8 @@ router.patch('/:id/settings', async (req, res) => {
     const { defaultVisibility } = req.body;
 
     // Check caller is leader
-    const membership = await db.select({ role: guildMembers.role })
+    const membership = await db
+      .select({ role: guildMembers.role })
       .from(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
       .get();
@@ -290,14 +313,21 @@ router.patch('/:id/settings', async (req, res) => {
       return res.status(403).json({ error: 'Only guild leader can change settings' });
     }
 
-    const guild = await db.select({ settings: guilds.settings }).from(guilds).where(eq(guilds.id, guildId)).get();
+    const guild = await db
+      .select({ settings: guilds.settings })
+      .from(guilds)
+      .where(eq(guilds.id, guildId))
+      .get();
     const currentSettings = JSON.parse(guild?.settings || '{}');
 
     if (defaultVisibility && ['public', 'private', 'guild'].includes(defaultVisibility)) {
       currentSettings.defaultVisibility = defaultVisibility;
     }
 
-    await db.update(guilds).set({ settings: JSON.stringify(currentSettings) }).where(eq(guilds.id, guildId));
+    await db
+      .update(guilds)
+      .set({ settings: JSON.stringify(currentSettings) })
+      .where(eq(guilds.id, guildId));
 
     res.json({ settings: currentSettings });
   } catch (err) {
@@ -314,7 +344,8 @@ router.post('/:id/invite-code', async (req, res) => {
       return res.status(400).json({ error: 'Invalid guild ID' });
     }
 
-    const membership = await db.select({ role: guildMembers.role })
+    const membership = await db
+      .select({ role: guildMembers.role })
       .from(guildMembers)
       .where(and(eq(guildMembers.guildId, guildId), eq(guildMembers.userId, req.user.id)))
       .get();

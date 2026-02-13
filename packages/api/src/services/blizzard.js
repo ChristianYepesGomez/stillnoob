@@ -9,9 +9,18 @@ let tokenExpiry = 0;
 
 /** Blizzard class ID → class name */
 const BLIZZARD_CLASS_MAP = {
-  1: 'Warrior', 2: 'Paladin', 3: 'Hunter', 4: 'Rogue',
-  5: 'Priest', 6: 'Death Knight', 7: 'Shaman', 8: 'Mage',
-  9: 'Warlock', 10: 'Monk', 11: 'Druid', 12: 'Demon Hunter',
+  1: 'Warrior',
+  2: 'Paladin',
+  3: 'Hunter',
+  4: 'Rogue',
+  5: 'Priest',
+  6: 'Death Knight',
+  7: 'Shaman',
+  8: 'Mage',
+  9: 'Warlock',
+  10: 'Monk',
+  11: 'Druid',
+  12: 'Demon Hunter',
   13: 'Evoker',
 };
 
@@ -94,11 +103,11 @@ export async function getAccessToken() {
     {
       auth: { username: clientId, password: clientSecret },
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }
+    },
   );
 
   appToken = response.data.access_token;
-  tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+  tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000;
   return appToken;
 }
 
@@ -141,7 +150,7 @@ export async function exchangeCode(code) {
     {
       auth: { username: clientId, password: clientSecret },
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }
+    },
   );
 
   return {
@@ -158,17 +167,15 @@ export async function exchangeCode(code) {
 export async function getUserCharacters(userToken) {
   const region = process.env.BLIZZARD_REGION || 'eu';
 
-  const response = await axios.get(
-    `${getApiUrl(region)}/profile/user/wow`,
-    {
-      params: { namespace: `profile-${region}` },
-      headers: { Authorization: `Bearer ${userToken}` },
-    }
-  );
+  const response = await axios.get(`${getApiUrl(region)}/profile/user/wow`, {
+    params: { namespace: `profile-${region}` },
+    headers: { Authorization: `Bearer ${userToken}` },
+  });
 
   const locStr = (val) => {
     if (typeof val === 'string') return val;
-    if (val && typeof val === 'object') return val.en_US || val.en_GB || val.es_ES || Object.values(val)[0];
+    if (val && typeof val === 'object')
+      return val.en_US || val.en_GB || val.es_ES || Object.values(val)[0];
     return undefined;
   };
 
@@ -180,7 +187,8 @@ export async function getUserCharacters(userToken) {
         name: locStr(char.name) || char.name,
         realm: locStr(char.realm?.name) || char.realm?.slug || 'Unknown',
         realmSlug: char.realm?.slug || '',
-        className: BLIZZARD_CLASS_MAP[char.playable_class?.id] || `Class ${char.playable_class?.id}`,
+        className:
+          BLIZZARD_CLASS_MAP[char.playable_class?.id] || `Class ${char.playable_class?.id}`,
         classId: char.playable_class?.id,
         level: char.level || 0,
         summarySpecId: char.active_spec?.id,
@@ -190,7 +198,7 @@ export async function getUserCharacters(userToken) {
 
   // Filter to max-level only
   const maxLevel = basicChars.reduce((max, c) => Math.max(max, c.level), 0);
-  const eligible = basicChars.filter(c => c.name && c.level >= maxLevel && maxLevel > 0);
+  const eligible = basicChars.filter((c) => c.name && c.level >= maxLevel && maxLevel > 0);
 
   // Fetch detailed profile for accurate spec
   const characters = [];
@@ -204,7 +212,7 @@ export async function getUserCharacters(userToken) {
         {
           params: { namespace: `profile-${region}` },
           headers: { Authorization: `Bearer ${userToken}` },
-        }
+        },
       );
 
       if (profile.data?.active_spec?.id) {
@@ -234,7 +242,7 @@ export async function getUserCharacters(userToken) {
     });
 
     // Small delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   return characters.sort((a, b) => a.name.localeCompare(b.name));
@@ -252,7 +260,7 @@ export async function getCharacterProfile(name, realmSlug, region) {
       {
         params: { namespace: `profile-${region}`, locale: 'en_US' },
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
 
     return {
@@ -284,15 +292,15 @@ export async function getCharacterMedia(name, realmSlug, region) {
       {
         params: { namespace: `profile-${region}` },
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
 
     const assets = response.data.assets || [];
     return {
-      avatar: assets.find(a => a.key === 'avatar')?.value,
-      inset: assets.find(a => a.key === 'inset')?.value,
-      main: assets.find(a => a.key === 'main')?.value,
-      mainRaw: assets.find(a => a.key === 'main-raw')?.value,
+      avatar: assets.find((a) => a.key === 'avatar')?.value,
+      inset: assets.find((a) => a.key === 'inset')?.value,
+      main: assets.find((a) => a.key === 'main')?.value,
+      mainRaw: assets.find((a) => a.key === 'main-raw')?.value,
     };
   } catch {
     return null;
@@ -358,8 +366,15 @@ const STAT_TYPE_MAP = {
 
 /** Slots that should have an enchant */
 const ENCHANTABLE_SLOTS = new Set([
-  'head', 'back', 'chest', 'wrist', 'legs', 'feet',
-  'finger1', 'finger2', 'mainHand',
+  'head',
+  'back',
+  'chest',
+  'wrist',
+  'legs',
+  'feet',
+  'finger1',
+  'finger2',
+  'mainHand',
 ]);
 
 /** Cosmetic slots excluded from ilvl calculations */
@@ -383,7 +398,7 @@ export async function getCharacterEquipment(name, realmSlug, region) {
       {
         params: { namespace: `profile-${region}`, locale: 'en_US' },
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
 
     setEquipmentCache(cacheKey, response.data);
@@ -416,7 +431,10 @@ export function transformEquipment(rawEquipment) {
     // Parse enchant (take first enchantment display string, strip WoW markup tags)
     const rawEnchant = item.enchantments?.[0]?.display_string;
     const enchant = rawEnchant
-      ? rawEnchant.replace(/^Enchanted:\s*/i, '').replace(/\s*\|[aAcC][^|]*\|[ra]/g, '').trim()
+      ? rawEnchant
+          .replace(/^Enchanted:\s*/i, '')
+          .replace(/\s*\|[aAcC][^|]*\|[ra]/g, '')
+          .trim()
       : null;
 
     // Parse gems and empty sockets
@@ -457,27 +475,27 @@ export function transformEquipment(rawEquipment) {
     totalStats.versatility += item.stats.versatility;
   }
 
-  const averageItemLevel = ilvlCount > 0
-    ? Math.round((totalItemLevel / ilvlCount) * 10) / 10
-    : 0;
+  const averageItemLevel = ilvlCount > 0 ? Math.round((totalItemLevel / ilvlCount) * 10) / 10 : 0;
 
-  const totalSecondary = totalStats.crit + totalStats.haste + totalStats.mastery + totalStats.versatility;
+  const totalSecondary =
+    totalStats.crit + totalStats.haste + totalStats.mastery + totalStats.versatility;
   const statDistribution = {
     crit: totalSecondary > 0 ? Math.round((totalStats.crit / totalSecondary) * 1000) / 10 : 0,
     haste: totalSecondary > 0 ? Math.round((totalStats.haste / totalSecondary) * 1000) / 10 : 0,
     mastery: totalSecondary > 0 ? Math.round((totalStats.mastery / totalSecondary) * 1000) / 10 : 0,
-    versatility: totalSecondary > 0 ? Math.round((totalStats.versatility / totalSecondary) * 1000) / 10 : 0,
+    versatility:
+      totalSecondary > 0 ? Math.round((totalStats.versatility / totalSecondary) * 1000) / 10 : 0,
   };
 
   // --- Enchant audit ---
   const enchantMissing = [];
   const enchantPresent = [];
-  const itemSlotSet = new Set(items.map(i => i.slot));
+  const itemSlotSet = new Set(items.map((i) => i.slot));
 
   for (const slot of ENCHANTABLE_SLOTS) {
     // Only audit slots the character actually has equipped
     if (!itemSlotSet.has(slot)) continue;
-    const item = items.find(i => i.slot === slot);
+    const item = items.find((i) => i.slot === slot);
     if (item?.enchant) {
       enchantPresent.push(slot);
     } else {
@@ -544,16 +562,13 @@ export async function getRealmList(region) {
 
   const token = await getAccessToken();
 
-  const response = await axios.get(
-    `${getApiUrl(normalizedRegion)}/data/wow/realm/index`,
-    {
-      params: { namespace: `dynamic-${normalizedRegion}`, locale: 'en_US' },
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
+  const response = await axios.get(`${getApiUrl(normalizedRegion)}/data/wow/realm/index`, {
+    params: { namespace: `dynamic-${normalizedRegion}`, locale: 'en_US' },
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   const realms = (response.data.realms || [])
-    .map(r => ({ id: r.id, name: r.name, slug: r.slug }))
+    .map((r) => ({ id: r.id, name: r.name, slug: r.slug }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   realmCache.set(normalizedRegion, { data: realms, timestamp: Date.now() });

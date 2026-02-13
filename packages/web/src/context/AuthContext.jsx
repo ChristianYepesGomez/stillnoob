@@ -9,7 +9,8 @@ export function AuthProvider({ children }) {
 
   // Try to restore session on mount
   useEffect(() => {
-    authAPI.me()
+    authAPI
+      .me()
       .then(({ data }) => {
         setUser(data);
       })
@@ -45,7 +46,9 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try {
       await authAPI.logout();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setUser(null);
     setAccessToken(null);
   }, []);

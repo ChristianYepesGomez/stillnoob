@@ -70,7 +70,6 @@ export const AUTO_ATTACK_PATTERNS = /^(Melee|Auto Shot|Shoot)$/i;
 
 /** Consumable detection regex patterns */
 export const CONSUMABLE_PATTERNS = {
-  healthPotion: /healing potion|potion of .*(heal|life)|algari healing/i,
   healthstone: /healthstone/i,
   combatPotion: /tempered potion|potion of unwavering focus|frontline potion|elemental potion|potion of the .*(war|twilight)/i,
 };
@@ -82,14 +81,13 @@ export const BUFF_PATTERNS = {
   augmentRune: /augment rune/i,
 };
 
-/** Consumable score weights */
+/** Consumable score weights (must sum to 1.0) */
 export const CONSUMABLE_WEIGHTS = {
-  healthPotion: 0.20,
-  healthstone: 0.15,
-  combatPotion: 0.25,
-  flask: 0.25,
-  food: 0.10,
-  augmentRune: 0.05,
+  healthstone: 0.20,
+  combatPotion: 0.30,
+  flask: 0.30,
+  food: 0.13,
+  augmentRune: 0.07,
 };
 
 /** StillNoob Score component weights */

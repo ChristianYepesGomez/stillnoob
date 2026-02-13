@@ -126,7 +126,6 @@ export default function OverviewSection({ data }) {
           {t('categories.consumables')}
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <ConsumableBar label={t('consumables.healthPotion')} pct={summary.healthPotionRate} />
           <ConsumableBar label={t('consumables.healthstone')} pct={summary.healthstoneRate} />
           <ConsumableBar label={t('consumables.combatPotion')} pct={summary.combatPotionRate} />
           <ConsumableBar label={t('consumables.flask')} pct={summary.avgFlaskUptime} />

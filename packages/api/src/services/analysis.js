@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { fightPerformance } from '../db/schema.js';
-import { BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS } from '@stillnoob/shared';
+import { BUFF_PATTERNS, CONSUMABLE_WEIGHTS, SCORE_WEIGHTS, SCORE_TIERS, LEVEL_DETECTION, TIP_LIMITS, getSpecData } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Analysis');
@@ -10,8 +10,8 @@ const analysisCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_CACHE_SIZE = 200;
 
-function buildCacheKey(characterId, { weeks, bossId, difficulty } = {}) {
-  return `${characterId}:${weeks || ''}:${bossId || ''}:${difficulty || ''}`;
+function buildCacheKey(characterId, { weeks, bossId, difficulty, visibilityFilter } = {}) {
+  return `${characterId}:${weeks || ''}:${bossId || ''}:${difficulty || ''}:${visibilityFilter || ''}`;
 }
 
 /**
@@ -56,7 +56,7 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
       playerData[name] = {
         damageDone: 0, healingDone: 0, damageTaken: 0, deaths: 0,
         activeTime: 0, totalCasts: 0,
-        healthPotions: 0, healthstones: 0, combatPotions: 0,
+        healthstones: 0, combatPotions: 0,
         flaskUptime: 0, foodBuff: false, augmentRune: false,
         interrupts: 0, dispels: 0,
       };
@@ -135,13 +135,16 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
     }
   }
 
-  // Calculate raid medians
-  const allDps = [];
+  // Calculate raid medians (exclude tanks/healers by filtering low DPS)
+  const allRawDps = [];
   const allDtps = [];
   for (const data of Object.values(playerData)) {
-    if (data.damageDone > 0 && fightDurationSec > 0) allDps.push(data.damageDone / fightDurationSec);
+    if (data.damageDone > 0 && fightDurationSec > 0) allRawDps.push(data.damageDone / fightDurationSec);
     if (data.damageTaken > 0 && fightDurationSec > 0) allDtps.push(data.damageTaken / fightDurationSec);
   }
+  // Filter: only include players with DPS >= 40% of max (auto-excludes tanks ~30% and healers ~10-20%)
+  const maxDps = allRawDps.length > 0 ? Math.max(...allRawDps) : 0;
+  const allDps = allRawDps.filter(d => d >= maxDps * 0.4);
   allDps.sort((a, b) => a - b);
   allDtps.sort((a, b) => a - b);
   const medianDps = allDps.length > 0 ? allDps[Math.floor(allDps.length / 2)] : 0;
@@ -173,7 +176,6 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
         dps, hps, dtps,
         activeTimePct,
         cpm,
-        healthPotions: data.healthPotions,
         healthstones: data.healthstones,
         combatPotions: data.combatPotions,
         flaskUptimePct: data.flaskUptime,
@@ -200,10 +202,10 @@ export async function processExtendedFightData(storedFightId, fightDurationMs, b
  * Returns summary, boss breakdown, weekly trends, recent fights, and recommendations.
  */
 export async function getCharacterPerformance(characterId, options = {}) {
-  const { weeks = 8, bossId, difficulty, visibilityFilter, characterInfo } = options;
+  const { weeks = 8, bossId, difficulty, visibilityFilter, characterInfo, className, spec } = options;
 
   // Check cache first
-  const cacheKey = buildCacheKey(characterId, { weeks, bossId, difficulty });
+  const cacheKey = buildCacheKey(characterId, { weeks, bossId, difficulty, visibilityFilter });
   const cached = analysisCache.get(cacheKey);
   if (cached) return cached.data;
 
@@ -239,7 +241,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(AVG(fp.interrupts), 1) as avgInterrupts,
       ROUND(AVG(fp.dispels), 1) as avgDispels,
       ROUND(AVG(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END), 1) as dpsVsMedianPct,
-      ROUND(CAST(SUM(CASE WHEN fp.health_potions > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as healthPotionRate,
       ROUND(CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as healthstoneRate,
       ROUND(CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as combatPotionRate,
       ROUND(AVG(fp.active_time_pct), 1) as avgActiveTime,
@@ -255,7 +256,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
   const totalFights = Number(summary.totalFights) || 0;
 
   // Calculate consumable score
-  const healthPotionRate = Number(summary.healthPotionRate) || 0;
   const healthstoneRate = Number(summary.healthstoneRate) || 0;
   const combatPotionRate = Number(summary.combatPotionRate) || 0;
   const avgFlaskUptime = Number(summary.avgFlaskUptime) || 0;
@@ -263,7 +263,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
   const augmentRate = Number(summary.augmentRate) || 0;
 
   const consumableScore = Math.round(
-    healthPotionRate * CONSUMABLE_WEIGHTS.healthPotion +
     healthstoneRate * CONSUMABLE_WEIGHTS.healthstone +
     combatPotionRate * CONSUMABLE_WEIGHTS.combatPotion +
     avgFlaskUptime * CONSUMABLE_WEIGHTS.flask +
@@ -283,7 +282,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(AVG(fp.dps), 1) as avgDps,
       ROUND(MAX(fp.dps), 1) as bestDps,
       ROUND(AVG(fp.dtps), 1) as avgDtps,
-      ROUND(CAST(SUM(CASE WHEN fp.health_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1) as healthPotionRate,
       ROUND(CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1) as healthstoneRate,
       ROUND(CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1) as combatPotionRate,
       ROUND(AVG(fp.interrupts), 1) as interruptsPerFight,
@@ -310,7 +308,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
     avgDps: Number(r.avgDps),
     bestDps: Number(r.bestDps),
     avgDtps: Number(r.avgDtps),
-    healthPotionRate: Number(r.healthPotionRate),
     healthstoneRate: Number(r.healthstoneRate),
     combatPotionRate: Number(r.combatPotionRate),
     interruptsPerFight: Number(r.interruptsPerFight),
@@ -330,12 +327,11 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(CAST(SUM(fp.deaths) AS REAL) / MAX(COUNT(*), 1), 2) as avgDeaths,
       ROUND(AVG(fp.dtps), 1) as avgDtps,
       ROUND(
-        CAST(SUM(CASE WHEN fp.health_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 20 +
-        CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 15 +
-        CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 25 +
-        AVG(fp.flask_uptime_pct) * 0.25 +
-        AVG(CASE WHEN fp.food_buff_active THEN 1 ELSE 0 END) * 10 +
-        AVG(CASE WHEN fp.augment_rune_active THEN 1 ELSE 0 END) * 5,
+        CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 20 +
+        CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 30 +
+        AVG(fp.flask_uptime_pct) * 0.30 +
+        AVG(CASE WHEN fp.food_buff_active THEN 1 ELSE 0 END) * 13 +
+        AVG(CASE WHEN fp.augment_rune_active THEN 1 ELSE 0 END) * 7,
       1) as consumableScore,
       ROUND(AVG(fp.active_time_pct), 1) as avgActiveTime,
       ROUND(AVG(fp.cpm), 1) as avgCpm
@@ -377,7 +373,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
       ROUND(fp.dps, 1) as dps,
       fp.deaths,
       fp.damage_taken as damageTaken,
-      fp.health_potions as potions,
       fp.healthstones,
       fp.combat_potions as combatPotions,
       fp.interrupts,
@@ -401,7 +396,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
     dps: Number(r.dps),
     deaths: Number(r.deaths),
     damageTaken: Number(r.damageTaken),
-    potions: Number(r.potions),
     healthstones: Number(r.healthstones),
     combatPotions: Number(r.combatPotions),
     interrupts: Number(r.interrupts),
@@ -420,7 +414,6 @@ export async function getCharacterPerformance(characterId, options = {}) {
     deathRate: Number(summary.deathRate) || 0,
     consumableScore,
     dpsVsMedianPct: Number(summary.dpsVsMedianPct) || 100,
-    healthPotionRate,
     healthstoneRate,
     combatPotionRate,
     avgFlaskUptime,
@@ -466,7 +459,9 @@ export async function getCharacterPerformance(characterId, options = {}) {
 
   const score = calculateStillNoobScore(summaryData, bossBreakdown);
   const playerLevel = detectPlayerLevel(summaryData, bossBreakdown, options.raiderIO);
-  const recommendations = generateRecommendations({ summary: summaryData, bossBreakdown, weeklyTrends, playerLevel });
+  const specData = className && spec ? getSpecData(className, spec) : null;
+  const role = specData?.role || 'DPS';
+  const recommendations = generateRecommendations({ summary: summaryData, bossBreakdown, weeklyTrends, playerLevel, raiderIO: options.raiderIO, specCpmBaseline: options.specCpmBaseline, className, spec, role });
 
   const result = {
     summary: summaryData,
@@ -506,8 +501,11 @@ export function calculateStillNoobScore(summary, bossBreakdown) {
   const dpsRatio = summary.dpsVsMedianPct || 100;
   const performanceRaw = Math.min(100, Math.max(0, (dpsRatio - 70) * (100 / 60))); // 70%→0, 130%→100
 
-  // Survival (25%): death rate inverted — 0 deaths = 100, 0.5+ = 0
-  const survivalRaw = Math.min(100, Math.max(0, (1 - summary.deathRate / 0.5) * 100));
+  // Survival (25%): death rate inverted — 0 deaths = 100, threshold+ = 0
+  // More lenient for Mythic progression where deaths are expected
+  const hasMythicKills = bossBreakdown.some(b => b.difficulty === 'Mythic' && b.fights > 0);
+  const deathCeiling = hasMythicKills ? 0.7 : 0.5;
+  const survivalRaw = Math.min(100, Math.max(0, (1 - summary.deathRate / deathCeiling) * 100));
 
   // Preparation (20%): consumable score (already 0-100)
   const preparationRaw = Math.min(100, summary.consumableScore || 0);
@@ -554,7 +552,22 @@ export function calculateStillNoobScore(summary, bossBreakdown) {
  * Uses a weighted scoring system to classify as beginner/intermediate/advanced.
  */
 export function detectPlayerLevel(summary, bossBreakdown, raiderIO) {
-  if (!summary || summary.totalFights === 0) return 'beginner';
+  if (!summary || summary.totalFights === 0) {
+    // With 0 fights, infer level from raiderIO profile
+    if (raiderIO) {
+      const mpScore = raiderIO?.mythicPlus?.score || 0;
+      const progression = raiderIO?.raidProgression?.[0];
+      const hasMythicKills = progression?.mythic > 0;
+
+      if (mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[2] || (hasMythicKills && mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[1])) {
+        return 'advanced';
+      }
+      if (mpScore >= LEVEL_DETECTION.mythicPlus.thresholds[0] || progression?.heroic > 0) {
+        return 'intermediate';
+      }
+    }
+    return 'beginner';
+  }
 
   const L = LEVEL_DETECTION;
   let score = 0;
@@ -628,16 +641,27 @@ export function detectPlayerLevel(summary, bossBreakdown, raiderIO) {
  * Dynamic priority: bigger gaps = lower priority number = shown first.
  * Returns { primaryTips, secondaryTips, playerLevel }.
  */
-export function generateRecommendations({ summary, bossBreakdown, weeklyTrends: _weeklyTrends, playerLevel = 'beginner' }) {
-  if (!summary || summary.totalFights === 0) {
+export function generateRecommendations({ summary, bossBreakdown, weeklyTrends: _weeklyTrends, playerLevel = 'beginner', raiderIO, specCpmBaseline, className, spec, role }) {
+  if (!summary) {
     return { primaryTips: [], secondaryTips: [], playerLevel };
+  }
+
+  if (summary.totalFights === 0) {
+    const tips = [{ category: 'performance', key: 'no_recent_data', severity: 'info', priority: 30, data: {} }];
+    return { primaryTips: tips, secondaryTips: [], playerLevel };
   }
 
   const tips = [
     ...generateBossSpecificTips(summary, bossBreakdown, playerLevel),
     ...generateCrossPatternTips(summary, bossBreakdown),
-    ...generateGeneralTips(summary, bossBreakdown, playerLevel),
+    ...generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBaseline),
+    ...generateGeneralTips(summary, bossBreakdown, playerLevel, specCpmBaseline),
   ];
+
+  // M+ vault nudge: has raid data but no M+ activity this season
+  if (raiderIO && (raiderIO.mythicPlus?.score || 0) === 0) {
+    tips.push({ category: 'mythicPlus', key: 'no_mplus_activity', severity: 'info', priority: 35, data: {} });
+  }
 
   // Sort by priority (lowest first = most important)
   tips.sort((a, b) => a.priority - b.priority);
@@ -824,7 +848,7 @@ function generateCrossPatternTips(summary, bossBreakdown) {
     }
   }
 
-  // defensive_gap — dying but not using healthstones/health potions
+  // defensive_gap — dying but not using healthstones
   if (summary.deathRate > 0.15 && summary.healthstoneRate < 30) {
     tips.push({
       category: 'survivability', key: 'defensive_gap', severity: 'warning',
@@ -832,9 +856,89 @@ function generateCrossPatternTips(summary, bossBreakdown) {
       data: {
         deathRate: summary.deathRate.toFixed(2),
         healthstoneRate: Math.round(summary.healthstoneRate),
-        healthPotionRate: Math.round(summary.healthPotionRate),
       },
     });
+  }
+
+  return tips;
+}
+
+// ── Tier 2.5: Role-Specific Tips ──────────────────────────────
+// Tank and Healer specific checks using existing metrics with role-appropriate thresholds.
+
+function generateRoleSpecificTips(summary, bossBreakdown, role, spec, specCpmBaseline) {
+  const tips = [];
+  if (!role || role === 'DPS') return tips;
+
+  if (role === 'Tank') {
+    // tank_death_impact — tank deaths cause wipes, amplified severity
+    if (summary.deathRate > 0.2) {
+      tips.push({
+        category: 'survivability', key: 'tank_death_impact',
+        severity: summary.deathRate > 0.35 ? 'critical' : 'warning',
+        priority: 14 - Math.min(5, Math.round(summary.deathRate * 10)),
+        data: { rate: summary.deathRate.toFixed(2) },
+      });
+    }
+
+    // tank_low_cpm_mitigation — low CPM means gaps in active mitigation
+    const tankCpmBaseline = specCpmBaseline || 28;
+    if (summary.avgCpm > 0 && summary.avgCpm < tankCpmBaseline * 0.75) {
+      const pct = Math.round((summary.avgCpm / tankCpmBaseline) * 100);
+      tips.push({
+        category: 'performance', key: 'tank_low_cpm_mitigation', severity: 'warning',
+        priority: 16,
+        data: { cpm: summary.avgCpm.toFixed(1), expected: tankCpmBaseline, pct, spec: spec || 'Tank' },
+      });
+    }
+
+    // tank_dtps_outlier — specific boss where tank takes way more damage than their average
+    const eligible = bossBreakdown.filter(b => b.fights >= 1);
+    for (const boss of eligible) {
+      if (summary.avgDtps > 0 && boss.avgDtps > 0) {
+        const ratio = boss.avgDtps / summary.avgDtps;
+        if (ratio > 1.4) {
+          const excessPct = Math.round((ratio - 1) * 100);
+          tips.push({
+            category: 'survivability', key: 'tank_dtps_outlier',
+            severity: ratio > 1.7 ? 'critical' : 'warning',
+            priority: 15,
+            data: { boss: boss.bossName, difficulty: boss.difficulty, dtps: Math.round(boss.avgDtps), excessPct },
+          });
+          break; // only report the worst outlier
+        }
+      }
+    }
+
+    // tank_low_interrupts — tanks should interrupt more (higher threshold than DPS)
+    if (summary.avgInterrupts < 2 && summary.totalFights >= 2) {
+      tips.push({
+        category: 'utility', key: 'tank_low_interrupts', severity: 'info',
+        priority: 19,
+        data: { avg: summary.avgInterrupts.toFixed(1), target: 3 },
+      });
+    }
+  }
+
+  if (role === 'Healer') {
+    // healer_low_dispels — healers should dispel proactively
+    if (summary.avgDispels < 1.5 && summary.totalFights >= 3) {
+      tips.push({
+        category: 'utility', key: 'healer_low_dispels', severity: 'warning',
+        priority: 16,
+        data: { avg: summary.avgDispels.toFixed(1), fights: summary.totalFights },
+      });
+    }
+
+    // healer_death_impact — healer deaths are extra costly
+    if (summary.deathRate > 0.15) {
+      tips.push({
+        category: 'survivability', key: 'healer_death_impact',
+        severity: summary.deathRate > 0.3 ? 'critical' : 'warning',
+        priority: 14 - Math.min(5, Math.round(summary.deathRate * 10)),
+        data: { rate: summary.deathRate.toFixed(2) },
+      });
+    }
   }
 
   return tips;
@@ -843,7 +947,7 @@ function generateCrossPatternTips(summary, bossBreakdown) {
 // ── Tier 3: General Performance ───────────────────────────────
 // Essential baseline checks — only show when there's a real issue.
 
-function generateGeneralTips(summary, bossBreakdown, _playerLevel) {
+function generateGeneralTips(summary, bossBreakdown, _playerLevel, specCpmBaseline) {
   const tips = [];
 
   // High death rate (critical survivability issue)
@@ -865,11 +969,14 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel) {
     });
   }
 
-  // Low CPM
-  if (summary.avgCpm > 0 && summary.avgCpm < 30) {
+  // Low CPM (spec-aware thresholds)
+  const cpmBaseline = specCpmBaseline || 30;
+  const cpmWarningThreshold = cpmBaseline * 0.75;
+  const cpmCriticalThreshold = cpmBaseline * 0.55;
+  if (summary.avgCpm > 0 && summary.avgCpm < cpmWarningThreshold) {
     tips.push({
       category: 'performance', key: 'low_cpm',
-      severity: summary.avgCpm < 20 ? 'critical' : 'warning',
+      severity: summary.avgCpm < cpmCriticalThreshold ? 'critical' : 'warning',
       priority: 23,
       data: { cpm: summary.avgCpm.toFixed(1) },
     });
@@ -903,7 +1010,7 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel) {
   }
 
   // Low interrupts
-  if (summary.avgInterrupts < 1 && summary.totalFights >= 5) {
+  if (summary.avgInterrupts < 1 && summary.totalFights >= 2) {
     tips.push({
       category: 'utility', key: 'low_interrupts', severity: 'info',
       priority: 28,
@@ -929,7 +1036,7 @@ function generateGeneralTips(summary, bossBreakdown, _playerLevel) {
   }
 
   // Good preparation (positive benchmark — max 1)
-  if (summary.healthPotionRate >= 60 && summary.combatPotionRate >= 70 && summary.avgFlaskUptime >= 90 && summary.foodRate >= 80) {
+  if (summary.combatPotionRate >= 70 && summary.avgFlaskUptime >= 90 && summary.foodRate >= 80) {
     tips.push({ category: 'consumables', key: 'good_preparation', severity: 'positive', priority: 50, data: {} });
   }
 

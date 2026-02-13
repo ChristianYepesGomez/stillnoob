@@ -315,7 +315,7 @@ router.get('/blizzard/link', authenticateToken, (req, res) => {
 });
 
 // GET /api/v1/auth/blizzard/callback — Blizzard OAuth callback
-router.get('/blizzard/callback', async (req, res) => {
+router.get('/blizzard/callback', authLimiter, async (req, res) => {
   try {
     const { code, state } = req.query;
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
@@ -398,7 +398,7 @@ router.get('/wcl/link', authenticateToken, (req, res) => {
 });
 
 // GET /api/v1/auth/wcl/callback — WCL OAuth callback
-router.get('/wcl/callback', async (req, res) => {
+router.get('/wcl/callback', authLimiter, async (req, res) => {
   try {
     const { code, state } = req.query;
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();

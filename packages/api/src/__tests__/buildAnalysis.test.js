@@ -189,6 +189,57 @@ describe('analyzeCharacterBuild', () => {
     });
   });
 
+  // ── gear_suboptimal_enchant ───────────────────────────────
+
+  describe('gear_suboptimal_enchant', () => {
+    it('generates tip when DPS has defensive enchant (avoidance)', () => {
+      const equipment = makeEquipment({
+        items: [
+          { slot: 'back', itemLevel: 620, enchant: 'Enchant Cloak - Graceful Avoidance', gems: [] },
+          { slot: 'chest', itemLevel: 622, enchant: 'Enchant Chest', gems: [] },
+        ],
+      });
+      const result = analyzeCharacterBuild(equipment, 'Warrior', 'Arms');
+      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      expect(tip).toBeDefined();
+      expect(tip.data.slot).toBe('back');
+      expect(tip.severity).toBe('warning');
+    });
+
+    it('does NOT generate tip for Tank with avoidance enchant', () => {
+      const equipment = makeEquipment({
+        items: [
+          { slot: 'back', itemLevel: 620, enchant: 'Enchant Cloak - Graceful Avoidance', gems: [] },
+        ],
+      });
+      const result = analyzeCharacterBuild(equipment, 'Warrior', 'Protection Warrior');
+      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      expect(tip).toBeUndefined();
+    });
+
+    it('does NOT generate tip when DPS has throughput enchant', () => {
+      const equipment = makeEquipment({
+        items: [
+          { slot: 'back', itemLevel: 620, enchant: 'Enchant Cloak - Chant of Winged Grace', gems: [] },
+        ],
+      });
+      const result = analyzeCharacterBuild(equipment, 'Warrior', 'Arms');
+      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      expect(tip).toBeUndefined();
+    });
+
+    it('generates tip for speed enchant on DPS', () => {
+      const equipment = makeEquipment({
+        items: [
+          { slot: 'feet', itemLevel: 620, enchant: 'Enchant Boots - Defender\'s March (Speed)', gems: [] },
+        ],
+      });
+      const result = analyzeCharacterBuild(equipment, 'Rogue', 'Assassination');
+      const tip = result.gearTips.find(t => t.key === 'gear_suboptimal_enchant');
+      expect(tip).toBeDefined();
+    });
+  });
+
   // ── gear_missing_gems ─────────────────────────────────────
 
   describe('gear_missing_gems', () => {

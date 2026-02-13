@@ -107,7 +107,6 @@ export default function BossesSection({ data }) {
               {t('categories.consumables')}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <ConsumableBar label={t('consumables.healthPotion')} pct={boss.healthPotionRate} />
               <ConsumableBar label={t('consumables.healthstone')} pct={boss.healthstoneRate} />
               <ConsumableBar label={t('consumables.combatPotion')} pct={boss.combatPotionRate} />
               <ConsumableBar label={t('consumables.flask')} pct={boss.flaskUptime} />

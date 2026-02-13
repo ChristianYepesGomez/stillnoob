@@ -163,7 +163,6 @@
     "legendary": "Legendario"
   },
   "consumables": {
-    "healthPotion": "Poción de Vida",
     "healthstone": "Piedra de Salud",
     "combatPotion": "Poción de Combate",
     "flask": "Frasco",
@@ -194,7 +193,7 @@
     "deaths_from_damage": "En {{boss}} ({{difficulty}}) tu alta tasa de muertes ({{deathRate}}) correlaciona con alto daño recibido ({{dtps}} vs {{avgDtps}} DTPS promedio). Estás muriendo por mecánicas, no por mala suerte.",
     "uptime_drives_dps": "En {{boss}} ({{difficulty}}) tu bajo tiempo activo ({{activeTime}}% vs {{avgActiveTime}}% promedio) está arrastrando tu DPS a {{dpsVsMedian}}% vs mediana. Más uptime = más DPS.",
     "parse_vs_raid": "Tu parse ({{parse}}%) y rendimiento relativo al raid ({{median}}% vs mediana) divergen. El nivel general de tu raid puede estar afectando tu posición relativa.",
-    "defensive_gap": "Tu tasa de muertes ({{deathRate}}/pelea) es alta pero solo usas piedras de salud en {{healthstoneRate}}% de peleas y pociones de vida en {{healthPotionRate}}%. ¡Usa tus defensivos!",
+    "defensive_gap": "Tu tasa de muertes ({{deathRate}}/pelea) es alta pero solo usas piedras de salud en {{healthstoneRate}}% de peleas. ¡Usa tus defensivos!",
     "high_death_rate": "Tu tasa de muertes ({{rate}}/pelea) es muy alta. Revisa las mecánicas de los bosses y mejora tu posicionamiento.",
     "low_active_time": "Tu tiempo activo es solo {{pct}}%. Apunta a >85% — cada segundo sin castear es DPS perdido.",
     "low_cpm": "Tu CPM ({{cpm}}) es bajo. Minimiza el downtime entre casts y reduce movimiento innecesario.",
@@ -213,7 +212,16 @@
     "gear_low_ilvl_slot": "Tu {{slot}} (ilvl {{itemLevel}}) está {{gap}} niveles por debajo de tu promedio ({{average}}). Mejorar este slot tendrá el mayor impacto.",
     "gear_enchant_vs_meta": "En {{slot}}, el {{metaPct}}% de los top players usan \"{{metaEnchant}}\" pero tú tienes \"{{playerEnchant}}\". Considera cambiarlo para stats óptimos.",
     "gear_stat_overcap": "Tu {{stat}} ({{value}}) excede el soft cap de {{cap}}. Considera redistribuir el exceso a otras stats secundarias.",
-    "gear_well_optimized": "¡Tu equipo está bien optimizado! Todos los encantamientos presentes, gemas engarzadas, y stats alineados con la prioridad de tu spec."
+    "gear_suboptimal_enchant": "Tu {{slot}} tiene un encantamiento defensivo (\"{{enchant}}\"). Como DPS, deberías usar un encantamiento ofensivo para mejor daño.",
+    "gear_well_optimized": "¡Tu equipo está bien optimizado! Todos los encantamientos presentes, gemas engarzadas, y stats alineados con la prioridad de tu spec.",
+    "tank_death_impact": "Como tanque, tu tasa de muertes ({{rate}}/pelea) causa wipes directamente. Enfócate en el timing de mitigación activa y uso de CDs defensivos en fases de alto daño.",
+    "tank_low_cpm_mitigation": "Tu CPM ({{cpm}}) es {{pct}}% del esperado {{expected}} para {{spec}}. CPM bajo como tanque significa huecos en mitigación activa — mantén tu rotación ajustada.",
+    "tank_dtps_outlier": "En {{boss}} ({{difficulty}}) recibes {{dtps}} DTPS ({{excessPct}}% por encima de tu promedio). Revisa el timing de tus CDs defensivos y posicionamiento en esta pelea.",
+    "healer_low_dispels": "Promedias solo {{avg}} dispels por pelea en {{fights}} peleas. Los dispels a tiempo previenen daño en cascada — hazlos una prioridad.",
+    "healer_death_impact": "Tu tasa de muertes ({{rate}}/pelea) como healer significa que el raid pierde sanación en momentos críticos. El posicionamiento y uso de CDs personales son cruciales.",
+    "tank_low_interrupts": "Promedias {{avg}} interrupciones por pelea. Como tanque, a menudo estás mejor posicionado para interrumpir — apunta a {{target}}+ por pelea.",
+    "no_recent_data": "No se encontraron datos de raid recientes. Importa un reporte de Warcraft Logs para recibir consejos personalizados.",
+    "no_mplus_activity": "Tienes datos de raid pero sin runs de Mítica+ esta temporada. Hacer llaves ayuda a llenar tu cofre semanal y mejora tu juego en general."
   },
   "raiderio": {
     "mplusScore": "Score M+",

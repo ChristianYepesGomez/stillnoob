@@ -163,7 +163,6 @@
     "legendary": "Legendary"
   },
   "consumables": {
-    "healthPotion": "Health Potion",
     "healthstone": "Healthstone",
     "combatPotion": "Combat Potion",
     "flask": "Flask",
@@ -194,7 +193,7 @@
     "deaths_from_damage": "On {{boss}} ({{difficulty}}) your high death rate ({{deathRate}}) correlates with high damage taken ({{dtps}} vs {{avgDtps}} avg DTPS). You're dying to mechanics, not bad luck.",
     "uptime_drives_dps": "On {{boss}} ({{difficulty}}) low active time ({{activeTime}}% vs {{avgActiveTime}}% avg) is dragging your DPS to {{dpsVsMedian}}% vs median. More uptime = more DPS.",
     "parse_vs_raid": "Your parse ({{parse}}%) and raid-relative performance ({{median}}% vs median) diverge. Your raid group's overall level may be affecting your relative standing.",
-    "defensive_gap": "Your death rate ({{deathRate}}/fight) is high but you only use healthstones in {{healthstoneRate}}% of fights and health potions in {{healthPotionRate}}%. Use your defensives!",
+    "defensive_gap": "Your death rate ({{deathRate}}/fight) is high but you only use healthstones in {{healthstoneRate}}% of fights. Use your defensives!",
     "high_death_rate": "Your death rate ({{rate}}/fight) is very high. Review boss mechanics and improve positioning.",
     "low_active_time": "Your active time is only {{pct}}%. Aim for >85% — every second not casting is lost DPS.",
     "low_cpm": "Your CPM ({{cpm}}) is low. Minimize downtime between casts and reduce unnecessary movement.",
@@ -213,7 +212,16 @@
     "gear_low_ilvl_slot": "Your {{slot}} (ilvl {{itemLevel}}) is {{gap}} levels below your average ({{average}}). Upgrading this slot will have the biggest impact.",
     "gear_enchant_vs_meta": "On {{slot}}, {{metaPct}}% of top players use \"{{metaEnchant}}\" but you have \"{{playerEnchant}}\". Consider switching for optimal stats.",
     "gear_stat_overcap": "Your {{stat}} ({{value}}) exceeds the soft cap of {{cap}}. Consider redistributing excess stats to other secondaries.",
-    "gear_well_optimized": "Your gear is well optimized! All enchants present, gems socketed, and stats aligned with your spec priority."
+    "gear_suboptimal_enchant": "Your {{slot}} has a defensive enchant (\"{{enchant}}\"). As DPS, you should use a throughput enchant instead for better damage output.",
+    "gear_well_optimized": "Your gear is well optimized! All enchants present, gems socketed, and stats aligned with your spec priority.",
+    "tank_death_impact": "As a tank, your death rate ({{rate}}/fight) directly causes wipes. Focus on active mitigation timing and defensive CD usage on high-damage phases.",
+    "tank_low_cpm_mitigation": "Your CPM ({{cpm}}) is {{pct}}% of the expected {{expected}} for {{spec}}. Low cast rate as a tank means gaps in active mitigation — keep your rotation tight.",
+    "tank_dtps_outlier": "On {{boss}} ({{difficulty}}) you take {{dtps}} DTPS ({{excessPct}}% above your average). Review your defensive CD timing and positioning on this fight.",
+    "healer_low_dispels": "You average only {{avg}} dispels per fight across {{fights}} fights. Timely dispels prevent cascading damage — make them a priority.",
+    "healer_death_impact": "Your death rate ({{rate}}/fight) as a healer means the raid loses healing at critical moments. Positioning and personal CD usage are crucial.",
+    "tank_low_interrupts": "You average {{avg}} interrupts per fight. As a tank, you're often best positioned to interrupt — aim for {{target}}+ per fight.",
+    "no_recent_data": "No recent raid data found. Import a Warcraft Logs report to get personalized coaching tips.",
+    "no_mplus_activity": "You have raid data but no Mythic+ runs this season. Running keys helps fill your weekly vault and improves overall gameplay."
   },
   "raiderio": {
     "mplusScore": "M+ Score",

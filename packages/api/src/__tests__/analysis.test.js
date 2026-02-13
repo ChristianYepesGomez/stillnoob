@@ -13,7 +13,6 @@ function makeSummary(overrides = {}) {
     deathRate: 0.1,
     consumableScore: 80,
     dpsVsMedianPct: 105,
-    healthPotionRate: 60,
     healthstoneRate: 40,
     combatPotionRate: 75,
     avgFlaskUptime: 95,
@@ -40,7 +39,6 @@ function makeBoss(overrides = {}) {
     avgDps: 5000,
     bestDps: 6000,
     avgDtps: 2000,
-    healthPotionRate: 60,
     healthstoneRate: 40,
     combatPotionRate: 70,
     interruptsPerFight: 2,
@@ -116,11 +114,22 @@ describe('calculateStillNoobScore', () => {
     expect(high.breakdown.performance).toBe(100);
   });
 
-  it('survival score: 0 deaths = 100, 0.5+ = 0', () => {
+  it('survival score: 0 deaths = 100, 0.5+ = 0 (non-Mythic)', () => {
     const perfect = calculateStillNoobScore(makeSummary({ deathRate: 0 }), []);
     const worst = calculateStillNoobScore(makeSummary({ deathRate: 0.6 }), []);
     expect(perfect.breakdown.survival).toBe(100);
     expect(worst.breakdown.survival).toBe(0);
+  });
+
+  it('survival score is more lenient for Mythic progression', () => {
+    const mythicBosses = [makeBoss({ difficulty: 'Mythic', fights: 3 })];
+    const heroicBosses = [makeBoss({ difficulty: 'Heroic', fights: 3 })];
+    const summary = makeSummary({ deathRate: 0.4 });
+    const mythicResult = calculateStillNoobScore(summary, mythicBosses);
+    const heroicResult = calculateStillNoobScore(summary, heroicBosses);
+    // Mythic uses 0.7 ceiling → 0.4/0.7 = ~43% penalty → ~57 survival
+    // Heroic uses 0.5 ceiling → 0.4/0.5 = 80% penalty → 20 survival
+    expect(mythicResult.breakdown.survival).toBeGreaterThan(heroicResult.breakdown.survival);
   });
 
   it('utility score scales with interrupts + dispels', () => {
@@ -183,9 +192,29 @@ describe('calculateStillNoobScore', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('detectPlayerLevel', () => {
-  it('returns beginner for null/missing summary', () => {
+  it('returns beginner for null/missing summary without raiderIO', () => {
     expect(detectPlayerLevel(null, [])).toBe('beginner');
     expect(detectPlayerLevel({ totalFights: 0 }, [])).toBe('beginner');
+  });
+
+  it('returns intermediate for 0 fights with heroic raiderIO progression', () => {
+    const raiderIO = { mythicPlus: { score: 800 }, raidProgression: [{ heroic: 3 }] };
+    expect(detectPlayerLevel({ totalFights: 0 }, [], raiderIO)).toBe('intermediate');
+  });
+
+  it('returns advanced for 0 fights with high M+ score', () => {
+    const raiderIO = { mythicPlus: { score: 3000 }, raidProgression: [{ mythic: 2 }] };
+    expect(detectPlayerLevel({ totalFights: 0 }, [], raiderIO)).toBe('advanced');
+  });
+
+  it('returns intermediate for 0 fights with M+ 1200+', () => {
+    const raiderIO = { mythicPlus: { score: 1500 }, raidProgression: [{}] };
+    expect(detectPlayerLevel({ totalFights: 0 }, [], raiderIO)).toBe('intermediate');
+  });
+
+  it('returns beginner for 0 fights with low raiderIO', () => {
+    const raiderIO = { mythicPlus: { score: 300 }, raidProgression: [{}] };
+    expect(detectPlayerLevel({ totalFights: 0 }, [], raiderIO)).toBe('beginner');
   });
 
   it('returns beginner for low stats', () => {
@@ -298,14 +327,15 @@ describe('detectPlayerLevel', () => {
 describe('generateRecommendations', () => {
   // ── Structural tests ──
 
-  it('returns empty tips when no fights', () => {
+  it('returns no_recent_data tip when no fights', () => {
     const result = generateRecommendations({
       summary: { totalFights: 0 },
       bossBreakdown: [],
       weeklyTrends: [],
       playerLevel: 'beginner',
     });
-    expect(result.primaryTips).toEqual([]);
+    expect(result.primaryTips).toHaveLength(1);
+    expect(result.primaryTips[0].key).toBe('no_recent_data');
     expect(result.secondaryTips).toEqual([]);
     expect(result.playerLevel).toBe('beginner');
   });
@@ -593,7 +623,7 @@ describe('generateRecommendations', () => {
 
   it('generates defensive_gap when dying but not using defensives', () => {
     const result = generateRecommendations({
-      summary: makeSummary({ deathRate: 0.3, healthstoneRate: 10, healthPotionRate: 20 }),
+      summary: makeSummary({ deathRate: 0.3, healthstoneRate: 10 }),
       bossBreakdown: [],
       weeklyTrends: [],
       playerLevel: 'beginner',
@@ -652,7 +682,7 @@ describe('generateRecommendations', () => {
     expect(tip.severity).toBe('critical');
   });
 
-  it('generates low_cpm when < 30', () => {
+  it('generates low_cpm when below default threshold', () => {
     const result = generateRecommendations({
       summary: makeSummary({ avgCpm: 18 }),
       bossBreakdown: [],
@@ -661,6 +691,32 @@ describe('generateRecommendations', () => {
     });
     const allTips = [...result.primaryTips, ...result.secondaryTips];
     expect(allTips.some(t => t.key === 'low_cpm')).toBe(true);
+  });
+
+  it('generates low_cpm based on spec baseline (high-CPM spec)', () => {
+    // Fury Warrior baseline = 42, warning at 75% = 31.5
+    const result = generateRecommendations({
+      summary: makeSummary({ avgCpm: 28 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      specCpmBaseline: 42,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'low_cpm')).toBe(true);
+  });
+
+  it('does NOT generate low_cpm when above spec threshold', () => {
+    // Affliction Warlock baseline = 28, warning at 75% = 21
+    const result = generateRecommendations({
+      summary: makeSummary({ avgCpm: 24 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      specCpmBaseline: 28,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'low_cpm')).toBe(false);
   });
 
   it('generates low_flask when uptime < 90%', () => {
@@ -718,10 +774,56 @@ describe('generateRecommendations', () => {
     expect(allTips.some(t => t.key === 'low_interrupts')).toBe(true);
   });
 
+  it('generates low_interrupts with only 2 fights', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgInterrupts: 0.5, totalFights: 2 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'low_interrupts')).toBe(true);
+  });
+
+  it('does NOT generate low_interrupts with only 1 fight', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgInterrupts: 0.5, totalFights: 1 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'beginner',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'low_interrupts')).toBe(false);
+  });
+
+  it('generates no_mplus_activity when raid data exists but M+ score is 0', () => {
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      raiderIO: { mythicPlus: { score: 0 } },
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'no_mplus_activity')).toBe(true);
+  });
+
+  it('does NOT generate no_mplus_activity when M+ score > 0', () => {
+    const result = generateRecommendations({
+      summary: makeSummary(),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      raiderIO: { mythicPlus: { score: 1500 } },
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'no_mplus_activity')).toBe(false);
+  });
+
   it('generates good_preparation when all consumables are high', () => {
     const result = generateRecommendations({
       summary: makeSummary({
-        healthPotionRate: 70, combatPotionRate: 80,
+        combatPotionRate: 80,
         avgFlaskUptime: 95, foodRate: 90,
       }),
       bossBreakdown: [],
@@ -750,6 +852,134 @@ describe('generateRecommendations', () => {
     expect(tip).toBeDefined();
     expect(tip.data.boss).toBe('Best Boss');
     expect(tip.severity).toBe('positive');
+  });
+
+  // ── Tier 2.5: Role-Specific Tips ──
+
+  it('generates tank_death_impact for Tank with high death rate', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.3 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Tank',
+      spec: 'Protection Warrior',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(true);
+  });
+
+  it('does NOT generate tank_death_impact for DPS with high death rate', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.3 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'DPS',
+      spec: 'Arms',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(false);
+  });
+
+  it('generates tank_low_cpm_mitigation for Tank with low CPM', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgCpm: 18 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Tank',
+      spec: 'Blood',
+      specCpmBaseline: 25,
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find(t => t.key === 'tank_low_cpm_mitigation');
+    expect(tip).toBeDefined();
+    expect(tip.data.spec).toBe('Blood');
+  });
+
+  it('generates tank_dtps_outlier for Tank with boss DTPS spike', () => {
+    const bosses = [
+      makeBoss({ bossName: 'Normal Boss', avgDtps: 3000, fights: 5 }),
+      makeBoss({ bossId: 1002, bossName: 'Spike Boss', avgDtps: 8000, fights: 5 }),
+    ];
+    const result = generateRecommendations({
+      summary: makeSummary({ avgDtps: 4000 }),
+      bossBreakdown: bosses,
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Tank',
+      spec: 'Protection Paladin',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    const tip = allTips.find(t => t.key === 'tank_dtps_outlier');
+    expect(tip).toBeDefined();
+    expect(tip.data.boss).toBe('Spike Boss');
+  });
+
+  it('generates tank_low_interrupts for Tank with few interrupts', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgInterrupts: 1.2, totalFights: 5 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Tank',
+      spec: 'Vengeance',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'tank_low_interrupts')).toBe(true);
+  });
+
+  it('generates healer_low_dispels for Healer with low dispels', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgDispels: 0.8, totalFights: 5 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Healer',
+      spec: 'Restoration Druid',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(true);
+  });
+
+  it('does NOT generate healer_low_dispels for DPS', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ avgDispels: 0.5, totalFights: 5 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'DPS',
+      spec: 'Shadow',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(false);
+  });
+
+  it('generates healer_death_impact for Healer with moderate death rate', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.2 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+      role: 'Healer',
+      spec: 'Holy Priest',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'healer_death_impact')).toBe(true);
+  });
+
+  it('does NOT generate role-specific tips when role is undefined (defaults to DPS)', () => {
+    const result = generateRecommendations({
+      summary: makeSummary({ deathRate: 0.3, avgDispels: 0.5, totalFights: 5 }),
+      bossBreakdown: [],
+      weeklyTrends: [],
+      playerLevel: 'intermediate',
+    });
+    const allTips = [...result.primaryTips, ...result.secondaryTips];
+    expect(allTips.some(t => t.key === 'tank_death_impact')).toBe(false);
+    expect(allTips.some(t => t.key === 'healer_death_impact')).toBe(false);
+    expect(allTips.some(t => t.key === 'healer_low_dispels')).toBe(false);
   });
 
   // ── Removed tips should NOT appear ──

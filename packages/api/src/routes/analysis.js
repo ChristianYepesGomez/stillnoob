@@ -10,6 +10,7 @@ import { eq, and, desc, gte } from 'drizzle-orm';
 import { mplusSnapshots } from '../db/schema.js';
 import { getCharacterEquipment, transformEquipment } from '../services/blizzard.js';
 import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
+import { getSpecData } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Route:Analysis');
@@ -38,12 +39,23 @@ router.get('/character/:id', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    // Fetch WCL analysis + Raider.io data + equipment in parallel
-    const [data, raiderIO, equipment] = await Promise.all([
-      getCharacterPerformance(charId, { weeks, bossId, difficulty, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } }),
+    // Fetch Raider.io + equipment in parallel first (fast), then analysis with raiderIO context
+    const [raiderIO, equipment] = await Promise.all([
       getCharacterRaiderIO(char.region, char.realmSlug, char.name),
       getCharacterEquipment(char.name, char.realmSlug, char.region).catch(() => null),
     ]);
+
+    // Look up spec-specific CPM baseline
+    const specInfo = char.className && char.spec ? getSpecData(char.className, char.spec) : null;
+
+    const data = await getCharacterPerformance(charId, {
+      weeks, bossId, difficulty,
+      characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region },
+      raiderIO,
+      specCpmBaseline: specInfo?.expectedCpm || null,
+      className: char.className,
+      spec: char.spec,
+    });
 
     // M+ visual analysis (charts, brackets, trends)
     const mplusAnalysis = raiderIO ? analyzeMythicPlus(raiderIO) : null;
@@ -113,23 +125,31 @@ router.get('/overview', async (req, res) => {
       return res.json({ characters: [], summary: null });
     }
 
-    // Get analysis for each character
-    const results = [];
-    for (const char of userChars) {
-      const data = await getCharacterPerformance(char.id, { weeks, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } });
-      results.push({
-        character: {
-          id: char.id,
-          name: char.name,
-          realm: char.realm,
-          className: char.className,
-          spec: char.spec,
-          isPrimary: char.isPrimary,
-        },
-        summary: data.summary,
-        totalFights: data.summary?.totalFights || 0,
-      });
-    }
+    // Get analysis for each character in parallel
+    const results = await Promise.all(userChars.map(async (char) => {
+      try {
+        const data = await getCharacterPerformance(char.id, { weeks, characterInfo: { name: char.name, realmSlug: char.realmSlug, region: char.region } });
+        return {
+          character: {
+            id: char.id,
+            name: char.name,
+            realm: char.realm,
+            className: char.className,
+            spec: char.spec,
+            isPrimary: char.isPrimary,
+          },
+          summary: data.summary,
+          totalFights: data.summary?.totalFights || 0,
+        };
+      } catch (err) {
+        log.warn(`Overview: analysis failed for character ${char.id}`, err.message);
+        return {
+          character: { id: char.id, name: char.name, realm: char.realm, className: char.className, spec: char.spec, isPrimary: char.isPrimary },
+          summary: null,
+          totalFights: 0,
+        };
+      }
+    }));
 
     res.json({ characters: results });
   } catch (err) {

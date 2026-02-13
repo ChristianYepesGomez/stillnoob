@@ -126,239 +126,78 @@ User searches character → Gets free score + badge
 
 | Severity | Count | Status |
 |----------|-------|--------|
-| CRITICAL | 1 | Must fix before launch |
-| HIGH | 4 | Must fix before launch |
-| MEDIUM | 2 | Fix in first sprint post-launch |
+| CRITICAL | 1 | ✅ Fixed (Feb 2026) |
+| HIGH | 4 | ✅ Fixed (Feb 2026) |
+| MEDIUM | 2 | ✅ Fixed (Feb 2026) |
 | LOW | 1 | Backlog |
 
 ---
 
-### CRITICAL: OAuth State CSRF (Account Takeover)
+### ✅ FIXED — OAuth State CSRF (Account Takeover)
 
-**Files:** `packages/api/src/routes/auth.js` — Lines 255, 338
-
-**Issue:** OAuth state parameter is just `base64url(JSON.stringify({userId}))` — no HMAC signature.
-
-```javascript
-// Line 255 - Blizzard OAuth
-const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64url');
-
-// Line 338 - WCL OAuth
-const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64url');
-```
-
-**Attack:** Attacker crafts `state` with victim's userId → tricks victim into completing OAuth flow → victim's Blizzard/WCL account gets linked to attacker's StillNoob account.
-
-**Fix:**
-```javascript
-import crypto from 'crypto';
-const HMAC_KEY = process.env.JWT_SECRET;
-
-function signState(data) {
-  const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
-  const sig = crypto.createHmac('sha256', HMAC_KEY).update(payload).digest('base64url');
-  return `${payload}.${sig}`;
-}
-
-function verifyState(state) {
-  const [payload, sig] = state.split('.');
-  const expected = crypto.createHmac('sha256', HMAC_KEY).update(payload).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) throw new Error('Invalid state');
-  return JSON.parse(Buffer.from(payload, 'base64url').toString());
-}
-```
+**Status:** Fixed. OAuth state is now HMAC-SHA256 signed with `OAUTH_STATE_SECRET` environment variable. Verification uses `crypto.timingSafeEqual()` to prevent timing attacks. Both Blizzard and WCL callbacks validate state before processing.
 
 ---
 
-### HIGH: Report Visibility Bypass
+### ✅ FIXED — Report Visibility Bypass
 
-**File:** `packages/api/src/routes/reports.js` — Lines 202-223
-
-**Issue:** `GET /api/v1/reports/:code` returns any report regardless of visibility settings.
-
-```javascript
-// NO VISIBILITY CHECK — returns private/guild reports to anyone
-router.get('/:code', async (req, res) => {
-  const report = await db.select().from(reports).where(eq(reports.wclCode, req.params.code)).get();
-  // ... returns full report data without checking visibility
-});
-```
-
-**Fix:** Add visibility enforcement:
-```javascript
-if (report.visibility === 'private' && report.importedBy !== req.user?.id) {
-  return res.status(403).json({ error: 'Report not accessible' });
-}
-if (report.visibility === 'guild' && report.guildId) {
-  const membership = await db.select().from(guildMembers)
-    .where(and(eq(guildMembers.guildId, report.guildId), eq(guildMembers.userId, req.user?.id))).get();
-  if (!membership) return res.status(403).json({ error: 'Report not accessible' });
-}
-```
+**Status:** Fixed. Three visibility levels enforced: `public` (anyone), `private` (owner only), `guild` (guild members only). Uses `optionalAuth` middleware and returns 404 (not 403) for information hiding.
 
 ---
 
-### HIGH: Plaintext OAuth Tokens in DB
+### ✅ FIXED — Plaintext OAuth Tokens in DB
 
-**File:** `packages/api/src/db/schema.js` — Lines 21-33
-
-**Issue:** Blizzard and WCL OAuth access/refresh tokens stored in plaintext in `auth_providers` table.
-
-**Risk:** Database compromise → attacker can impersonate users on Blizzard/WCL.
-
-**Fix:** Encrypt tokens at rest using AES-256-GCM with `process.env.ENCRYPTION_KEY`. Create helper functions `encryptToken()`/`decryptToken()` and use them when writing/reading `auth_providers`.
+**Status:** Fixed. Tokens encrypted at rest with AES-256-GCM (random 12-byte IV, 16-byte auth tag). Uses `ENCRYPTION_KEY` env var (required). Helper functions `encryptToken()`/`decryptToken()` in `services/encryption.js`.
 
 ---
 
-### HIGH: No Refresh Token Reuse Detection
+### ✅ FIXED — No Refresh Token Reuse Detection
 
-**File:** `packages/api/src/routes/auth.js` — Lines 144-204
-
-**Issue:** Token rotation deletes old token and issues new one, but no token family tracking. If a token is stolen and used by attacker before legitimate user, the legitimate user's token still works (no detection).
-
-**Fix:** Add `tokenFamily` column to `refresh_tokens` table. On reuse detection (token already consumed), invalidate ALL tokens in that family and force re-login.
+**Status:** Fixed. Family-based tracking implemented. Each login creates a `tokenFamily` UUID. On refresh: if token already `used=true`, ALL tokens in the family are deleted (forced re-login). Same family UUID preserved across rotations.
 
 ---
 
-### HIGH: Hardcoded JWT Secret Fallbacks
+### ✅ FIXED — Hardcoded JWT Secret Fallbacks
 
-**File:** `packages/api/src/middleware/auth.js` — Lines 3, 24, 39
-
-```javascript
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
-const secret = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
-```
-
-**Risk:** If env vars are missing in production, app silently uses well-known dev secrets → anyone can forge JWTs.
-
-**Fix:** Remove fallbacks. Fail fast on startup:
-```javascript
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
-```
+**Status:** Fixed. Both `JWT_SECRET` and `JWT_REFRESH_SECRET` are required env vars. App crashes on startup if missing (fail-secure). Separate secrets for access vs refresh tokens.
 
 ---
 
-### HIGH: Open Guild Join
+### ✅ FIXED — Open Guild Join
 
-**File:** `packages/api/src/routes/guilds.js` — Lines 119-140
-
-**Issue:** Any authenticated user can join any guild without approval or invitation.
-
-**Fix:** Implement invite code system or approval workflow.
+**Status:** Fixed. Guild join requires invite code (crypto-random UUID.slice(0,8)). Returns 403 on invalid code. Idempotent via `onConflictDoNothing()`.
 
 ---
 
-### MEDIUM: OAuth Callbacks Lack Authentication
+### ✅ FIXED — OAuth Callbacks Lack Authentication
 
-**File:** `packages/api/src/routes/auth.js` — Lines 274-275, 357-358
-
-**Issue:** OAuth callback endpoints don't verify the currently-authenticated user matches the userId in the state parameter. Combined with the unsigned state (CRITICAL above), this enables full account takeover.
-
-**Fix:** Fixing the CRITICAL OAuth state signing also addresses this. Additionally, consider adding `authenticateToken` middleware to callback routes.
+**Status:** Fixed. OAuth state signing with HMAC addresses this. Callback endpoints now have `authLimiter` rate limiting applied.
 
 ---
 
-### MEDIUM: No Rate Limiting on Heavy Endpoints
+### ✅ FIXED — No Rate Limiting on Heavy Endpoints
 
-**Issue:** Auth endpoints have rate limiting, but report imports and analysis endpoints (which trigger WCL API calls and heavy SQL) have no rate limiting.
-
-**Fix:** Add rate limiter to `POST /api/v1/reports/import` and `GET /api/v1/analysis/*`.
+**Status:** Fixed. Rate limiting applied: general API (60/min), auth (20/15min), import (10/5min), analysis (15/min).
 
 ---
 
 ## 4. Architecture & Scalability
 
-### Bottleneck 1: Sequential Fight Processing (CRITICAL)
+### ✅ FIXED — Sequential Fight Processing
 
-**Files:** `routes/reports.js:122`, `jobs/scanReports.js:76`
-
-**Problem:** Fight data is fetched one-by-one in a sequential loop:
-
-```javascript
-for (const fight of encounterFights) {  // reports.js:122 — SEQUENTIAL
-  const [basicStats, extStats] = await Promise.all([
-    getFightStats(reportCode, [fight.id]),     // 1 API call
-    getExtendedFightStats(reportCode, [fight.id]), // 1 API call
-  ]);
-}
-```
-
-A 10-fight raid = **20 WCL API calls** instead of 2 batched calls.
-
-**Impact at scale:**
-- Rate limit: 280 tokens/hour (280 WCL API calls)
-- 1 report import = ~20 calls
-- 280 / 20 = **14 report imports per hour max**
-- With 50 users, each with 2 characters scanning every 30min → exhausted in minutes
-
-**Fix:** Batch `fightIDs` into single GraphQL calls:
-```javascript
-const allFightIds = encounterFights.map(f => f.id);
-const [allBasicStats, allExtStats] = await Promise.all([
-  getFightStats(reportCode, allFightIds),      // 1 API call for ALL fights
-  getExtendedFightStats(reportCode, allFightIds), // 1 API call for ALL fights
-]);
-```
-
-**Estimated improvement:** 20x fewer API calls per report.
+**Status:** Fixed. Uses GraphQL aliases to batch all fights into single API calls: `getBatchFightStats()` and `getBatchExtendedFightStats()`. Report import now uses ~3 WCL API calls total (report data + 2 batch stat calls) instead of 2N+1.
 
 ---
 
-### Bottleneck 2: Zero Analysis Caching (HIGH)
+### ✅ FIXED — Analysis Caching
 
-**File:** `services/analysis.js:146-369`
-
-**Problem:** `getCharacterPerformance()` runs **4 SQL aggregation queries** on every request:
-1. Summary stats (COUNT, AVG, SUM)
-2. Boss breakdown (GROUP BY encounter_id, difficulty)
-3. Weekly trends (date windowing + aggregate)
-4. Recent fights (LIMIT 20)
-
-No caching. Same character viewed by 10 different users = 40 SQL queries.
-
-**Fix:** In-memory TTL cache (similar to existing Raider.io cache):
-```javascript
-const analysisCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function getCharacterPerformance(characterId, options) {
-  const key = `${characterId}:${JSON.stringify(options)}`;
-  const cached = analysisCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
-
-  const result = await runAnalysisQueries(characterId, options);
-  analysisCache.set(key, { data: result, timestamp: Date.now() });
-  return result;
-}
-```
-
-Invalidate cache on new report import for that character.
+**Status:** Fixed. In-memory Map cache with 5-minute TTL, max 200 entries. Cache key includes `characterId:weeks:bossId:difficulty:visibilityFilter`. Auto-evicts oldest entry when full. `invalidateAnalysisCache(characterId)` called on new report imports. `/analysis/overview` parallelized with `Promise.all()`.
 
 ---
 
-### Bottleneck 3: Missing Database Indexes (HIGH)
+### ✅ FIXED — Database Indexes
 
-**File:** `packages/api/src/db/schema.js`
-
-**Current indexes on `fights` table:**
-- ✅ UNIQUE on `(reportId, wclFightId)`
-
-**Missing (used in analysis queries):**
-- ❌ `encounterId` — used in boss breakdown GROUP BY
-- ❌ `difficulty` — used in filtering
-- ❌ `startTime` — used in weekly trends ORDER BY
-- ❌ Composite `(characterId)` on `fightPerformance` — exists but no composite with fight fields
-
-**Fix:** Add indexes via Drizzle schema:
-```javascript
-// In fights table definition
-index('fight_encounter_idx').on(table.encounterId),
-index('fight_difficulty_idx').on(table.difficulty),
-index('fight_time_idx').on(table.startTime),
-```
-
-Then run `npx drizzle-kit push` to apply.
+**Status:** Fixed. All critical indexes added: `fight_encounter_idx`, `fight_difficulty_idx`, `fight_time_idx`, `fight_encounter_difficulty_idx` (composite), `perf_char_idx`, `perf_char_fight_idx`, `mplus_snap_time_idx`.
 
 ---
 
@@ -394,13 +233,13 @@ Then run `npx drizzle-kit push` to apply.
 
 ### Must Do Before Launch (Mar 17)
 
-- [ ] **CRITICAL: Fix OAuth state CSRF** — sign state with HMAC (auth.js)
-- [ ] **HIGH: Fix report visibility bypass** — add ownership/guild checks (reports.js)
-- [ ] **HIGH: Remove JWT secret fallbacks** — fail fast if env vars missing (middleware/auth.js)
-- [ ] **HIGH: Batch WCL fight fetching** — single call per report, not per fight (reports.js, scanReports.js)
-- [ ] **HIGH: Add database indexes** — encounterId, difficulty, startTime on fights table
-- [ ] **HIGH: Add analysis caching** — 5-min TTL in-memory cache for character performance
-- [ ] **MEDIUM: Rate limit heavy endpoints** — report import + analysis routes
+- [x] **CRITICAL: Fix OAuth state CSRF** — HMAC-SHA256 signed state ✅
+- [x] **HIGH: Fix report visibility bypass** — 3-level visibility checks ✅
+- [x] **HIGH: Remove JWT secret fallbacks** — fail-fast on missing env vars ✅
+- [x] **HIGH: Batch WCL fight fetching** — GraphQL alias batching ✅
+- [x] **HIGH: Add database indexes** — all critical indexes added ✅
+- [x] **HIGH: Add analysis caching** — 5-min TTL with visibility-aware cache key ✅
+- [x] **MEDIUM: Rate limit heavy endpoints** — import, analysis, OAuth callbacks ✅
 - [ ] **Test all OAuth flows end-to-end** — Blizzard, WCL linking
 - [ ] **Test public character route** — this is the viral entry point, must be flawless
 - [ ] **Frontend production build** — deploy React app to Cloudflare Pages
@@ -411,12 +250,12 @@ Then run `npx drizzle-kit push` to apply.
 
 ### Should Do Before Launch
 
-- [ ] Encrypt OAuth tokens at rest (HIGH security)
-- [ ] Add refresh token reuse detection (HIGH security)
-- [ ] Implement guild invite/approval system
+- [x] Encrypt OAuth tokens at rest — AES-256-GCM ✅
+- [x] Add refresh token reuse detection — family-based tracking ✅
+- [x] Implement guild invite/approval system — invite codes ✅
+- [x] Run `npm run lint` and fix all warnings — 0 warnings ✅
 - [ ] Add loading animation for cold starts
 - [ ] Set up Sentry error monitoring
-- [ ] Run `npm run lint` and fix all warnings
 - [ ] Run `npm run format:check` and fix all formatting
 
 ### Nice to Have

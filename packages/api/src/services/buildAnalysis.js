@@ -14,6 +14,9 @@ import { getSpecData, SECONDARY_STATS } from '@stillnoob/shared';
 /** Cosmetic slots excluded from ilvl tips */
 const COSMETIC_SLOTS = new Set(['shirt', 'tabard']);
 
+/** Defensive/tertiary enchant patterns — suboptimal for DPS roles */
+const TERTIARY_ENCHANT_PATTERNS = /avoidance|speed|leech|stamina|armor kit/i;
+
 // ── Helpers ────────────────────────────────────────────────────
 
 /**
@@ -108,6 +111,22 @@ export function analyzeCharacterBuild(equipment, className, spec, specMeta = nul
       priority: 5,
       data: { count: missing.length, slots: missing.join(', '), total },
     });
+  }
+
+  // 1b. gear_suboptimal_enchant — DPS using defensive/tertiary enchants
+  if (specData?.role === 'DPS') {
+    for (const item of equipment.items) {
+      if (item.enchant && TERTIARY_ENCHANT_PATTERNS.test(item.enchant)) {
+        gearTips.push({
+          category: 'gear',
+          key: 'gear_suboptimal_enchant',
+          severity: 'warning',
+          priority: 7,
+          data: { slot: item.slot, enchant: item.enchant },
+        });
+        break; // only report the first suboptimal enchant
+      }
+    }
   }
 
   // 2. gear_missing_gems

@@ -32,6 +32,7 @@ WoW coaching platform that analyzes player data (logs, gear, gameplay) and provi
 | ------------- | ------------------------------------ | ---------------------------------- |
 | Landing       | `https://stillnoob.com`              | Cloudflare Workers (`stillnoob`)   |
 | Landing (www) | `https://www.stillnoob.com`          | Cloudflare (CNAME → stillnoob.com) |
+| Frontend App  | `https://app.stillnoob.com` (TBD)   | Cloudflare Pages (`stillnoob-web`) |
 | API (public)  | `https://api.stillnoob.com`          | Cloudflare Worker proxy → Render   |
 | API (direct)  | `https://stillnoob-api.onrender.com` | Render (free tier, Frankfurt)      |
 | Database      | Turso `stillnoob-db`                 | Turso (Frankfurt)                  |
@@ -151,7 +152,7 @@ stillnoob/
 │   │           ├── scanReports.js  # Background job: scan WCL for new reports
 │   │           └── scheduler.js    # Cron scheduler for background jobs
 │   ├── shared/                 # Shared constants/types between packages
-│   └── web/                    # Future React app (not yet built)
+│   └── web/                    # React frontend (Cloudflare Pages)
 ├── wrangler.jsonc              # Cloudflare Workers config
 ├── .gitignore                  # node_modules, .env, *.db, .wrangler/
 ├── workers/
@@ -288,6 +289,48 @@ npm install                   # Install all workspace deps
 
 ---
 
+## Deploy Commands
+
+### Frontend (Cloudflare Pages)
+
+```bash
+cd packages/web
+npm run deploy     # Build + deploy to CF Pages (stillnoob-web project)
+```
+
+Or manually:
+
+```bash
+cd packages/web
+npm run build                                                             # Vite production build → dist/
+npx wrangler pages deploy dist --project-name stillnoob-web --commit-dirty=true  # Deploy dist/ to CF Pages
+```
+
+- **Project name**: `stillnoob-web` (Cloudflare Pages)
+- **Build output**: `packages/web/dist/`
+- **SPA routing**: `_redirects` file (`/*  /index.html  200`) handles client-side routes
+- **Security headers**: `_headers` file sets CSP, HSTS, X-Frame-Options, etc.
+- **API URL**: Baked at build time from `.env.production` → `VITE_API_URL=https://api.stillnoob.com/api/v1`
+
+### API (Render — auto-deploy)
+
+Push to `main` → Render auto-deploys from `packages/api/`.
+
+### Landing Page (Cloudflare Workers)
+
+```bash
+npx wrangler deploy            # Deploy from root (uses wrangler.jsonc)
+```
+
+### API Proxy (Cloudflare Worker)
+
+```bash
+cd workers/api-proxy
+npx wrangler deploy            # Deploy reverse proxy worker
+```
+
+---
+
 ## StillNoob Score System
 
 - **Performance:** 35% (DPS/HPS parse percentile from WCL)
@@ -360,8 +403,9 @@ npm install                   # Install all workspace deps
 
 - Landing: Cloudflare Workers (`stillnoob`) → `stillnoob.com`
 - API: Render free tier (Frankfurt) → `api.stillnoob.com` (via Worker proxy)
+- Frontend: Cloudflare Pages (`stillnoob-web`) — deploy via `npm run deploy` from `packages/web/`
 - Database: Turso `stillnoob-db` (Frankfurt)
-- Auto-deploy on push to `main`
+- Auto-deploy on push to `main` (API only; frontend deploy is manual via CLI)
 
 ### Not Yet Built
 
@@ -369,7 +413,6 @@ npm install                   # Install all workspace deps
 - Google/Discord OAuth
 - Email verification
 - Premium tier features & payment
-- Frontend production deployment (React app on Cloudflare Pages or similar)
 - Playwright E2E tests
 - AI-generated coaching text: Use LLM to write natural-language recommendations from analysis data (ref: prompts.chat as prompt library)
 
@@ -536,4 +579,4 @@ StillNoob was born from the "Deep Performance Analysis" feature of the DKP backe
 
 ---
 
-_Last updated: February 12, 2026 — Analysis document added_
+_Last updated: February 14, 2026 — Frontend production build verified, deploy steps documented_

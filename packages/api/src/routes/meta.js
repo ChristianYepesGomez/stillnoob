@@ -6,7 +6,9 @@ import { Router } from 'express';
 import { getMetaWithFreshness, triggerSpecRefresh, isRefreshing } from '../services/metaRefreshManager.js';
 import { getSpecData } from '@stillnoob/shared';
 import { authenticateToken } from '../middleware/auth.js';
+import { createLogger } from '../utils/logger.js';
 
+const log = createLogger('Route:Meta');
 const router = Router();
 
 /**
@@ -33,7 +35,8 @@ router.get('/:className/:spec', async (req, res) => {
       metaStatus: status,
       lastUpdated: meta?.lastUpdated || null,
     });
-  } catch (_err) {
+  } catch (err) {
+    log.error('Failed to fetch spec meta', err);
     res.status(500).json({ error: 'Failed to fetch spec meta' });
   }
 });
@@ -67,7 +70,8 @@ router.post('/:className/:spec/refresh', authenticateToken, async (req, res) => 
       estimatedTime: '2-3 minutes',
       metaStatus: 'refreshing',
     });
-  } catch (_err) {
+  } catch (err) {
+    log.error('Failed to trigger meta refresh', err);
     res.status(500).json({ error: 'Failed to trigger refresh' });
   }
 });

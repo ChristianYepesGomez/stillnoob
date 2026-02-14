@@ -93,8 +93,14 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region },
         }),
         getCharacterBlizzardProfile(match.region, match.realmSlug, match.name),
-        getCharacterEquipment(match.name, match.realmSlug, match.region).catch(() => null),
-        getCharacterMedia(match.name, match.realmSlug, match.region).catch(() => null),
+        getCharacterEquipment(match.name, match.realmSlug, match.region).catch((err) => {
+          log.warn('Failed to fetch equipment', err.message);
+          return null;
+        }),
+        getCharacterMedia(match.name, match.realmSlug, match.region).catch((err) => {
+          log.warn('Failed to fetch character media', err.message);
+          return null;
+        }),
       ]);
 
       let buildAnalysis = null;
@@ -148,7 +154,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
 
       // Snapshot M+ score (fire-and-forget)
       if (raiderIO?.mythicPlus?.score && match.id) {
-        saveScoreSnapshot(match.id, raiderIO).catch(() => {});
+        saveScoreSnapshot(match.id, raiderIO).catch((err) => log.warn('Failed to save M+ snapshot', err.message));
       }
       return;
     }
@@ -161,7 +167,10 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
 
     const [raiderIO, equipment, media] = await Promise.all([
       getCharacterBlizzardProfile(regionLower, realmSlug, profile.name),
-      getCharacterEquipment(profile.name, realmSlug, regionLower).catch(() => null),
+      getCharacterEquipment(profile.name, realmSlug, regionLower).catch((err) => {
+        log.warn('Failed to fetch equipment', err.message);
+        return null;
+      }),
       getCharacterMedia(profile.name, realmSlug, regionLower),
     ]);
 

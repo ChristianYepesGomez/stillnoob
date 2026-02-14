@@ -14,6 +14,7 @@ import { authProviders, guildMembers } from '../db/schema.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
 import { decryptToken } from '../utils/encryption.js';
 import { createLogger } from '../utils/logger.js';
+import { retryWithBackoff } from '../utils/retry.js';
 
 const log = createLogger('Route:Reports');
 const router = Router();
@@ -83,14 +84,20 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
     if (wclProvider?.accessToken) {
       try {
         const token = decryptToken(wclProvider.accessToken);
-        reportData = await getReportDataWithUserToken(reportCode, token);
+        reportData = await retryWithBackoff(
+          () => getReportDataWithUserToken(reportCode, token),
+          `getReportDataWithUserToken(${reportCode})`,
+        );
       } catch {
         // User token failed, fall back to client credentials
       }
     }
 
     if (!reportData) {
-      reportData = await getReportData(reportCode);
+      reportData = await retryWithBackoff(
+        () => getReportData(reportCode),
+        `getReportData(${reportCode})`,
+      );
     }
 
     if (!reportData) {
@@ -170,8 +177,14 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
       const allFightIds = fightMappings.map((f) => f.wclFightId);
       try {
         const [batchBasicStats, batchExtStats] = await Promise.all([
-          getBatchFightStats(reportCode, allFightIds),
-          getBatchExtendedFightStats(reportCode, allFightIds),
+          retryWithBackoff(
+            () => getBatchFightStats(reportCode, allFightIds),
+            `getBatchFightStats(${reportCode})`,
+          ),
+          retryWithBackoff(
+            () => getBatchExtendedFightStats(reportCode, allFightIds),
+            `getBatchExtendedFightStats(${reportCode})`,
+          ),
         ]);
 
         for (const mapping of fightMappings) {
@@ -216,6 +229,10 @@ router.post('/import', authenticateToken, importLimiter, async (req, res) => {
     });
   } catch (err) {
     log.error('Import failed', err);
+    const status = err.response?.status;
+    if (status >= 500 || status === 429 || err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      return res.status(502).json({ error: 'Warcraft Logs API is temporarily unavailable. Please try again later.' });
+    }
     if (err.message?.includes('WCL')) {
       return res.status(502).json({ error: 'Failed to fetch from Warcraft Logs API' });
     }

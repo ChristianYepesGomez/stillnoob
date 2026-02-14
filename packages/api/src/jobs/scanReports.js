@@ -11,54 +11,17 @@ import { processExtendedFightData, invalidateAnalysisCache } from '../services/a
 import { getCharacterBlizzardProfile, saveScoreSnapshot } from '../services/characterProfile.js';
 import { acquireToken } from '../services/rateLimiter.js';
 import { createLogger } from '../utils/logger.js';
+import { isTransientError, retryWithBackoff as _retryWithBackoff } from '../utils/retry.js';
 
 const log = createLogger('Scanner');
 
-// ── Retry / Circuit Breaker config ──
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 2000; // 2s → 4s → 8s
+// ── Circuit Breaker config ──
+const SCANNER_BASE_DELAY_MS = 2000; // 2s → 4s → 8s (scanner uses slower backoff)
 const CIRCUIT_BREAKER_THRESHOLD = 5; // consecutive WCL failures to abort scan
 
-/**
- * Returns true if the error is transient and worth retrying.
- */
-function isTransientError(err) {
-  if (err.response) {
-    const status = err.response.status;
-    return status === 429 || status >= 500;
-  }
-  // Network errors, timeouts
-  return (
-    err.code === 'ECONNABORTED' ||
-    err.code === 'ETIMEDOUT' ||
-    err.code === 'ECONNRESET' ||
-    err.code === 'ENOTFOUND' ||
-    err.message?.includes('timeout')
-  );
-}
-
-/**
- * Retry an async function with exponential backoff.
- * Only retries on transient errors (429, 5xx, network).
- */
-async function retryWithBackoff(fn, label) {
-  let lastError;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      if (attempt < MAX_RETRIES && isTransientError(err)) {
-        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
-        const status = err.response?.status || err.code || 'unknown';
-        log.warn(`${label} failed (${status}), retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
-        await new Promise((r) => setTimeout(r, delay));
-      } else {
-        break;
-      }
-    }
-  }
-  throw lastError;
+/** Scanner-specific retry wrapper with 2s base delay */
+function retryWithBackoff(fn, label) {
+  return _retryWithBackoff(fn, label, { baseDelayMs: SCANNER_BASE_DELAY_MS });
 }
 
 /**

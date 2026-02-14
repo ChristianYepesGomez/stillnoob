@@ -44,7 +44,10 @@ router.get('/character/:id', async (req, res) => {
     // Fetch Raider.io + equipment in parallel first (fast), then analysis with raiderIO context
     const [raiderIO, equipment] = await Promise.all([
       getCharacterBlizzardProfile(char.region, char.realmSlug, char.name),
-      getCharacterEquipment(char.name, char.realmSlug, char.region).catch(() => null),
+      getCharacterEquipment(char.name, char.realmSlug, char.region).catch((err) => {
+        log.warn('Failed to fetch equipment', err.message);
+        return null;
+      }),
     ]);
 
     // Look up spec-specific CPM baseline
@@ -76,7 +79,7 @@ router.get('/character/:id', async (req, res) => {
 
     // Snapshot M+ score (fire-and-forget)
     if (raiderIO?.mythicPlus?.score) {
-      saveScoreSnapshot(charId, raiderIO).catch(() => {});
+      saveScoreSnapshot(charId, raiderIO).catch((err) => log.warn('Failed to save M+ snapshot', err.message));
     }
 
     // Build / gear analysis

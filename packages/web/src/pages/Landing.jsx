@@ -88,7 +88,7 @@ export default function Landing() {
         {/* Search Box */}
         <form
           onSubmit={handleAnalyze}
-          className="w-full max-w-2xl animate-fade-in"
+          className="w-full max-w-2xl animate-fade-in relative z-20"
           style={{ animationDelay: '0.4s' }}
         >
           <div className="flex flex-col sm:flex-row bg-void-surface border border-void-glow/25 rounded-2xl focus-within:border-void-glow focus-within:shadow-[0_0_30px_rgba(123,47,242,0.2)] transition-all">

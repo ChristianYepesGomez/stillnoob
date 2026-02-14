@@ -65,7 +65,7 @@ export default function RegionSelect({ value, onChange, inputClassName = '' }) {
       {isOpen && (
         <ul
           className="absolute z-[100] top-full left-0 right-0 rounded-b-xl border border-void-bright/25 overflow-hidden"
-          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
+          style={{ backgroundColor: '#1a0f2e' }}
           role="listbox"
         >
           {REGIONS.map((region) => (

@@ -126,7 +126,7 @@ export default function RealmSelect({
         <ul
           ref={listRef}
           className="absolute z-[100] top-full left-0 right-0 max-h-60 overflow-y-auto rounded-b-xl border border-void-bright/25"
-          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
+          style={{ backgroundColor: '#1a0f2e' }}
           role="listbox"
         >
           {filtered.slice(0, 50).map((realm, i) => (
@@ -152,7 +152,7 @@ export default function RealmSelect({
       {isOpen && filtered.length === 0 && query.trim() && !loading && (
         <div
           className="absolute z-[100] top-full left-0 right-0 px-4 py-3 border border-void-bright/25 rounded-b-xl text-sm text-void-muted font-rajdhani"
-          style={{ backgroundColor: '#1a0f2e', boxShadow: '0 8px 40px 8px rgba(0,0,0,0.95)' }}
+          style={{ backgroundColor: '#1a0f2e' }}
         >
           No realms found
         </div>

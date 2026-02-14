@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { publicAPI } from '../services/api';
@@ -7,6 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import LoadingScreen from '../components/LoadingScreen';
 import ScoreBadge from '../components/analysis/ScoreBadge';
 import MythicPlusSection from '../components/analysis/MythicPlusSection';
+import GearVerdict from '../components/public/GearVerdict';
+import MPlusVerdict from '../components/public/MPlusVerdict';
+import SpecCoachingTeaser from '../components/public/SpecCoachingTeaser';
+import LockedSection from '../components/public/LockedSection';
+import CoachingCTA from '../components/public/CoachingCTA';
 
 function formatDps(val) {
   if (!val) return '0';
@@ -142,181 +147,25 @@ export default function CharacterPublic() {
           )}
         </div>
 
-        {/* Score */}
-        {score && <ScoreBadge score={score} />}
-
-        {/* Live data banner */}
-        {isLive && (
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-void-glow/10 to-void-bright/5 border border-void-glow/25">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="w-2 h-2 bg-fel-green rounded-full animate-pulse" />
-              <h2 className="font-cinzel text-lg font-bold text-white">Live Character Data</h2>
-            </div>
-            <p className="text-sm text-void-secondary mb-4">
-              Showing real-time data from Blizzard API and Raider.io. Import your WarcraftLogs
-              reports to unlock full coaching analysis with performance scores, boss breakdowns, and
-              personalized improvement tips.
-            </p>
-            <Link
-              to={user ? '/dashboard' : '/register'}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold text-sm uppercase tracking-wider hover:opacity-90 transition-opacity"
-            >
-              <i className="fas fa-chart-line" />
-              {user ? 'Import Logs in Dashboard' : 'Get Full Coaching Analysis'}
-            </Link>
-          </div>
+        {isLive ? (
+          <LiveCoachingView
+            t={t}
+            user={user}
+            character={character}
+            buildAnalysis={buildAnalysis}
+            mplusAnalysis={mplusAnalysis}
+            raiderIO={raiderIO}
+          />
+        ) : (
+          <DatabaseView
+            t={t}
+            user={user}
+            score={score}
+            summary={summary}
+            bossBreakdown={bossBreakdown}
+            raiderIO={raiderIO}
+          />
         )}
-
-        {/* Summary stats */}
-        {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className="font-orbitron text-xl font-bold text-blue-400">
-                {formatDps(summary.avgDps)}
-              </p>
-              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.avgDps')}</p>
-            </div>
-            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p className="font-orbitron text-xl font-bold text-white">{summary.totalFights}</p>
-              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.totalFights')}</p>
-            </div>
-            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p
-                className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}
-              >
-                {(summary.deathRate || 0).toFixed(2)}
-              </p>
-              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.deathsPerFight')}</p>
-            </div>
-            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p
-                className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}
-              >
-                {summary.consumableScore || 0}
-              </p>
-              <p className="text-[10px] text-void-secondary mt-1">
-                {t('analysis.consumableScore')}
-              </p>
-            </div>
-            <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
-              <p
-                className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}
-              >
-                {Math.round(summary.dpsVsMedianPct || 100)}%
-              </p>
-              <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Mythic+ data from Raider.io */}
-        {raiderIO && <MythicPlusSection raiderIO={raiderIO} compact />}
-
-        {/* Raid progression (live mode) */}
-        {isLive && raiderIO?.raidProgression?.length > 0 && (
-          <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5">
-            <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
-              <i className="fas fa-dungeon mr-2 text-void-accent" />
-              Raid Progression
-            </h2>
-            <div className="space-y-2">
-              {raiderIO.raidProgression.map((raid) => (
-                <div
-                  key={raid.slug}
-                  className="flex items-center justify-between p-3 rounded-xl bg-void-deep/50 border border-void-bright/5"
-                >
-                  <span className="text-sm text-white font-medium">
-                    {raid.slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </span>
-                  <span className="text-sm font-orbitron text-void-accent">{raid.raid}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Boss breakdown */}
-        {bossBreakdown?.length > 0 && (
-          <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5">
-            <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
-              <i className="fas fa-skull mr-2 text-void-accent" />
-              {t('analysis.bosses')}
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-void-secondary/70 border-b border-void-bright/10 text-xs uppercase tracking-wider">
-                    <th className="text-left py-2 px-3">Boss</th>
-                    <th className="text-center py-2 px-3">Diff</th>
-                    <th className="text-center py-2 px-3">{t('common.fights')}</th>
-                    <th className="text-center py-2 px-3">{t('analysis.avgDps')}</th>
-                    <th className="text-center py-2 px-3">{t('analysis.bestDps')}</th>
-                    <th className="text-center py-2 px-3">{t('analysis.deathsPerFight')}</th>
-                    <th className="text-center py-2 px-3 hidden sm:table-cell">
-                      {t('analysis.vsMedian')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bossBreakdown.map((b, i) => (
-                    <tr key={i} className="border-b border-void-bright/5 hover:bg-void-surface/30">
-                      <td className="py-2.5 px-3 text-white font-medium">{b.bossName}</td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
-                          style={{
-                            backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`,
-                            color: DIFFICULTY_COLORS[b.difficulty],
-                          }}
-                        >
-                          {b.difficulty}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-center text-void-text">{b.fights}</td>
-                      <td className="py-2.5 px-3 text-center font-orbitron text-blue-400">
-                        {formatDps(b.avgDps)}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-orbitron text-void-accent">
-                        {formatDps(b.bestDps)}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <span className={b.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}>
-                          {b.deathRate.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-center hidden sm:table-cell">
-                        <span
-                          className={
-                            b.dpsVsMedian >= 100
-                              ? 'text-fel-green'
-                              : b.dpsVsMedian >= 80
-                                ? 'text-sunwell-amber'
-                                : 'text-blood-red'
-                          }
-                        >
-                          {Math.round(b.dpsVsMedian || 100)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* CTA */}
-        <div className="text-center py-8">
-          <p className="text-void-secondary mb-4">
-            Want detailed fight-by-fight analysis and coaching tips?
-          </p>
-          <Link
-            to={user ? '/dashboard' : '/register'}
-            className="inline-block px-8 py-3 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
-          >
-            {user ? 'Go to Dashboard' : 'Analyze Your Character Free'}
-          </Link>
-        </div>
 
         {/* Footer */}
         <footer className="text-center py-4 text-xs text-void-muted border-t border-void-bright/10">
@@ -331,5 +180,203 @@ export default function CharacterPublic() {
         </footer>
       </main>
     </div>
+  );
+}
+
+/** Live (unregistered) character — coaching hooks */
+function LiveCoachingView({ t, user, character, buildAnalysis, mplusAnalysis, raiderIO }) {
+  const issueCount = useMemo(() => {
+    let count = 0;
+    if (buildAnalysis?.gearTips) {
+      count += buildAnalysis.gearTips.filter((tip) => tip.severity !== 'positive').length;
+    }
+    if (mplusAnalysis?.pushTargets) {
+      count += mplusAnalysis.pushTargets.length;
+    }
+    if (mplusAnalysis?.dungeonAnalysis?.weakDungeons) {
+      count += mplusAnalysis.dungeonAnalysis.weakDungeons.length;
+    }
+    if (mplusAnalysis?.upgradeAnalysis?.untimed > 0) {
+      count += 1;
+    }
+    return count;
+  }, [buildAnalysis, mplusAnalysis]);
+
+  const hasCoachingData = buildAnalysis || mplusAnalysis;
+
+  return (
+    <>
+      {/* Coaching findings banner */}
+      {hasCoachingData && issueCount > 0 && (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-void-glow/15 to-blood-red/5 border border-void-glow/30">
+          <div className="flex items-center gap-3 mb-2">
+            <i className="fas fa-stethoscope text-void-accent text-lg" />
+            <h2 className="font-cinzel text-lg font-bold text-white">
+              {t('public.coachingFound', { count: issueCount })}
+            </h2>
+          </div>
+          <p className="text-sm text-void-secondary">{t('public.coachingFoundDesc')}</p>
+        </div>
+      )}
+
+      {/* Gear analysis */}
+      {buildAnalysis && <GearVerdict buildAnalysis={buildAnalysis} />}
+
+      {/* M+ coaching */}
+      {mplusAnalysis && <MPlusVerdict mplusAnalysis={mplusAnalysis} raiderIO={raiderIO} />}
+
+      {/* Spec coaching teaser */}
+      {character.className && character.spec && (
+        <SpecCoachingTeaser className={character.className} spec={character.spec} />
+      )}
+
+      {/* Locked raid coaching section */}
+      <LockedSection
+        title={t('public.raidCoachingLocked')}
+        icon="fa-trophy"
+        description={t('public.raidCoachingLockedDesc')}
+      />
+
+      {/* Contextual CTA */}
+      <CoachingCTA issues={issueCount} user={user} characterName={character.name} />
+    </>
+  );
+}
+
+/** Database (registered) character — full data */
+function DatabaseView({ t, user, score, summary, bossBreakdown, raiderIO }) {
+  return (
+    <>
+      {/* Score */}
+      {score && <ScoreBadge score={score} />}
+
+      {/* Summary stats */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+            <p className="font-orbitron text-xl font-bold text-blue-400">
+              {formatDps(summary.avgDps)}
+            </p>
+            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.avgDps')}</p>
+          </div>
+          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+            <p className="font-orbitron text-xl font-bold text-white">{summary.totalFights}</p>
+            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.totalFights')}</p>
+          </div>
+          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+            <p
+              className={`font-orbitron text-xl font-bold ${summary.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}`}
+            >
+              {(summary.deathRate || 0).toFixed(2)}
+            </p>
+            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.deathsPerFight')}</p>
+          </div>
+          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+            <p
+              className={`font-orbitron text-xl font-bold ${summary.consumableScore >= 70 ? 'text-fel-green' : 'text-sunwell-amber'}`}
+            >
+              {summary.consumableScore || 0}
+            </p>
+            <p className="text-[10px] text-void-secondary mt-1">
+              {t('analysis.consumableScore')}
+            </p>
+          </div>
+          <div className="text-center p-3 rounded-xl bg-void-mid/50 border border-void-bright/10">
+            <p
+              className={`font-orbitron text-xl font-bold ${(summary.dpsVsMedianPct || 100) >= 100 ? 'text-fel-green' : 'text-blood-red'}`}
+            >
+              {Math.round(summary.dpsVsMedianPct || 100)}%
+            </p>
+            <p className="text-[10px] text-void-secondary mt-1">{t('analysis.vsMedian')}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Mythic+ data from Raider.io */}
+      {raiderIO && <MythicPlusSection raiderIO={raiderIO} compact />}
+
+      {/* Boss breakdown */}
+      {bossBreakdown?.length > 0 && (
+        <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5">
+          <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+            <i className="fas fa-skull mr-2 text-void-accent" />
+            {t('analysis.bosses')}
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-void-secondary/70 border-b border-void-bright/10 text-xs uppercase tracking-wider">
+                  <th className="text-left py-2 px-3">Boss</th>
+                  <th className="text-center py-2 px-3">Diff</th>
+                  <th className="text-center py-2 px-3">{t('common.fights')}</th>
+                  <th className="text-center py-2 px-3">{t('analysis.avgDps')}</th>
+                  <th className="text-center py-2 px-3">{t('analysis.bestDps')}</th>
+                  <th className="text-center py-2 px-3">{t('analysis.deathsPerFight')}</th>
+                  <th className="text-center py-2 px-3 hidden sm:table-cell">
+                    {t('analysis.vsMedian')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {bossBreakdown.map((b, i) => (
+                  <tr key={i} className="border-b border-void-bright/5 hover:bg-void-surface/30">
+                    <td className="py-2.5 px-3 text-white font-medium">{b.bossName}</td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                        style={{
+                          backgroundColor: `${DIFFICULTY_COLORS[b.difficulty]}20`,
+                          color: DIFFICULTY_COLORS[b.difficulty],
+                        }}
+                      >
+                        {b.difficulty}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center text-void-text">{b.fights}</td>
+                    <td className="py-2.5 px-3 text-center font-orbitron text-blue-400">
+                      {formatDps(b.avgDps)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-orbitron text-void-accent">
+                      {formatDps(b.bestDps)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={b.deathRate > 0.3 ? 'text-blood-red' : 'text-fel-green'}>
+                        {b.deathRate.toFixed(2)}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-center hidden sm:table-cell">
+                      <span
+                        className={
+                          b.dpsVsMedian >= 100
+                            ? 'text-fel-green'
+                            : b.dpsVsMedian >= 80
+                              ? 'text-sunwell-amber'
+                              : 'text-blood-red'
+                        }
+                      >
+                        {Math.round(b.dpsVsMedian || 100)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="text-center py-8">
+        <p className="text-void-secondary mb-4">
+          Want detailed fight-by-fight analysis and coaching tips?
+        </p>
+        <Link
+          to={user ? '/dashboard' : '/register'}
+          className="inline-block px-8 py-3 bg-gradient-to-r from-void-glow to-void-bright text-white rounded-xl font-cinzel font-bold uppercase tracking-wider hover:opacity-90 transition-opacity"
+        >
+          {user ? 'Go to Dashboard' : 'Analyze Your Character Free'}
+        </Link>
+      </div>
+    </>
   );
 }

@@ -1,15 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoadingScreen from './components/LoadingScreen';
 import ColdStartOverlay from './components/ColdStartOverlay';
 import Layout from './components/layout/Layout';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Analysis from './pages/Analysis';
-import CharacterPublic from './pages/CharacterPublic';
-import GuildPage from './pages/Guild';
+
+const Landing = lazy(() => import('./pages/Landing'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Analysis = lazy(() => import('./pages/Analysis'));
+const CharacterPublic = lazy(() => import('./pages/CharacterPublic'));
+const GuildPage = lazy(() => import('./pages/Guild'));
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -26,32 +28,34 @@ export default function App() {
       {loading ? (
         <LoadingScreen />
       ) : (
-        <Routes>
-          <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
-          <Route
-            path="/login"
-            element={user ? <Navigate to="/dashboard" replace /> : <Login />}
-          />
-          <Route
-            path="/register"
-            element={user ? <Navigate to="/dashboard" replace /> : <Register />}
-          />
-          {/* Public character profile (no auth) */}
-          <Route path="/character/:region/:realm/:name" element={<CharacterPublic />} />
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Landing />} />
+            <Route
+              path="/login"
+              element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+            />
+            <Route
+              path="/register"
+              element={user ? <Navigate to="/dashboard" replace /> : <Register />}
+            />
+            {/* Public character profile (no auth) */}
+            <Route path="/character/:region/:realm/:name" element={<CharacterPublic />} />
 
-          {/* Authenticated app */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/analysis/:characterId?" element={<Analysis />} />
-            <Route path="/guild/:guildId?" element={<GuildPage />} />
-          </Route>
-        </Routes>
+            {/* Authenticated app */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/analysis/:characterId?" element={<Analysis />} />
+              <Route path="/guild/:guildId?" element={<GuildPage />} />
+            </Route>
+          </Routes>
+        </Suspense>
       )}
       <ColdStartOverlay />
     </>

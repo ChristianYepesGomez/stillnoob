@@ -16,8 +16,8 @@ import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('MetaAggregation');
 
-/** Current season identifier (hardcoded for TWW Season 2). */
-export const CURRENT_SEASON = 'tww-2';
+/** Current season identifier (hardcoded for TWW Season 3). */
+export const CURRENT_SEASON = 'tww-3';
 
 /** How long a cached meta entry is considered fresh (2 days). */
 const META_FRESHNESS_MS = 2 * 24 * 60 * 60 * 1000;

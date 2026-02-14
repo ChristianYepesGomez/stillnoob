@@ -12,7 +12,7 @@ import {
   BLIZZARD_SPEC_MAP,
 } from './blizzard.js';
 import { getCurrentMplusSeason } from './blizzardMplus.js';
-import { getScoreColor, calculateUpgrades, MPLUS_DUNGEON_SHORT_NAMES } from '@stillnoob/shared';
+import { getScoreColor, calculateUpgrades, getDungeonShortName, getDungeonTimer } from '@stillnoob/shared';
 import { db } from '../db/client.js';
 import { mplusSnapshots } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
@@ -65,23 +65,24 @@ export async function getCharacterBlizzardProfile(region, realmSlug, name) {
     const rating = mplusProfile?.mythicRating;
     const score = rating?.rating || 0;
     const bestRuns = (mplusProfile?.bestRuns || []).map((run) => {
-      const shortName =
-        MPLUS_DUNGEON_SHORT_NAMES[run.dungeon?.id] ||
-        run.dungeon?.name?.substring(0, 4)?.toUpperCase() ||
-        '???';
+      const dungeonName = run.dungeon?.name || 'Unknown';
+      const dungeonId = run.dungeon?.id || null;
+      const parTimeMs = getDungeonTimer(dungeonId, dungeonName);
 
       return {
-        dungeon: run.dungeon?.name || 'Unknown',
-        shortName,
+        dungeon: dungeonName,
+        shortName: getDungeonShortName(dungeonId, dungeonName),
         level: run.keystoneLevel,
-        upgrades: run.isCompleted ? calculateUpgrades(run.duration, null) || 1 : 0,
+        upgrades: run.isCompleted
+          ? (parTimeMs ? calculateUpgrades(run.duration, parTimeMs) : 0) || 1
+          : 0,
         score: 0, // Blizzard doesn't provide per-run scores
         url: null,
         completedAt: run.completedTimestamp
           ? new Date(run.completedTimestamp).toISOString()
           : null,
         clearTimeMs: run.duration,
-        parTimeMs: null,
+        parTimeMs,
       };
     });
 

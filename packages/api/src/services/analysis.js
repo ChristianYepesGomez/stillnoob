@@ -1,5 +1,6 @@
 import { db } from '../db/client.js';
-import { fightPerformance } from '../db/schema.js';
+import { fightPerformance, fights, reports } from '../db/schema.js';
+import { eq, and, gte, ne, sql, desc, isNotNull } from 'drizzle-orm';
 import {
   BUFF_PATTERNS,
   CONSUMABLE_WEIGHTS,
@@ -276,56 +277,50 @@ export async function getCharacterPerformance(characterId, options = {}) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - weeks * 7);
 
-  // Build dynamic WHERE conditions for raw SQL
-  // When visibilityFilter is set, JOIN reports to filter by visibility
-  const needsReportsJoin = !!visibilityFilter;
-  const reportsJoin = needsReportsJoin ? 'JOIN reports r ON r.id = f.report_id' : '';
+  // Build dynamic WHERE conditions using Drizzle operators (type-safe, no SQL injection)
+  const conditions = [
+    eq(fightPerformance.characterId, characterId),
+    gte(fights.startTime, cutoff.getTime()),
+    ne(fights.difficulty, 'Mythic+'),
+  ];
+  if (bossId) conditions.push(eq(fights.encounterId, bossId));
+  if (difficulty) conditions.push(eq(fights.difficulty, difficulty));
+  if (visibilityFilter) conditions.push(eq(reports.visibility, visibilityFilter));
 
-  let where = "WHERE fp.character_id = ? AND f.start_time >= ? AND f.difficulty != 'Mythic+'";
-  const params = [characterId, cutoff.getTime()];
-  if (bossId) {
-    where += ' AND f.encounter_id = ?';
-    params.push(bossId);
-  }
-  if (difficulty) {
-    where += ' AND f.difficulty = ?';
-    params.push(difficulty);
-  }
-  if (visibilityFilter) {
-    where += ' AND r.visibility = ?';
-    params.push(visibilityFilter);
-  }
-
-  // Use raw SQL via the libsql client for complex aggregate queries
-  const { client } = await import('../db/client.js');
+  // Helper: attach required joins to a select query
+  const withJoins = (query) => {
+    let q = query
+      .from(fightPerformance)
+      .innerJoin(fights, eq(fights.id, fightPerformance.fightId));
+    if (visibilityFilter) {
+      q = q.innerJoin(reports, eq(reports.id, fights.reportId));
+    }
+    return q;
+  };
 
   // Summary stats
-  const summaryResult = await client.execute({
-    sql: `SELECT
-      COUNT(*) as totalFights,
-      ROUND(AVG(fp.dps), 1) as avgDps,
-      ROUND(AVG(fp.hps), 1) as avgHps,
-      ROUND(AVG(fp.dtps), 1) as avgDtps,
-      SUM(fp.deaths) as totalDeaths,
-      ROUND(CAST(SUM(fp.deaths) AS REAL) / MAX(COUNT(*), 1), 2) as deathRate,
-      ROUND(AVG(fp.flask_uptime_pct), 1) as avgFlaskUptime,
-      ROUND(AVG(CASE WHEN fp.food_buff_active THEN 1 ELSE 0 END) * 100, 1) as foodRate,
-      ROUND(AVG(CASE WHEN fp.augment_rune_active THEN 1 ELSE 0 END) * 100, 1) as augmentRate,
-      ROUND(AVG(fp.interrupts), 1) as avgInterrupts,
-      ROUND(AVG(fp.dispels), 1) as avgDispels,
-      ROUND(AVG(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END), 1) as dpsVsMedianPct,
-      ROUND(CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as healthstoneRate,
-      ROUND(CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as combatPotionRate,
-      ROUND(AVG(fp.active_time_pct), 1) as avgActiveTime,
-      ROUND(AVG(fp.cpm), 1) as avgCpm
-    FROM fight_performance fp
-    JOIN fights f ON f.id = fp.fight_id
-    ${reportsJoin}
-    ${where}`,
-    args: params,
-  });
+  const summaryRows = await withJoins(
+    db.select({
+      totalFights: sql`COUNT(*)`,
+      avgDps: sql`ROUND(AVG(${fightPerformance.dps}), 1)`,
+      avgHps: sql`ROUND(AVG(${fightPerformance.hps}), 1)`,
+      avgDtps: sql`ROUND(AVG(${fightPerformance.dtps}), 1)`,
+      totalDeaths: sql`SUM(${fightPerformance.deaths})`,
+      deathRate: sql`ROUND(CAST(SUM(${fightPerformance.deaths}) AS REAL) / MAX(COUNT(*), 1), 2)`,
+      avgFlaskUptime: sql`ROUND(AVG(${fightPerformance.flaskUptimePct}), 1)`,
+      foodRate: sql`ROUND(AVG(CASE WHEN ${fightPerformance.foodBuffActive} THEN 1 ELSE 0 END) * 100, 1)`,
+      augmentRate: sql`ROUND(AVG(CASE WHEN ${fightPerformance.augmentRuneActive} THEN 1 ELSE 0 END) * 100, 1)`,
+      avgInterrupts: sql`ROUND(AVG(${fightPerformance.interrupts}), 1)`,
+      avgDispels: sql`ROUND(AVG(${fightPerformance.dispels}), 1)`,
+      dpsVsMedianPct: sql`ROUND(AVG(CASE WHEN ${fightPerformance.raidMedianDps} > 0 THEN (${fightPerformance.dps} / ${fightPerformance.raidMedianDps}) * 100 ELSE 100 END), 1)`,
+      healthstoneRate: sql`ROUND(CAST(SUM(CASE WHEN ${fightPerformance.healthstones} > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1)`,
+      combatPotionRate: sql`ROUND(CAST(SUM(CASE WHEN ${fightPerformance.combatPotions} > 0 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1)`,
+      avgActiveTime: sql`ROUND(AVG(${fightPerformance.activeTimePct}), 1)`,
+      avgCpm: sql`ROUND(AVG(${fightPerformance.cpm}), 1)`,
+    }),
+  ).where(and(...conditions));
 
-  const summary = summaryResult.rows[0] || {};
+  const summary = summaryRows[0] || {};
   const totalFights = Number(summary.totalFights) || 0;
 
   // Calculate consumable score
@@ -344,34 +339,31 @@ export async function getCharacterPerformance(characterId, options = {}) {
   );
 
   // Boss breakdown
-  const bossResult = await client.execute({
-    sql: `SELECT
-      f.encounter_id as bossId,
-      f.boss_name as bossName,
-      f.difficulty,
-      COUNT(*) as fights,
-      SUM(fp.deaths) as deaths,
-      ROUND(CAST(SUM(fp.deaths) AS REAL) / MAX(COUNT(*), 1), 2) as deathRate,
-      ROUND(AVG(fp.dps), 1) as avgDps,
-      ROUND(MAX(fp.dps), 1) as bestDps,
-      ROUND(AVG(fp.dtps), 1) as avgDtps,
-      ROUND(CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1) as healthstoneRate,
-      ROUND(CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1) as combatPotionRate,
-      ROUND(AVG(fp.interrupts), 1) as interruptsPerFight,
-      ROUND(AVG(fp.dispels), 1) as dispelsPerFight,
-      ROUND(AVG(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END), 1) as dpsVsMedian,
-      ROUND(AVG(fp.active_time_pct), 1) as avgActiveTime,
-      ROUND(AVG(fp.cpm), 1) as avgCpm
-    FROM fight_performance fp
-    JOIN fights f ON f.id = fp.fight_id
-    ${reportsJoin}
-    ${where}
-    GROUP BY f.encounter_id, f.difficulty
-    ORDER BY f.difficulty DESC, COUNT(*) DESC`,
-    args: params,
-  });
+  const bossRows = await withJoins(
+    db.select({
+      bossId: fights.encounterId,
+      bossName: fights.bossName,
+      difficulty: fights.difficulty,
+      fights: sql`COUNT(*)`,
+      deaths: sql`SUM(${fightPerformance.deaths})`,
+      deathRate: sql`ROUND(CAST(SUM(${fightPerformance.deaths}) AS REAL) / MAX(COUNT(*), 1), 2)`,
+      avgDps: sql`ROUND(AVG(${fightPerformance.dps}), 1)`,
+      bestDps: sql`ROUND(MAX(${fightPerformance.dps}), 1)`,
+      avgDtps: sql`ROUND(AVG(${fightPerformance.dtps}), 1)`,
+      healthstoneRate: sql`ROUND(CAST(SUM(CASE WHEN ${fightPerformance.healthstones} > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1)`,
+      combatPotionRate: sql`ROUND(CAST(SUM(CASE WHEN ${fightPerformance.combatPotions} > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100, 1)`,
+      interruptsPerFight: sql`ROUND(AVG(${fightPerformance.interrupts}), 1)`,
+      dispelsPerFight: sql`ROUND(AVG(${fightPerformance.dispels}), 1)`,
+      dpsVsMedian: sql`ROUND(AVG(CASE WHEN ${fightPerformance.raidMedianDps} > 0 THEN (${fightPerformance.dps} / ${fightPerformance.raidMedianDps}) * 100 ELSE 100 END), 1)`,
+      avgActiveTime: sql`ROUND(AVG(${fightPerformance.activeTimePct}), 1)`,
+      avgCpm: sql`ROUND(AVG(${fightPerformance.cpm}), 1)`,
+    }),
+  )
+    .where(and(...conditions))
+    .groupBy(fights.encounterId, fights.difficulty)
+    .orderBy(desc(fights.difficulty), desc(sql`COUNT(*)`));
 
-  const bossBreakdown = bossResult.rows.map((r) => ({
+  const bossBreakdown = bossRows.map((r) => ({
     bossId: Number(r.bossId),
     bossName: r.bossName,
     difficulty: r.difficulty,
@@ -391,33 +383,31 @@ export async function getCharacterPerformance(characterId, options = {}) {
   }));
 
   // Weekly trends (Thursday-Wednesday weeks)
-  const trendsResult = await client.execute({
-    sql: `SELECT
-      date(datetime(f.start_time / 1000, 'unixepoch'), '-' || ((CAST(strftime('%w', datetime(f.start_time / 1000, 'unixepoch')) AS INTEGER) + 3) % 7) || ' days') as weekStart,
-      COUNT(*) as fights,
-      ROUND(AVG(fp.dps), 1) as avgDps,
-      ROUND(AVG(fp.hps), 1) as avgHps,
-      ROUND(CAST(SUM(fp.deaths) AS REAL) / MAX(COUNT(*), 1), 2) as avgDeaths,
-      ROUND(AVG(fp.dtps), 1) as avgDtps,
-      ROUND(
-        CAST(SUM(CASE WHEN fp.healthstones > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 20 +
-        CAST(SUM(CASE WHEN fp.combat_potions > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 30 +
-        AVG(fp.flask_uptime_pct) * 0.30 +
-        AVG(CASE WHEN fp.food_buff_active THEN 1 ELSE 0 END) * 13 +
-        AVG(CASE WHEN fp.augment_rune_active THEN 1 ELSE 0 END) * 7,
-      1) as consumableScore,
-      ROUND(AVG(fp.active_time_pct), 1) as avgActiveTime,
-      ROUND(AVG(fp.cpm), 1) as avgCpm
-    FROM fight_performance fp
-    JOIN fights f ON f.id = fp.fight_id
-    ${reportsJoin}
-    ${where}
-    GROUP BY weekStart
-    ORDER BY weekStart ASC`,
-    args: params,
-  });
+  const weekStartExpr = sql`date(datetime(${fights.startTime} / 1000, 'unixepoch'), '-' || ((CAST(strftime('%w', datetime(${fights.startTime} / 1000, 'unixepoch')) AS INTEGER) + 3) % 7) || ' days')`;
+  const trendsRows = await withJoins(
+    db.select({
+      weekStart: weekStartExpr,
+      fights: sql`COUNT(*)`,
+      avgDps: sql`ROUND(AVG(${fightPerformance.dps}), 1)`,
+      avgHps: sql`ROUND(AVG(${fightPerformance.hps}), 1)`,
+      avgDeaths: sql`ROUND(CAST(SUM(${fightPerformance.deaths}) AS REAL) / MAX(COUNT(*), 1), 2)`,
+      avgDtps: sql`ROUND(AVG(${fightPerformance.dtps}), 1)`,
+      consumableScore: sql`ROUND(
+        CAST(SUM(CASE WHEN ${fightPerformance.healthstones} > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 20 +
+        CAST(SUM(CASE WHEN ${fightPerformance.combatPotions} > 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 30 +
+        AVG(${fightPerformance.flaskUptimePct}) * 0.30 +
+        AVG(CASE WHEN ${fightPerformance.foodBuffActive} THEN 1 ELSE 0 END) * 13 +
+        AVG(CASE WHEN ${fightPerformance.augmentRuneActive} THEN 1 ELSE 0 END) * 7,
+      1)`,
+      avgActiveTime: sql`ROUND(AVG(${fightPerformance.activeTimePct}), 1)`,
+      avgCpm: sql`ROUND(AVG(${fightPerformance.cpm}), 1)`,
+    }),
+  )
+    .where(and(...conditions))
+    .groupBy(weekStartExpr)
+    .orderBy(weekStartExpr);
 
-  const weeklyTrends = trendsResult.rows.map((r) => ({
+  const weeklyTrends = trendsRows.map((r) => ({
     weekStart: r.weekStart,
     fights: Number(r.fights),
     avgDps: Number(r.avgDps),
@@ -442,31 +432,28 @@ export async function getCharacterPerformance(characterId, options = {}) {
   }
 
   // Recent fights
-  const recentResult = await client.execute({
-    sql: `SELECT
-      datetime(f.start_time / 1000, 'unixepoch') as date,
-      f.boss_name as boss,
-      f.difficulty,
-      ROUND(fp.dps, 1) as dps,
-      fp.deaths,
-      fp.damage_taken as damageTaken,
-      fp.healthstones,
-      fp.combat_potions as combatPotions,
-      fp.interrupts,
-      fp.dispels,
-      ROUND(CASE WHEN fp.raid_median_dps > 0 THEN (fp.dps / fp.raid_median_dps) * 100 ELSE 100 END, 1) as dpsVsMedian,
-      ROUND(fp.active_time_pct, 1) as activeTimePct,
-      ROUND(fp.cpm, 1) as cpm
-    FROM fight_performance fp
-    JOIN fights f ON f.id = fp.fight_id
-    ${reportsJoin}
-    ${where}
-    ORDER BY f.start_time DESC, fp.id DESC
-    LIMIT 20`,
-    args: params,
-  });
+  const recentRows = await withJoins(
+    db.select({
+      date: sql`datetime(${fights.startTime} / 1000, 'unixepoch')`,
+      boss: fights.bossName,
+      difficulty: fights.difficulty,
+      dps: sql`ROUND(${fightPerformance.dps}, 1)`,
+      deaths: fightPerformance.deaths,
+      damageTaken: fightPerformance.damageTaken,
+      healthstones: fightPerformance.healthstones,
+      combatPotions: fightPerformance.combatPotions,
+      interrupts: fightPerformance.interrupts,
+      dispels: fightPerformance.dispels,
+      dpsVsMedian: sql`ROUND(CASE WHEN ${fightPerformance.raidMedianDps} > 0 THEN (${fightPerformance.dps} / ${fightPerformance.raidMedianDps}) * 100 ELSE 100 END, 1)`,
+      activeTimePct: sql`ROUND(${fightPerformance.activeTimePct}, 1)`,
+      cpm: sql`ROUND(${fightPerformance.cpm}, 1)`,
+    }),
+  )
+    .where(and(...conditions))
+    .orderBy(desc(fights.startTime), desc(fightPerformance.id))
+    .limit(20);
 
-  const recentFights = recentResult.rows.map((r) => ({
+  const recentFights = recentRows.map((r) => ({
     date: r.date,
     boss: r.boss,
     difficulty: r.difficulty,
@@ -540,16 +527,18 @@ export async function getCharacterPerformance(characterId, options = {}) {
   // Fetch latest talent data for this character (for talent comparison tips)
   let latestTalentData = null;
   if (totalFights > 0) {
-    const talentResult = await client.execute({
-      sql: `SELECT fp.talent_data FROM fight_performance fp
-        JOIN fights f ON f.id = fp.fight_id
-        WHERE fp.character_id = ? AND fp.talent_data IS NOT NULL
-        ORDER BY f.start_time DESC LIMIT 1`,
-      args: [characterId],
-    });
-    if (talentResult.rows[0]?.talent_data) {
+    const talentRows = await db
+      .select({ talentData: fightPerformance.talentData })
+      .from(fightPerformance)
+      .innerJoin(fights, eq(fights.id, fightPerformance.fightId))
+      .where(
+        and(eq(fightPerformance.characterId, characterId), isNotNull(fightPerformance.talentData)),
+      )
+      .orderBy(desc(fights.startTime))
+      .limit(1);
+    if (talentRows[0]?.talentData) {
       try {
-        latestTalentData = JSON.parse(talentResult.rows[0].talent_data);
+        latestTalentData = JSON.parse(talentRows[0].talentData);
       } catch {
         /* ignore */
       }

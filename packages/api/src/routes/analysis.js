@@ -2,14 +2,15 @@ import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { analysisLimiter } from '../middleware/rateLimit.js';
 import { getCharacterPerformance } from '../services/analysis.js';
-import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
+import { getCharacterBlizzardProfile, saveScoreSnapshot } from '../services/characterProfile.js';
 import { analyzeMythicPlus } from '../services/mythicPlusAnalysis.js';
 import { db } from '../db/client.js';
-import { characters, specMetaCache } from '../db/schema.js';
+import { characters } from '../db/schema.js';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { mplusSnapshots } from '../db/schema.js';
 import { getCharacterEquipment, transformEquipment } from '../services/blizzard.js';
 import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
+import { getMetaWithFreshness } from '../services/metaRefreshManager.js';
 import { getSpecData } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
@@ -42,39 +43,20 @@ router.get('/character/:id', async (req, res) => {
 
     // Fetch Raider.io + equipment in parallel first (fast), then analysis with raiderIO context
     const [raiderIO, equipment] = await Promise.all([
-      getCharacterRaiderIO(char.region, char.realmSlug, char.name),
+      getCharacterBlizzardProfile(char.region, char.realmSlug, char.name),
       getCharacterEquipment(char.name, char.realmSlug, char.region).catch(() => null),
     ]);
 
     // Look up spec-specific CPM baseline
     const specInfo = char.className && char.spec ? getSpecData(char.className, char.spec) : null;
 
-    // Fetch specMeta from cache (used by both talent tips and build analysis)
+    // Fetch specMeta with freshness check (prefers M+ meta, auto-refreshes if stale)
     let specMeta = null;
+    let metaStatus = null;
     if (char.className && char.spec) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db
-        .select()
-        .from(specMetaCache)
-        .where(
-          and(
-            eq(specMetaCache.className, char.className),
-            eq(specMetaCache.spec, char.spec),
-            eq(specMetaCache.region, 'world'),
-            gte(specMetaCache.lastUpdated, sevenDaysAgo),
-          ),
-        )
-        .get();
-      if (cached) {
-        specMeta = {
-          avgStats: JSON.parse(cached.avgStats || '{}'),
-          avgItemLevel: cached.avgItemLevel,
-          commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
-          commonGems: JSON.parse(cached.commonGems || '{}'),
-          commonTalents: JSON.parse(cached.commonTalents || '{}'),
-          sampleSize: cached.sampleSize,
-        };
-      }
+      const metaResult = await getMetaWithFreshness(char.className, char.spec, 'world');
+      specMeta = metaResult.meta;
+      metaStatus = metaResult.status;
     }
 
     const data = await getCharacterPerformance(charId, {
@@ -117,6 +99,7 @@ router.get('/character/:id', async (req, res) => {
           }
         : null,
       buildAnalysis,
+      metaStatus,
     });
   } catch (err) {
     log.error('Analysis failed', err);
@@ -258,31 +241,11 @@ router.get('/character/:id/build', async (req, res) => {
 
     const transformed = transformEquipment(equipment);
 
-    // Try to get specMeta from cache
+    // Fetch specMeta with freshness check
     let specMeta = null;
     if (char.className && char.spec) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db
-        .select()
-        .from(specMetaCache)
-        .where(
-          and(
-            eq(specMetaCache.className, char.className),
-            eq(specMetaCache.spec, char.spec),
-            eq(specMetaCache.region, 'world'),
-            gte(specMetaCache.lastUpdated, sevenDaysAgo),
-          ),
-        )
-        .get();
-      if (cached) {
-        specMeta = {
-          avgStats: JSON.parse(cached.avgStats || '{}'),
-          avgItemLevel: cached.avgItemLevel,
-          commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
-          commonGems: JSON.parse(cached.commonGems || '{}'),
-          sampleSize: cached.sampleSize,
-        };
-      }
+      const metaResult = await getMetaWithFreshness(char.className, char.spec, 'world');
+      specMeta = metaResult.meta;
     }
 
     const result = analyzeCharacterBuild(transformed, char.className, char.spec, specMeta);

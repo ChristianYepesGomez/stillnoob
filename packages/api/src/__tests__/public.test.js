@@ -7,8 +7,13 @@ vi.mock('../services/analysis.js', () => ({
   invalidateAnalysisCache: vi.fn(),
 }));
 
-vi.mock('../services/raiderio.js', () => ({
-  getCharacterRaiderIO: vi.fn(),
+vi.mock('../services/characterProfile.js', () => ({
+  getCharacterBlizzardProfile: vi.fn(),
+  saveScoreSnapshot: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock('../services/metaRefreshManager.js', () => ({
+  getMetaWithFreshness: vi.fn().mockResolvedValue({ meta: null, status: 'fresh', source: null }),
 }));
 
 vi.mock('../services/blizzard.js', () => ({
@@ -33,7 +38,7 @@ import request from 'supertest';
 import app from '../app.js';
 import { client } from '../db/client.js';
 import { getCharacterPerformance } from '../services/analysis.js';
-import { getCharacterRaiderIO } from '../services/raiderio.js';
+import { getCharacterBlizzardProfile } from '../services/characterProfile.js';
 import { getCharacterProfile, getCharacterMedia, getRealmList } from '../services/blizzard.js';
 
 const mockPerformanceData = {
@@ -118,7 +123,7 @@ beforeAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   getCharacterPerformance.mockResolvedValue(mockPerformanceData);
-  getCharacterRaiderIO.mockResolvedValue(mockRaiderIO);
+  getCharacterBlizzardProfile.mockResolvedValue(mockRaiderIO);
   getCharacterProfile.mockResolvedValue(null);
   getCharacterMedia.mockResolvedValue(null);
 });
@@ -162,7 +167,7 @@ describe('GET /api/v1/public/character/:region/:realm/:name', () => {
       main: null,
       mainRaw: null,
     });
-    getCharacterRaiderIO.mockResolvedValue(mockRaiderIO);
+    getCharacterBlizzardProfile.mockResolvedValue(mockRaiderIO);
 
     const res = await request(app).get('/api/v1/public/character/eu/stormrage/Newchar');
     expect(res.status).toBe(200);

@@ -2,6 +2,8 @@
  * Meta Aggregation service — collects gear/stat data from top-ranked players
  * for each spec and stores aggregated "meta" builds in the DB.
  * Used to compare individual players against the current meta.
+ *
+ * Also exports shared aggregation helpers reused by mplusMetaAggregation.js.
  */
 
 import { db } from '../db/client.js';
@@ -15,10 +17,140 @@ import { createLogger } from '../utils/logger.js';
 const log = createLogger('MetaAggregation');
 
 /** Current season identifier (hardcoded for TWW Season 2). */
-const CURRENT_SEASON = 'tww-2';
+export const CURRENT_SEASON = 'tww-2';
 
 /** How long a cached meta entry is considered fresh (2 days). */
 const META_FRESHNESS_MS = 2 * 24 * 60 * 60 * 1000;
+
+// ── Shared Aggregation Helpers ──────────────────────────────────
+
+/**
+ * Aggregate stat distribution percentages across multiple equipment results.
+ * @param {Array} equipmentResults - Array of transformEquipment() outputs
+ * @returns {{ avgStats: object, avgItemLevel: number }}
+ */
+export function aggregateEquipmentStats(equipmentResults) {
+  const sampleSize = equipmentResults.length;
+  if (sampleSize === 0) return { avgStats: {}, avgItemLevel: 0 };
+
+  const avgStats = {};
+  for (const stat of SECONDARY_STATS) {
+    const sum = equipmentResults.reduce(
+      (acc, eq) => acc + (eq.aggregated?.statDistribution?.[stat] || 0),
+      0,
+    );
+    avgStats[stat] = Math.round((sum / sampleSize) * 10) / 10;
+  }
+
+  const avgItemLevel =
+    Math.round(
+      (equipmentResults.reduce((acc, eq) => acc + (eq.aggregated?.averageItemLevel || 0), 0) /
+        sampleSize) *
+        10,
+    ) / 10;
+
+  return { avgStats, avgItemLevel };
+}
+
+/**
+ * Aggregate most common enchants per slot across equipment results.
+ * @param {Array} equipmentResults - Array of transformEquipment() outputs
+ * @param {number} sampleSize - Total samples for percentage calculation
+ * @returns {object} { slot: { name, pct }, ... }
+ */
+export function aggregateEnchants(equipmentResults, sampleSize) {
+  const enchantCounts = {}; // slot → { enchantName → count }
+  for (const eq of equipmentResults) {
+    for (const item of eq.items || []) {
+      if (item.enchant) {
+        if (!enchantCounts[item.slot]) enchantCounts[item.slot] = {};
+        enchantCounts[item.slot][item.enchant] =
+          (enchantCounts[item.slot][item.enchant] || 0) + 1;
+      }
+    }
+  }
+
+  const commonEnchants = {};
+  for (const [slot, enchants] of Object.entries(enchantCounts)) {
+    const sorted = Object.entries(enchants).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) {
+      const [name, count] = sorted[0];
+      commonEnchants[slot] = {
+        name,
+        pct: Math.round((count / sampleSize) * 1000) / 10,
+      };
+    }
+  }
+
+  return commonEnchants;
+}
+
+/**
+ * Aggregate most common gems across equipment results.
+ * @param {Array} equipmentResults - Array of transformEquipment() outputs
+ * @param {number} sampleSize - Total samples for percentage calculation
+ * @returns {object} { gemName: { count, pct }, ... } (top 10)
+ */
+export function aggregateGems(equipmentResults, sampleSize) {
+  const gemCounts = {}; // gemName → count
+  for (const eq of equipmentResults) {
+    for (const item of eq.items || []) {
+      for (const gem of item.gems || []) {
+        gemCounts[gem] = (gemCounts[gem] || 0) + 1;
+      }
+    }
+  }
+
+  const commonGems = {};
+  const sortedGems = Object.entries(gemCounts).sort((a, b) => b[1] - a[1]);
+  for (const [name, count] of sortedGems.slice(0, 10)) {
+    commonGems[name] = {
+      count,
+      pct: Math.round((count / sampleSize) * 1000) / 10,
+    };
+  }
+
+  return commonGems;
+}
+
+/**
+ * Upsert aggregated meta data into specMetaCache.
+ * @param {object} params - { className, spec, region, season, source, data }
+ */
+export async function upsertSpecMeta({ className, spec, region, season, source = 'raid', data }) {
+  const existing = await db
+    .select()
+    .from(specMetaCache)
+    .where(
+      and(
+        eq(specMetaCache.className, className),
+        eq(specMetaCache.spec, spec),
+        eq(specMetaCache.region, region),
+        eq(specMetaCache.season, season),
+        eq(specMetaCache.source, source),
+      ),
+    )
+    .get();
+
+  if (existing) {
+    await db
+      .update(specMetaCache)
+      .set({ ...data, lastUpdated: new Date().toISOString() })
+      .where(eq(specMetaCache.id, existing.id));
+  } else {
+    await db.insert(specMetaCache).values({
+      className,
+      spec,
+      region,
+      season,
+      source,
+      ...data,
+      lastUpdated: new Date().toISOString(),
+    });
+  }
+}
+
+// ── Raid Meta Refresh ───────────────────────────────────────────
 
 /**
  * Refresh the spec meta cache by fetching gear data from top-ranked players.
@@ -74,69 +206,11 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
 
     log.info(`Got equipment for ${equipmentResults.length}/${topPlayers.length} players`);
 
-    // Step 3: Aggregate results
+    // Step 3: Aggregate using shared helpers
     const sampleSize = equipmentResults.length;
-
-    // --- Average stats (stat distribution percentages) ---
-    const avgStats = {};
-    for (const stat of SECONDARY_STATS) {
-      const sum = equipmentResults.reduce(
-        (acc, eq) => acc + (eq.aggregated?.statDistribution?.[stat] || 0),
-        0,
-      );
-      avgStats[stat] = Math.round((sum / sampleSize) * 10) / 10;
-    }
-
-    // --- Average item level ---
-    const avgItemLevel =
-      Math.round(
-        (equipmentResults.reduce((acc, eq) => acc + (eq.aggregated?.averageItemLevel || 0), 0) /
-          sampleSize) *
-          10,
-      ) / 10;
-
-    // --- Common enchants (per enchantable slot) ---
-    const enchantCounts = {}; // slot → { enchantName → count }
-    for (const eq of equipmentResults) {
-      for (const item of eq.items || []) {
-        if (item.enchant) {
-          if (!enchantCounts[item.slot]) enchantCounts[item.slot] = {};
-          enchantCounts[item.slot][item.enchant] =
-            (enchantCounts[item.slot][item.enchant] || 0) + 1;
-        }
-      }
-    }
-
-    const commonEnchants = {};
-    for (const [slot, enchants] of Object.entries(enchantCounts)) {
-      const sorted = Object.entries(enchants).sort((a, b) => b[1] - a[1]);
-      if (sorted.length > 0) {
-        const [name, count] = sorted[0];
-        commonEnchants[slot] = {
-          name,
-          pct: Math.round((count / sampleSize) * 1000) / 10,
-        };
-      }
-    }
-
-    // --- Common gems ---
-    const gemCounts = {}; // gemName → count
-    for (const eq of equipmentResults) {
-      for (const item of eq.items || []) {
-        for (const gem of item.gems || []) {
-          gemCounts[gem] = (gemCounts[gem] || 0) + 1;
-        }
-      }
-    }
-
-    const commonGems = {};
-    const sortedGems = Object.entries(gemCounts).sort((a, b) => b[1] - a[1]);
-    for (const [name, count] of sortedGems.slice(0, 10)) {
-      commonGems[name] = {
-        count,
-        pct: Math.round((count / sampleSize) * 1000) / 10,
-      };
-    }
+    const { avgStats, avgItemLevel } = aggregateEquipmentStats(equipmentResults);
+    const commonEnchants = aggregateEnchants(equipmentResults, sampleSize);
+    const commonGems = aggregateGems(equipmentResults, sampleSize);
 
     // Step 4: Upsert into DB
     const data = {
@@ -147,34 +221,7 @@ export async function refreshSpecMeta(className, spec, region = 'world') {
       sampleSize,
     };
 
-    const existing = await db
-      .select()
-      .from(specMetaCache)
-      .where(
-        and(
-          eq(specMetaCache.className, className),
-          eq(specMetaCache.spec, spec),
-          eq(specMetaCache.region, region),
-          eq(specMetaCache.season, season),
-        ),
-      )
-      .get();
-
-    if (existing) {
-      await db
-        .update(specMetaCache)
-        .set({ ...data, lastUpdated: new Date().toISOString() })
-        .where(eq(specMetaCache.id, existing.id));
-    } else {
-      await db.insert(specMetaCache).values({
-        className,
-        spec,
-        region,
-        season,
-        ...data,
-        lastUpdated: new Date().toISOString(),
-      });
-    }
+    await upsertSpecMeta({ className, spec, region, season, source: 'raid', data });
 
     log.info(
       `Meta cache updated: ${className} ${spec} (${region}) — ${sampleSize} samples, avgIlvl ${avgItemLevel}`,
@@ -227,6 +274,7 @@ export async function getSpecMeta(className, spec, region = 'world') {
       avgItemLevel: row.avgItemLevel,
       commonEnchants: JSON.parse(row.commonEnchants || '{}'),
       commonGems: JSON.parse(row.commonGems || '{}'),
+      commonTalents: JSON.parse(row.commonTalents || '{}'),
       sampleSize: row.sampleSize,
       lastUpdated: row.lastUpdated,
     };

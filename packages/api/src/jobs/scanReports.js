@@ -8,7 +8,7 @@ import {
   getBatchExtendedFightStats,
 } from '../services/wcl.js';
 import { processExtendedFightData, invalidateAnalysisCache } from '../services/analysis.js';
-import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
+import { getCharacterBlizzardProfile, saveScoreSnapshot } from '../services/characterProfile.js';
 import { acquireToken } from '../services/rateLimiter.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -242,7 +242,7 @@ export async function scanForNewReports() {
       }
       // Snapshot M+ score from Raider.IO
       try {
-        const raiderIO = await getCharacterRaiderIO(char.region, char.realmSlug, char.name);
+        const raiderIO = await getCharacterBlizzardProfile(char.region, char.realmSlug, char.name);
         if (raiderIO?.mythicPlus?.score) {
           await saveScoreSnapshot(char.id, raiderIO);
         }

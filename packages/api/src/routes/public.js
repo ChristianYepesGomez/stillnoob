@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client.js';
-import { characters, specMetaCache } from '../db/schema.js';
+import { characters } from '../db/schema.js';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { getCharacterPerformance } from '../services/analysis.js';
 import {
@@ -11,10 +11,10 @@ import {
   getCharacterMedia,
 } from '../services/blizzard.js';
 import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
-import { getCharacterRaiderIO, saveScoreSnapshot } from '../services/raiderio.js';
+import { getCharacterBlizzardProfile, saveScoreSnapshot } from '../services/characterProfile.js';
 import { analyzeMythicPlus } from '../services/mythicPlusAnalysis.js';
 import { mplusSnapshots } from '../db/schema.js';
-import { getSpecMeta } from '../services/metaAggregation.js';
+import { getMetaWithFreshness } from '../services/metaRefreshManager.js';
 import { getSpecData } from '@stillnoob/shared';
 import { createLogger } from '../utils/logger.js';
 
@@ -63,30 +63,11 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
     const normalizedName = name.normalize('NFC').toLowerCase();
     const match = char.find((c) => c.name.normalize('NFC').toLowerCase() === normalizedName);
 
-    // Helper: fetch specMeta from cache
+    // Helper: fetch specMeta with freshness check (prefers M+ meta)
     const fetchSpecMeta = async (className, spec) => {
       if (!className || !spec) return null;
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db
-        .select()
-        .from(specMetaCache)
-        .where(
-          and(
-            eq(specMetaCache.className, className),
-            eq(specMetaCache.spec, spec),
-            eq(specMetaCache.region, 'world'),
-            gte(specMetaCache.lastUpdated, sevenDaysAgo),
-          ),
-        )
-        .get();
-      if (!cached) return null;
-      return {
-        avgStats: JSON.parse(cached.avgStats || '{}'),
-        avgItemLevel: cached.avgItemLevel,
-        commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
-        commonGems: JSON.parse(cached.commonGems || '{}'),
-        sampleSize: cached.sampleSize,
-      };
+      const result = await getMetaWithFreshness(className, spec, 'world');
+      return result.meta;
     };
 
     // Helper: build M+ analysis from raiderIO data
@@ -105,14 +86,15 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
 
     // --- DB match: return full WCL-enriched profile ---
     if (match) {
-      const [data, raiderIO, equipment] = await Promise.all([
+      const [data, raiderIO, equipment, media] = await Promise.all([
         getCharacterPerformance(match.id, {
           weeks,
           visibilityFilter: 'public',
           characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region },
         }),
-        getCharacterRaiderIO(match.region, match.realmSlug, match.name),
+        getCharacterBlizzardProfile(match.region, match.realmSlug, match.name),
         getCharacterEquipment(match.name, match.realmSlug, match.region).catch(() => null),
+        getCharacterMedia(match.name, match.realmSlug, match.region).catch(() => null),
       ]);
 
       let buildAnalysis = null;
@@ -132,6 +114,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           className: match.className,
           spec: match.spec,
           raidRole: match.raidRole,
+          media,
         },
         score: data.score,
         summary: {
@@ -177,7 +160,7 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
     }
 
     const [raiderIO, equipment, media] = await Promise.all([
-      getCharacterRaiderIO(regionLower, realmSlug, profile.name),
+      getCharacterBlizzardProfile(regionLower, realmSlug, profile.name),
       getCharacterEquipment(profile.name, realmSlug, regionLower).catch(() => null),
       getCharacterMedia(profile.name, realmSlug, regionLower),
     ]);
@@ -291,31 +274,11 @@ router.get('/character/:region/:realm/:name/build', async (req, res) => {
 
     const transformed = transformEquipment(equipment);
 
-    // Try to get specMeta from cache
+    // Fetch specMeta with freshness check
     let specMeta = null;
     if (match.className && match.spec) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const cached = await db
-        .select()
-        .from(specMetaCache)
-        .where(
-          and(
-            eq(specMetaCache.className, match.className),
-            eq(specMetaCache.spec, match.spec),
-            eq(specMetaCache.region, 'world'),
-            gte(specMetaCache.lastUpdated, sevenDaysAgo),
-          ),
-        )
-        .get();
-      if (cached) {
-        specMeta = {
-          avgStats: JSON.parse(cached.avgStats || '{}'),
-          avgItemLevel: cached.avgItemLevel,
-          commonEnchants: JSON.parse(cached.commonEnchants || '{}'),
-          commonGems: JSON.parse(cached.commonGems || '{}'),
-          sampleSize: cached.sampleSize,
-        };
-      }
+      const metaResult = await getMetaWithFreshness(match.className, match.spec, 'world');
+      specMeta = metaResult.meta;
     }
 
     const result = analyzeCharacterBuild(transformed, match.className, match.spec, specMeta);
@@ -331,10 +294,11 @@ router.get('/meta/:className/:spec', async (req, res) => {
   try {
     const { className, spec } = req.params;
 
-    const [specMeta, specData] = await Promise.all([
-      getSpecMeta(className, spec),
+    const [metaResult, specData] = await Promise.all([
+      getMetaWithFreshness(className, spec, 'world'),
       Promise.resolve(getSpecData(className, spec)),
     ]);
+    const specMeta = metaResult.meta;
 
     res.json({
       specData: specData || null,

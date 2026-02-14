@@ -280,6 +280,7 @@ export const specMetaCache = sqliteTable(
     spec: text('spec').notNull(),
     region: text('region').notNull().default('world'),
     season: text('season').notNull(),
+    source: text('source').notNull().default('raid'),
     avgStats: text('avg_stats').default('{}'),
     avgItemLevel: real('avg_item_level').default(0),
     commonEnchants: text('common_enchants').default('{}'),
@@ -289,6 +290,12 @@ export const specMetaCache = sqliteTable(
     lastUpdated: text('last_updated').default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    uniqueIndex('spec_meta_unique').on(table.className, table.spec, table.region, table.season),
+    uniqueIndex('spec_meta_unique').on(
+      table.className,
+      table.spec,
+      table.region,
+      table.season,
+      table.source,
+    ),
   ],
 );

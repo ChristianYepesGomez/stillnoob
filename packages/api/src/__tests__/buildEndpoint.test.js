@@ -7,14 +7,20 @@ vi.mock('../services/analysis.js', () => ({
   invalidateAnalysisCache: vi.fn(),
 }));
 
-vi.mock('../services/raiderio.js', () => ({
-  getCharacterRaiderIO: vi.fn(),
+vi.mock('../services/characterProfile.js', () => ({
+  getCharacterBlizzardProfile: vi.fn(),
   saveScoreSnapshot: vi.fn(),
 }));
 
 vi.mock('../services/blizzard.js', () => ({
   getCharacterEquipment: vi.fn(),
   transformEquipment: vi.fn(),
+  BLIZZARD_SPEC_MAP: {},
+  BLIZZARD_CLASS_MAP: {},
+}));
+
+vi.mock('../services/metaRefreshManager.js', () => ({
+  getMetaWithFreshness: vi.fn().mockResolvedValue({ meta: null, status: 'fresh', source: null }),
 }));
 
 vi.mock('../services/buildAnalysis.js', () => ({
@@ -40,6 +46,7 @@ import app from '../app.js';
 import { client } from '../db/client.js';
 import { getCharacterEquipment, transformEquipment } from '../services/blizzard.js';
 import { analyzeCharacterBuild } from '../services/buildAnalysis.js';
+import { getMetaWithFreshness } from '../services/metaRefreshManager.js';
 
 // Helper: register a user and return the access token + user id
 async function registerAndGetToken(email = 'build-test@example.com') {
@@ -94,6 +101,7 @@ beforeAll(async () => {
     spec TEXT NOT NULL,
     region TEXT NOT NULL DEFAULT 'world',
     season TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'raid',
     avg_stats TEXT DEFAULT '{}',
     avg_item_level REAL DEFAULT 0,
     common_enchants TEXT DEFAULT '{}',
@@ -266,24 +274,15 @@ describe('GET /api/v1/analysis/character/:id/build', () => {
     const charRow = await client.execute('SELECT id FROM characters WHERE name = ?', ['MetaMage']);
     const charId = charRow.rows[0].id;
 
-    // Insert fresh spec meta cache (within 7 days)
-    const recentDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
-    await client.execute({
-      sql: `INSERT INTO spec_meta_cache (class_name, spec, region, season, avg_stats, avg_item_level, common_enchants, common_gems, sample_size, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        'Mage',
-        'Fire',
-        'world',
-        'midnight-1',
-        '{"crit":30,"haste":25}',
-        625,
-        '{"weapon":"enchant_a"}',
-        '{"meta":"gem_a"}',
-        500,
-        recentDate,
-      ],
-    });
+    // Mock getMetaWithFreshness to return specMeta
+    const mockSpecMeta = {
+      avgStats: { crit: 30, haste: 25 },
+      avgItemLevel: 625,
+      commonEnchants: { weapon: 'enchant_a' },
+      commonGems: { meta: 'gem_a' },
+      sampleSize: 500,
+    };
+    getMetaWithFreshness.mockResolvedValue({ meta: mockSpecMeta, status: 'fresh', source: 'mplus' });
 
     const mockEquipment = { equipped_items: [] };
     const mockTransformed = { items: [], avgItemLevel: 610 };

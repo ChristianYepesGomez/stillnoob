@@ -1,4 +1,8 @@
 /**
+ * @deprecated Use characterProfile.js instead. This file is kept as fallback
+ * during the transition period and will be removed once characterProfile.js
+ * is confirmed stable in production.
+ *
  * Raider.io API integration — free, public, no auth needed.
  * https://raider.io/api
  */

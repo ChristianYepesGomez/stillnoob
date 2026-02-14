@@ -44,6 +44,7 @@ import reportRoutes from './routes/reports.js';
 import analysisRoutes from './routes/analysis.js';
 import publicRoutes from './routes/public.js';
 import guildRoutes from './routes/guilds.js';
+import metaRoutes from './routes/meta.js';
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/characters', characterRoutes);
@@ -51,6 +52,7 @@ app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/analysis', analysisRoutes);
 app.use('/api/v1/public', publicRoutes);
 app.use('/api/v1/guilds', guildRoutes);
+app.use('/api/v1/meta', metaRoutes);
 
 // 404 handler
 app.use('/api', (req, res) => {

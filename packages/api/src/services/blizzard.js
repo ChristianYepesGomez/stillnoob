@@ -8,7 +8,7 @@ let appToken = null;
 let tokenExpiry = 0;
 
 /** Blizzard class ID → class name */
-const BLIZZARD_CLASS_MAP = {
+export const BLIZZARD_CLASS_MAP = {
   1: 'Warrior',
   2: 'Paladin',
   3: 'Hunter',
@@ -25,7 +25,7 @@ const BLIZZARD_CLASS_MAP = {
 };
 
 /** Blizzard spec ID → spec name + raid role */
-const BLIZZARD_SPEC_MAP = {
+export const BLIZZARD_SPEC_MAP = {
   // Warrior
   71: { spec: 'Arms', role: 'DPS' },
   72: { spec: 'Fury', role: 'DPS' },
@@ -541,6 +541,154 @@ export function transformEquipment(rawEquipment) {
       emptySlots,
     },
   };
+}
+
+// --- Character Talents API ---
+
+const talentCache = new Map();
+const TALENT_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
+
+/**
+ * Fetch character talent loadout from Blizzard API.
+ * Returns the active spec's selected talents in our internal format:
+ * [{ id, nodeId, name, spellId }]
+ * Returns null on 404 or if talent data is unavailable.
+ */
+export async function getCharacterTalents(name, realmSlug, region) {
+  const cacheKey = `talent:${region}:${realmSlug}:${name}`.normalize('NFC').toLowerCase();
+  const cached = talentCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < TALENT_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const token = await getAccessToken();
+
+  try {
+    const response = await axios.get(
+      `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(realmSlug)}/${encodeURIComponent(name.normalize('NFC').toLowerCase())}/specializations`,
+      {
+        params: { namespace: `profile-${region}`, locale: 'en_US' },
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const specs = response.data.specializations || [];
+    // Find active specialization
+    const active =
+      specs.find((s) => s.specialization?.id === response.data.active_specialization?.id) ||
+      specs[0];
+
+    if (!active) {
+      talentCache.set(cacheKey, { data: null, timestamp: Date.now() });
+      return null;
+    }
+
+    // Extract talents from the active loadout
+    const activeLoadout = (active.loadouts || []).find((l) => l.is_active) || active.loadouts?.[0];
+    if (!activeLoadout) {
+      talentCache.set(cacheKey, { data: null, timestamp: Date.now() });
+      return null;
+    }
+
+    const talents = [];
+    for (const category of ['selected_class_talents', 'selected_spec_talents', 'selected_hero_talents']) {
+      for (const node of activeLoadout[category] || []) {
+        const talent = node.tooltip?.talent || node.talent;
+        const spell = node.tooltip?.spell_tooltip?.spell || node.spell_tooltip?.spell;
+        if (talent || spell) {
+          talents.push({
+            id: talent?.id || spell?.id || node.id,
+            nodeId: node.id || talent?.id,
+            name: talent?.name || spell?.name || `Node ${node.id}`,
+            spellId: spell?.id || null,
+          });
+        }
+      }
+    }
+
+    talentCache.set(cacheKey, { data: talents, timestamp: Date.now() });
+
+    // Evict old entries
+    if (talentCache.size > 500) {
+      const oldest = [...talentCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+      for (let i = 0; i < 100; i++) talentCache.delete(oldest[i][0]);
+    }
+
+    return talents;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      talentCache.set(cacheKey, { data: null, timestamp: Date.now() });
+      return null;
+    }
+    throw error;
+  }
+}
+
+// --- Character M+ Profile API ---
+
+const mplusProfileCache = new Map();
+const MPLUS_PROFILE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+/**
+ * Fetch character Mythic+ profile for a specific season.
+ * Returns best runs and mythic_rating from Blizzard's profile API.
+ * Returns null on 404.
+ */
+export async function getCharacterMythicProfile(name, realmSlug, region, seasonId) {
+  const cacheKey =
+    `mplus:${region}:${realmSlug}:${name}:${seasonId}`.normalize('NFC').toLowerCase();
+  const cached = mplusProfileCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < MPLUS_PROFILE_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const token = await getAccessToken();
+
+  try {
+    const response = await axios.get(
+      `${getApiUrl(region)}/profile/wow/character/${encodeURIComponent(realmSlug)}/${encodeURIComponent(name.normalize('NFC').toLowerCase())}/mythic-keystone-profile/season/${seasonId}`,
+      {
+        params: { namespace: `profile-${region}`, locale: 'en_US' },
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+
+    const data = {
+      mythicRating: response.data.mythic_rating || null,
+      bestRuns: (response.data.best_runs || []).map((run) => ({
+        dungeon: { id: run.dungeon?.id, name: run.dungeon?.name },
+        keystoneLevel: run.keystone_level,
+        duration: run.duration,
+        isCompleted: run.is_completed_within_time ?? false,
+        completedTimestamp: run.completed_timestamp,
+        affixes: (run.keystone_affixes || []).map((a) => ({ id: a.id, name: a.name })),
+        members: (run.members || []).map((m) => ({
+          name: m.character?.name,
+          realmSlug: m.character?.realm?.slug,
+          specId: m.specialization?.id,
+          equippedItemLevel: m.equipped_item_level,
+        })),
+      })),
+    };
+
+    mplusProfileCache.set(cacheKey, { data, timestamp: Date.now() });
+
+    // Evict old entries
+    if (mplusProfileCache.size > 500) {
+      const oldest = [...mplusProfileCache.entries()].sort(
+        (a, b) => a[1].timestamp - b[1].timestamp,
+      );
+      for (let i = 0; i < 100; i++) mplusProfileCache.delete(oldest[i][0]);
+    }
+
+    return data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      mplusProfileCache.set(cacheKey, { data: null, timestamp: Date.now() });
+      return null;
+    }
+    throw error;
+  }
 }
 
 // --- Realm List API ---

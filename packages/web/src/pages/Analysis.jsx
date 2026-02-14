@@ -1,16 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { analysisAPI, charactersAPI } from '../services/api';
-import OverviewSection from '../components/analysis/OverviewSection';
-import BossesSection from '../components/analysis/BossesSection';
-import TrendsSection from '../components/analysis/TrendsSection';
-import RecommendationsSection from '../components/analysis/RecommendationsSection';
-import RecentFightsSection from '../components/analysis/RecentFightsSection';
-import MythicPlusSection from '../components/analysis/MythicPlusSection';
-import BuildSection from '../components/analysis/BuildSection';
+import WrappedExperience from '../components/wrapped/WrappedExperience';
+import { shouldShowWrapped } from '../components/wrapped/shared/wrappedUtils';
+import ExplorerView from '../components/analysis/ExplorerView';
 
-const BASE_TABS = ['overview', 'build', 'bosses', 'trends', 'recentFights', 'recommendations'];
 const PERIODS = [4, 8, 12, 52];
 
 export default function Analysis() {
@@ -18,10 +13,10 @@ export default function Analysis() {
   const { characterId } = useParams();
   const [characters, setCharacters] = useState([]);
   const [selectedCharId, setSelectedCharId] = useState(characterId ? parseInt(characterId) : null);
-  const [activeTab, setActiveTab] = useState('overview');
   const [weeks, setWeeks] = useState(8);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState(null); // 'wrapped' | 'explorer'
 
   // Load characters
   useEffect(() => {
@@ -38,37 +33,42 @@ export default function Analysis() {
   useEffect(() => {
     if (!selectedCharId) return;
     setLoading(true);
+    setViewMode(null);
     analysisAPI
       .character(selectedCharId, weeks)
-      .then((r) => setData(r.data))
+      .then((r) => {
+        setData(r.data);
+        // Determine view mode based on wrapped state
+        if (r.data?.summary?.totalFights > 0) {
+          const show = shouldShowWrapped(selectedCharId, r.data);
+          setViewMode(show ? 'wrapped' : 'explorer');
+        }
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [selectedCharId, weeks]);
 
-  const selectedChar = useMemo(
-    () => characters.find((c) => c.id === selectedCharId),
-    [characters, selectedCharId],
-  );
+  const handleWrappedComplete = useCallback(() => {
+    setViewMode('explorer');
+  }, []);
 
-  // Show M+ tab only when raiderIO data exists
-  const TABS = useMemo(() => {
-    if (data?.raiderIO) {
-      return [
-        'overview',
-        'mythicPlus',
-        'build',
-        'bosses',
-        'trends',
-        'recentFights',
-        'recommendations',
-      ];
-    }
-    return BASE_TABS;
-  }, [data?.raiderIO]);
+  const handleRewatch = useCallback(() => {
+    setViewMode('wrapped');
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+      {/* Wrapped overlay */}
+      {viewMode === 'wrapped' && data && (
+        <WrappedExperience
+          data={data}
+          identifier={selectedCharId}
+          onComplete={handleWrappedComplete}
+          onSkip={handleWrappedComplete}
+        />
+      )}
+
+      {/* Header — always visible (behind wrapped overlay) */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="font-cinzel text-2xl font-bold text-white">
           {t('analysis.characterAnalysis')}
@@ -130,43 +130,13 @@ export default function Analysis() {
         </div>
       )}
 
-      {/* Analysis content */}
-      {!loading && data && data.summary?.totalFights > 0 && (
-        <>
-          {/* Tabs */}
-          <div className="flex gap-1 bg-void-mid/50 rounded-xl p-1 border border-void-bright/10">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  activeTab === tab
-                    ? 'bg-void-bright text-white'
-                    : 'text-void-text hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {tab === 'mythicPlus' ? t('raiderio.mythicPlus') : t(`analysis.${tab}`)}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div>
-            {activeTab === 'overview' && <OverviewSection data={data} />}
-            {activeTab === 'mythicPlus' && (
-              <MythicPlusSection
-                raiderIO={data.raiderIO}
-                mplusAnalysis={data.mplusAnalysis}
-                characterId={selectedCharId}
-              />
-            )}
-            {activeTab === 'build' && <BuildSection characterId={selectedCharId} />}
-            {activeTab === 'bosses' && <BossesSection data={data} />}
-            {activeTab === 'trends' && <TrendsSection data={data} />}
-            {activeTab === 'recentFights' && <RecentFightsSection data={data} />}
-            {activeTab === 'recommendations' && <RecommendationsSection data={data} />}
-          </div>
-        </>
+      {/* Explorer mode */}
+      {viewMode === 'explorer' && data && data.summary?.totalFights > 0 && (
+        <ExplorerView
+          data={data}
+          characterId={selectedCharId}
+          onRewatch={handleRewatch}
+        />
       )}
     </div>
   );

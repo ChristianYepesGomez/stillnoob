@@ -15,52 +15,48 @@ export default function GearVerdict({ buildAnalysis }) {
   const alignment = statAnalysis?.alignment || 'mixed';
   const alignStyle = ALIGNMENT_STYLES[alignment] || ALIGNMENT_STYLES.mixed;
 
-  // Top critical/warning tips (max 2)
+  // Only critical tips visible for free (max 2)
   const topTips = (gearTips || [])
-    .filter((tip) => tip.severity === 'critical' || tip.severity === 'warning')
+    .filter((tip) => tip.severity === 'critical')
     .slice(0, 2);
 
   return (
     <div className="bg-void-mid/50 rounded-2xl border border-void-bright/10 p-5 animate-fade-in">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider">
-          <i className="fas fa-shield-halved mr-2 text-amber-400" />
-          {t('public.gearVerdict')}
-        </h2>
-        <span
-          className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${alignStyle.bg} ${alignStyle.text} ${alignStyle.border}`}
-        >
-          <i className={`fas ${alignStyle.icon} mr-1`} />
-          {t(`analysis.alignment${alignment.charAt(0).toUpperCase() + alignment.slice(1)}`)}
-        </span>
-      </div>
+      <h2 className="text-sm font-semibold text-void-text uppercase tracking-wider mb-4">
+        <i className="fas fa-shield-halved mr-2 text-amber-400" />
+        {t('public.gearVerdict')}
+      </h2>
 
-      {/* Stat bars mini preview */}
-      {statAnalysis?.distribution && (
-        <div className="space-y-1.5 mb-4">
-          {Object.entries(statAnalysis.distribution)
-            .sort((a, b) => b[1] - a[1])
-            .map(([stat, pct]) => {
-              const rank = statAnalysis.specPriority?.indexOf(stat) ?? -1;
-              const color =
-                rank === 0 || rank === 1 ? 'bg-green-500' : rank === 2 ? 'bg-yellow-500' : 'bg-gray-500';
-              return (
-                <div key={stat} className="flex items-center gap-2">
-                  <span className="text-[10px] text-void-secondary w-16 text-right capitalize">{stat}</span>
-                  <div className="flex-1 h-2 bg-void-deep/50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${color} rounded-full transition-all duration-700`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-orbitron text-void-muted w-8">{Math.round(pct)}%</span>
-                </div>
-              );
-            })}
+      {/* Stat priority teaser — no detail bars, just verdict */}
+      {statAnalysis?.alignment && (
+        <div
+          className={`p-4 rounded-xl border mb-4 ${alignStyle.bg} ${alignStyle.border}`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <i className={`fas ${alignStyle.icon} ${alignStyle.text}`} />
+              <span className={`text-sm font-semibold ${alignStyle.text}`}>
+                {alignment === 'good'
+                  ? t('public.statsPriorityGood')
+                  : t('public.statsPriorityImprovable')}
+              </span>
+            </div>
+            {alignment !== 'good' && (
+              <span className="text-[10px] text-void-muted flex items-center gap-1">
+                <i className="fas fa-lock text-void-muted/60" />
+                {t('public.statsPriorityLocked')}
+              </span>
+            )}
+          </div>
+          {alignment !== 'good' && (
+            <p className="text-xs text-void-secondary mt-2">
+              {t('public.statsPriorityHint')}
+            </p>
+          )}
         </div>
       )}
 
-      {/* Issues grid */}
+      {/* Enchant & gem status — free value */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div
           className={`flex items-center gap-2 p-3 rounded-xl border ${missingEnchants > 0 ? 'bg-red-900/10 border-red-500/20' : 'bg-green-900/10 border-green-500/20'}`}
@@ -92,21 +88,15 @@ export default function GearVerdict({ buildAnalysis }) {
         </div>
       </div>
 
-      {/* Top gear tips */}
+      {/* Critical gear tips only */}
       {topTips.length > 0 && (
         <div className="space-y-2">
           {topTips.map((tip, i) => (
             <div
               key={i}
-              className={`flex items-start gap-2 p-3 rounded-lg border ${
-                tip.severity === 'critical'
-                  ? 'bg-red-900/10 border-red-500/20'
-                  : 'bg-yellow-900/10 border-yellow-500/20'
-              }`}
+              className="flex items-start gap-2 p-3 rounded-lg border bg-red-900/10 border-red-500/20"
             >
-              <i
-                className={`fas ${tip.severity === 'critical' ? 'fa-circle-exclamation text-red-400' : 'fa-triangle-exclamation text-yellow-400'} mt-0.5 text-sm`}
-              />
+              <i className="fas fa-circle-exclamation text-red-400 mt-0.5 text-sm" />
               <p className="text-sm text-void-text">{t(`rec.${tip.key}`, tip.data)}</p>
             </div>
           ))}

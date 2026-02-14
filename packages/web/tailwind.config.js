@@ -35,6 +35,10 @@ export default {
         'fade-in': 'fadeIn 0.3s ease-out both',
         shimmer: 'shimmer 4s ease-in-out infinite',
         'void-drift': 'voidDrift 20s ease-in-out infinite alternate',
+        'scale-pulse': 'scalePulse 400ms ease-in-out',
+        'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+        'line-expand': 'lineExpand 600ms ease-out both',
+        'key-rotate': 'keyRotate 1s ease-in-out',
       },
       keyframes: {
         fadeIn: {
@@ -48,6 +52,23 @@ export default {
         voidDrift: {
           '0%': { transform: 'translate(0, 0) rotate(0deg)' },
           '100%': { transform: 'translate(-5%, 3%) rotate(2deg)' },
+        },
+        scalePulse: {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.05)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        glowPulse: {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '0.8' },
+        },
+        lineExpand: {
+          '0%': { width: '0%' },
+          '100%': { width: '40%' },
+        },
+        keyRotate: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
         },
       },
     },

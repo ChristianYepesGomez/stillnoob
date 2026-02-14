@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { publicAPI } from '../services/api';
@@ -12,6 +12,9 @@ import MPlusVerdict from '../components/public/MPlusVerdict';
 import SpecCoachingTeaser from '../components/public/SpecCoachingTeaser';
 import LockedSection from '../components/public/LockedSection';
 import CoachingCTA from '../components/public/CoachingCTA';
+import BuildInsightsTeaser from '../components/public/BuildInsightsTeaser';
+import WrappedExperience from '../components/wrapped/WrappedExperience';
+import { shouldShowWrapped } from '../components/wrapped/shared/wrappedUtils';
 
 function formatDps(val) {
   if (!val) return '0';
@@ -25,13 +28,25 @@ export default function CharacterPublic() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showWrapped, setShowWrapped] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
+    setShowWrapped(false);
     publicAPI
       .character(region, realm, name)
-      .then((r) => setData(r.data))
+      .then((r) => {
+        setData(r.data);
+        // Check if wrapped should show
+        const identifier = `${region}-${realm}-${name}`;
+        const hasData = r.data?.summary?.totalFights > 0
+          || r.data?.buildAnalysis
+          || r.data?.raiderIO;
+        if (hasData && shouldShowWrapped(identifier, r.data)) {
+          setShowWrapped(true);
+        }
+      })
       .catch((err) => {
         if (err.response?.status === 404) {
           setError('not_found');
@@ -41,6 +56,10 @@ export default function CharacterPublic() {
       })
       .finally(() => setLoading(false));
   }, [region, realm, name]);
+
+  const handleWrappedComplete = useCallback(() => {
+    setShowWrapped(false);
+  }, []);
 
   if (loading) {
     return <LoadingScreen message={t('loading.analyzing', { name })} />;
@@ -88,9 +107,22 @@ export default function CharacterPublic() {
   } = data;
   const isLive = source === 'live';
   const classColor = CLASS_COLORS[character.className] || '#fff';
+  const wrappedIdentifier = `${region}-${realm}-${name}`;
 
   return (
     <div className="min-h-screen bg-void-deep">
+      {/* Wrapped overlay */}
+      {showWrapped && (
+        <WrappedExperience
+          data={data}
+          identifier={wrappedIdentifier}
+          isPublicLive={isLive}
+          isPublic
+          onComplete={handleWrappedComplete}
+          onSkip={handleWrappedComplete}
+        />
+      )}
+
       {/* Navbar */}
       <nav className="bg-void-mid/80 backdrop-blur-sm border-b border-void-bright/15 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -116,34 +148,58 @@ export default function CharacterPublic() {
       </nav>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-fade-in">
-        {/* Character header */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {isLive && character.media?.avatar && (
-            <img
-              src={character.media.avatar}
-              alt={character.name}
-              className="w-14 h-14 rounded-xl border-2"
-              style={{ borderColor: classColor }}
-            />
+        {/* Character header - Hero layout */}
+        <div className="text-center py-4">
+          {/* Large portrait with class glow */}
+          {character.media?.inset && (
+            <div className="relative inline-block mb-4">
+              <div
+                className="absolute inset-0 rounded-full blur-xl opacity-20 scale-110"
+                style={{ backgroundColor: classColor }}
+              />
+              <img
+                src={character.media.inset}
+                alt={character.name}
+                className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover object-top border-2"
+                style={{ borderColor: classColor }}
+              />
+            </div>
           )}
-          <h1 className="font-cinzel text-3xl font-bold" style={{ color: classColor }}>
+
+          <h1 className="font-cinzel text-2xl sm:text-3xl font-bold" style={{ color: classColor }}>
             {character.name}
           </h1>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
+            {character.spec && (
+              <span className="text-sm text-void-secondary">
+                {character.spec} {character.className}
+              </span>
+            )}
+            {character.spec && character.realm && (
+              <span className="text-xs text-void-muted">|</span>
+            )}
             <span className="text-sm text-void-secondary">{character.realm}</span>
             <span className="text-xs px-1.5 py-0.5 rounded bg-void-surface text-void-muted uppercase">
               {character.region}
             </span>
+            {character.equippedItemLevel && (
+              <>
+                <span className="text-xs text-void-muted">|</span>
+                <span className="text-sm font-orbitron text-sunwell-gold">
+                  {character.equippedItemLevel} ilvl
+                </span>
+              </>
+            )}
           </div>
-          {character.spec && (
-            <span className="text-sm text-void-secondary">
-              {character.spec} {character.className}
-            </span>
-          )}
-          {isLive && character.equippedItemLevel && (
-            <span className="text-sm font-orbitron text-sunwell-gold">
-              {character.equippedItemLevel} ilvl
-            </span>
+
+          {!showWrapped && (
+            <button
+              onClick={() => setShowWrapped(true)}
+              className="mt-3 text-xs text-void-muted hover:text-void-accent transition-colors"
+            >
+              <i className="fas fa-play mr-1" /> Replay
+            </button>
           )}
         </div>
 
@@ -224,6 +280,11 @@ function LiveCoachingView({ t, user, character, buildAnalysis, mplusAnalysis, ra
 
       {/* M+ coaching */}
       {mplusAnalysis && <MPlusVerdict mplusAnalysis={mplusAnalysis} raiderIO={raiderIO} />}
+
+      {/* Build insights aggregate teaser */}
+      {(buildAnalysis || mplusAnalysis) && (
+        <BuildInsightsTeaser buildAnalysis={buildAnalysis} mplusAnalysis={mplusAnalysis} />
+      )}
 
       {/* Spec coaching teaser */}
       {character.className && character.spec && (

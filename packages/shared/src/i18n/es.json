@@ -251,7 +251,14 @@
     "ctaRegister": "Regístrate gratis para desbloquear el plan de coaching completo",
     "ctaOptimized": "¡{{name}} se ve bien optimizado!",
     "ctaOptimizedSub": "Regístrate para rastrear rendimiento en raid y encontrar tu siguiente mejora",
-    "lockCTA": "Desbloquear Análisis Completo"
+    "lockCTA": "Desbloquear Análisis Completo",
+    "statsPriorityGood": "Tu prioridad de stats se ve bien optimizada",
+    "statsPriorityImprovable": "Tus estadísticas pueden mejorar",
+    "statsPriorityLocked": "Detalles en el análisis completo",
+    "statsPriorityHint": "Detectamos oportunidades para alinear mejor tus stats secundarias. Regístrate para ver qué cambiar.",
+    "buildInsights": "Análisis de Build",
+    "buildInsightsCount": "{{count}} área(s) de mejora detectadas",
+    "buildInsightsCTA": "Ver qué arreglar primero"
   },
   "raiderio": {
     "mplusScore": "Score M+",

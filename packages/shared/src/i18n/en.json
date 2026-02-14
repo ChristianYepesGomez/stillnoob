@@ -251,7 +251,14 @@
     "ctaRegister": "Register free to unlock the full coaching playbook",
     "ctaOptimized": "{{name}} looks well-optimized!",
     "ctaOptimizedSub": "Register to track raid performance and find your next edge",
-    "lockCTA": "Unlock Full Analysis"
+    "lockCTA": "Unlock Full Analysis",
+    "statsPriorityGood": "Your stat priority looks well-optimized",
+    "statsPriorityImprovable": "Your stat priority could be improved",
+    "statsPriorityLocked": "Details in full analysis",
+    "statsPriorityHint": "We detected opportunities to better align your secondary stats. Register to see exactly what to change.",
+    "buildInsights": "Build Analysis",
+    "buildInsightsCount": "{{count}} area(s) for improvement detected",
+    "buildInsightsCTA": "See what to fix first"
   },
   "raiderio": {
     "mplusScore": "M+ Score",

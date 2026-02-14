@@ -22,3 +22,29 @@
   background: #9d5cff;
   color: white;
 }
+
+/* Wrapped experience: full-page scroll-snap */
+.wrapped-container {
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  height: 100vh;
+  height: 100dvh;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.wrapped-container::-webkit-scrollbar {
+  display: none;
+}
+.wrapped-slide {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}

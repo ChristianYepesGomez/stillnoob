@@ -11,6 +11,7 @@
   "dependencies": {
     "@stillnoob/shared": "*",
     "axios": "^1.7.0",
+    "framer-motion": "^12.34.0",
     "i18next": "^24.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",

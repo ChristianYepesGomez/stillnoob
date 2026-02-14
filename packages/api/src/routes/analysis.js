@@ -41,9 +41,12 @@ router.get('/character/:id', async (req, res) => {
       return res.status(404).json({ error: 'Character not found' });
     }
 
-    // Fetch Raider.io + equipment in parallel first (fast), then analysis with raiderIO context
+    // Fetch Blizzard profile + equipment in parallel first (fast), then analysis with profile context
     const [raiderIO, equipment] = await Promise.all([
-      getCharacterBlizzardProfile(char.region, char.realmSlug, char.name),
+      getCharacterBlizzardProfile(char.region, char.realmSlug, char.name).catch((err) => {
+        log.warn('Failed to fetch Blizzard profile', err.message);
+        return null;
+      }),
       getCharacterEquipment(char.name, char.realmSlug, char.region).catch((err) => {
         log.warn('Failed to fetch equipment', err.message);
         return null;

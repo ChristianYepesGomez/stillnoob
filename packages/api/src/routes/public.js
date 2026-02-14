@@ -91,8 +91,14 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           weeks,
           visibilityFilter: 'public',
           characterInfo: { name: match.name, realmSlug: match.realmSlug, region: match.region },
+        }).catch((err) => {
+          log.error('Failed to fetch character performance', err);
+          return null;
         }),
-        getCharacterBlizzardProfile(match.region, match.realmSlug, match.name),
+        getCharacterBlizzardProfile(match.region, match.realmSlug, match.name).catch((err) => {
+          log.warn('Failed to fetch Blizzard profile', err.message);
+          return null;
+        }),
         getCharacterEquipment(match.name, match.realmSlug, match.region).catch((err) => {
           log.warn('Failed to fetch equipment', err.message);
           return null;
@@ -102,6 +108,10 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
           return null;
         }),
       ]);
+
+      if (!data) {
+        return res.status(503).json({ error: 'Analysis service temporarily unavailable' });
+      }
 
       let buildAnalysis = null;
       if (equipment) {
@@ -166,12 +176,18 @@ router.get('/character/:region/:realm/:name', async (req, res) => {
     }
 
     const [raiderIO, equipment, media] = await Promise.all([
-      getCharacterBlizzardProfile(regionLower, realmSlug, profile.name),
+      getCharacterBlizzardProfile(regionLower, realmSlug, profile.name).catch((err) => {
+        log.warn('Failed to fetch Blizzard profile', err.message);
+        return null;
+      }),
       getCharacterEquipment(profile.name, realmSlug, regionLower).catch((err) => {
         log.warn('Failed to fetch equipment', err.message);
         return null;
       }),
-      getCharacterMedia(profile.name, realmSlug, regionLower),
+      getCharacterMedia(profile.name, realmSlug, regionLower).catch((err) => {
+        log.warn('Failed to fetch character media', err.message);
+        return null;
+      }),
     ]);
 
     let buildAnalysis = null;
